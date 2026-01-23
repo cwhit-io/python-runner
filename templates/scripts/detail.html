@@ -181,7 +181,7 @@
                         <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="cURL" checked />
                         <div role="tabpanel" class="tab-content p-4">
                             <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.curl }}</code></pre>
-                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.curl|escapejs }}`)">
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="copyToClipboard('{{ api_examples.curl|escapejs }}', this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -192,7 +192,7 @@
                         <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="JavaScript" />
                         <div role="tabpanel" class="tab-content p-4">
                             <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.javascript }}</code></pre>
-                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.javascript|escapejs }}`)">
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="copyToClipboard('{{ api_examples.javascript|escapejs }}', this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -203,7 +203,7 @@
                         <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="Python" />
                         <div role="tabpanel" class="tab-content p-4">
                             <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.python }}</code></pre>
-                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.python|escapejs }}`)">
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="copyToClipboard('{{ api_examples.python|escapejs }}', this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -214,7 +214,7 @@
                         <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="n8n" />
                         <div role="tabpanel" class="tab-content p-4">
                             <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.n8n }}</code></pre>
-                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.n8n|escapejs }}`)">
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="copyToClipboard('{{ api_examples.n8n|escapejs }}', this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
@@ -377,6 +377,45 @@
 </dialog>
 
 <script>
+// Copy to clipboard with error handling
+function copyToClipboard(text, button) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                // Provide visual feedback
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard. Please copy manually.');
+            });
+    } else {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+            }, 2000);
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert('Failed to copy to clipboard. Please copy manually.');
+        }
+        document.body.removeChild(textarea);
+    }
+}
+
 // Apply preset to cron expression field
 function applyPreset(value) {
     if (value) {
@@ -386,7 +425,10 @@ function applyPreset(value) {
 }
 
 // Update cron description when user types
-document.getElementById('cron_expression')?.addEventListener('input', updateCronDescription);
+const cronInput = document.getElementById('cron_expression');
+if (cronInput) {
+    cronInput.addEventListener('input', updateCronDescription);
+}
 
 function updateCronDescription() {
     const cronInput = document.getElementById('cron_expression');
