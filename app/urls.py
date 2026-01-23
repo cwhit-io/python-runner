@@ -20,10 +20,11 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 from . import views
+from . import views_scripts
 from .api import api
 
 urlpatterns = [
-    path('', views.index, name='index'),
+    path('', views_scripts.scripts_list, name='index'),
     path('websocket-demo/', views.websocket_demo, name='websocket_demo'),
     
     # Authentication
@@ -59,6 +60,20 @@ urlpatterns = [
     path('api-tokens/create/', views.create_api_token, name='create_api_token'),
     path('api-tokens/<int:token_id>/toggle/', views.toggle_api_token, name='toggle_api_token'),
     path('api-tokens/<int:token_id>/delete/', views.delete_api_token, name='delete_api_token'),
+    
+    # Scripts
+    path('scripts/', views_scripts.scripts_list, name='scripts_list'),
+    path('scripts/create/', views_scripts.script_create, name='script_create'),
+    path('scripts/<int:script_id>/', views_scripts.script_detail, name='script_detail'),
+    path('scripts/<int:script_id>/edit/', views_scripts.script_edit, name='script_edit'),
+    path('scripts/<int:script_id>/delete/', views_scripts.script_delete, name='script_delete'),
+    path('scripts/<int:script_id>/execute/', views_scripts.script_execute, name='script_execute'),
+    path('executions/<int:execution_id>/', views_scripts.execution_detail, name='execution_detail'),
+    
+    # Schedules
+    path('scripts/<int:script_id>/schedules/create/', views_scripts.schedule_create, name='schedule_create'),
+    path('schedules/<int:schedule_id>/toggle/', views_scripts.schedule_toggle, name='schedule_toggle'),
+    path('schedules/<int:schedule_id>/delete/', views_scripts.schedule_delete, name='schedule_delete'),
     
     # htmx endpoints
     path('items/', views.list_items_htmx, name='items-list-htmx'),

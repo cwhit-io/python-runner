@@ -193,12 +193,12 @@ from django.templatetags.static import static
 from django.urls import reverse_lazy
 
 UNFOLD = {
-    "SITE_TITLE": "My Site Admin",        # Shows in browser tab
-    "SITE_HEADER": "My Site",             # Shows in admin header
+    "SITE_TITLE": "Python Script Runner",        # Shows in browser tab
+    "SITE_HEADER": "Python Script Runner",       # Shows in admin header
     "SITE_URL": "/",
     "SITE_ICON": None,  # Optional - add your favicon path here
     "SITE_LOGO": None,  # Optional - add your logo path here
-    "SITE_SYMBOL": "speed",  # Material icon name for the site symbol
+    "SITE_SYMBOL": "code",  # Material icon name for the site symbol
     "SHOW_HISTORY": True,  # Show history on detail pages
     "SHOW_VIEW_ON_SITE": True,  # Show "view on site" button
     

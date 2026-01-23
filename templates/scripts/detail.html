@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}{{ script.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <div class="breadcrumbs text-sm">
+            <ul>
+                <li><a href="{% url 'scripts_list' %}">Scripts</a></li>
+                <li>{{ script.name }}</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold">{{ script.name }}</h1>
+            <p class="text-sm opacity-70 mt-2">{{ script.description|default:"No description" }}</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'script_edit' script.id %}" class="btn btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+            </a>
+            <form method="post" action="{% url 'script_execute' script.id %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Run Now
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Statistics -->
+        <div class="lg:col-span-3">
+            <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
+                <div class="stat">
+                    <div class="stat-title">Status</div>
+                    <div class="stat-value text-2xl">
+                        {% if script.last_status == 'running' %}
+                        <div class="badge badge-info badge-lg">Running</div>
+                        {% elif script.last_status == 'success' %}
+                        <div class="badge badge-success badge-lg">Success</div>
+                        {% elif script.last_status == 'failed' %}
+                        <div class="badge badge-error badge-lg">Failed</div>
+                        {% else %}
+                        <div class="badge badge-ghost badge-lg">Idle</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="stat">
+                    <div class="stat-title">Total Executions</div>
+                    <div class="stat-value">{{ script.execution_count }}</div>
+                </div>
+                
+                <div class="stat">
+                    <div class="stat-title">Last Run</div>
+                    <div class="stat-value text-sm">
+                        {% if script.last_run %}
+                        {{ script.last_run|timesince }} ago
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="stat">
+                    <div class="stat-title">Last Success</div>
+                    <div class="stat-value text-sm">
+                        {% if script.last_success %}
+                        {{ script.last_success|timesince }} ago
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedules -->
+        <div class="lg:col-span-3">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="card-title">Schedules</h2>
+                        <button class="btn btn-sm btn-primary" onclick="create_schedule_modal.showModal()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Schedule
+                        </button>
+                    </div>
+                    
+                    {% if schedules %}
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Cron Expression</th>
+                                    <th>Status</th>
+                                    <th>Last Run</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for schedule in schedules %}
+                                <tr>
+                                    <td>{{ schedule.name }}</td>
+                                    <td><code>{{ schedule.cron_expression }}</code></td>
+                                    <td>
+                                        {% if schedule.is_active %}
+                                        <div class="badge badge-success">Active</div>
+                                        {% else %}
+                                        <div class="badge badge-ghost">Inactive</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if schedule.last_run %}
+                                        {{ schedule.last_run|timesince }} ago
+                                        {% else %}
+                                        Never
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="flex gap-2">
+                                            <form method="post" action="{% url 'schedule_toggle' schedule.id %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-xs btn-ghost">
+                                                    {% if schedule.is_active %}Disable{% else %}Enable{% endif %}
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{% url 'schedule_delete' schedule.id %}" class="inline" onsubmit="return confirm('Are you sure?')">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-xs btn-error">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-sm opacity-70">No schedules configured.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Executions -->
+        <div class="lg:col-span-3">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Recent Executions</h2>
+                    
+                    {% if executions %}
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Started</th>
+                                    <th>Duration</th>
+                                    <th>Trigger</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for execution in executions %}
+                                <tr>
+                                    <td>#{{ execution.id }}</td>
+                                    <td>
+                                        {% if execution.status == 'running' %}
+                                        <div class="badge badge-info">Running</div>
+                                        {% elif execution.status == 'success' %}
+                                        <div class="badge badge-success">Success</div>
+                                        {% elif execution.status == 'failed' %}
+                                        <div class="badge badge-error">Failed</div>
+                                        {% elif execution.status == 'queued' %}
+                                        <div class="badge badge-warning">Queued</div>
+                                        {% else %}
+                                        <div class="badge badge-ghost">{{ execution.status }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ execution.started_at|default:"Not started" }}</td>
+                                    <td>
+                                        {% if execution.duration_seconds %}
+                                        {{ execution.duration_seconds|floatformat:2 }}s
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ execution.get_trigger_type_display }}</td>
+                                    <td>
+                                        <a href="{% url 'execution_detail' execution.id %}" class="btn btn-xs btn-ghost">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-sm opacity-70">No executions yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Script Section -->
+    <div class="mt-8">
+        <div class="card bg-error bg-opacity-10 border border-error">
+            <div class="card-body">
+                <h3 class="card-title text-error">Danger Zone</h3>
+                <p class="text-sm opacity-70 mb-4">Once you delete a script, there is no going back. All executions and schedules will also be deleted.</p>
+                <form method="post" action="{% url 'script_delete' script.id %}" onsubmit="return confirm('Are you sure you want to delete this script? This action cannot be undone.')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-error">Delete Script</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Schedule Modal -->
+<dialog id="create_schedule_modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Create Schedule</h3>
+        <form method="post" action="{% url 'schedule_create' script.id %}">
+            {% csrf_token %}
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text">Schedule Name</span>
+                </label>
+                <input type="text" name="name" placeholder="Daily at 3 AM" class="input input-bordered w-full" required />
+            </div>
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text">Cron Expression</span>
+                </label>
+                <input type="text" name="cron_expression" placeholder="0 3 * * *" class="input input-bordered w-full" required />
+                <label class="label">
+                    <span class="label-text-alt">Examples: "0 */6 * * *" (every 6 hours), "0 0 * * 0" (weekly on Sunday)</span>
+                </label>
+            </div>
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text">Timezone</span>
+                </label>
+                <input type="text" name="timezone" value="UTC" class="input input-bordered w-full" required />
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn" onclick="create_schedule_modal.close()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endblock %}
