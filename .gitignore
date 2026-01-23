@@ -5,3 +5,6 @@ db.sqlite3
 
 # collectstatic destination
 staticfiles/
+
+# Script virtual environments
+media/venvs/
