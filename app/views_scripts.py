@@ -53,14 +53,59 @@ def script_create(request):
 @login_required
 def script_detail(request, script_id):
     """View script details and execution history."""
+    from app.utils.helpers import describe_cron_expression
+    
     script = get_object_or_404(Script, id=script_id, owner=request.user)
     executions = script.executions.all()[:20]  # Last 20 executions
     schedules = script.schedules.all()
+    
+    # Add human-readable descriptions to schedules
+    for schedule in schedules:
+        schedule.human_description = describe_cron_expression(schedule.cron_expression)
+    
+    # Generate API call examples for the script
+    # Get the request's host for building the full URL
+    protocol = 'https' if request.is_secure() else 'http'
+    host = request.get_host()
+    api_base_url = f"{protocol}://{host}/api/v1"
+    
+    api_examples = {
+        'curl': f'''curl -X POST "{api_base_url}/scripts/{script.id}/execute" \\
+  -H "Authorization: Bearer YOUR_API_TOKEN" \\
+  -H "Content-Type: application/json"''',
+        'javascript': f'''fetch("{api_base_url}/scripts/{script.id}/execute", {{
+  method: "POST",
+  headers: {{
+    "Authorization": "Bearer YOUR_API_TOKEN",
+    "Content-Type": "application/json"
+  }}
+}})
+.then(response => response.json())
+.then(data => console.log(data));''',
+        'python': f'''import requests
+
+url = "{api_base_url}/scripts/{script.id}/execute"
+headers = {{
+    "Authorization": "Bearer YOUR_API_TOKEN",
+    "Content-Type": "application/json"
+}}
+
+response = requests.post(url, headers=headers)
+print(response.json())''',
+        'n8n': f'''// In n8n HTTP Request node:
+// Method: POST
+// URL: {api_base_url}/scripts/{script.id}/execute
+// Authentication: Generic Credential Type
+//   Header Auth:
+//     Name: Authorization
+//     Value: Bearer YOUR_API_TOKEN''',
+    }
     
     return render(request, 'scripts/detail.html', {
         'script': script,
         'executions': executions,
         'schedules': schedules,
+        'api_examples': api_examples,
     })
 
 

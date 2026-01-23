@@ -116,7 +116,10 @@
                                 {% for schedule in schedules %}
                                 <tr>
                                     <td>{{ schedule.name }}</td>
-                                    <td><code>{{ schedule.cron_expression }}</code></td>
+                                    <td>
+                                        <code>{{ schedule.cron_expression }}</code>
+                                        <div class="text-xs opacity-70 mt-1">{{ schedule.human_description }}</div>
+                                    </td>
                                     <td>
                                         {% if schedule.is_active %}
                                         <div class="badge badge-success">Active</div>
@@ -153,6 +156,72 @@
                     {% else %}
                     <p class="text-sm opacity-70">No schedules configured.</p>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- API Integration Examples -->
+        <div class="lg:col-span-3">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        API Integration Examples
+                    </h2>
+                    <p class="text-sm opacity-70 mb-4">Use these API calls to execute this script from external tools like n8n, webhooks, or custom applications.</p>
+                    
+                    <div class="alert alert-info mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Create an API token in your <a href="{% url 'profile' %}" class="link">Profile</a> to use with these examples.</span>
+                    </div>
+                    
+                    <div role="tablist" class="tabs tabs-boxed">
+                        <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="cURL" checked />
+                        <div role="tabpanel" class="tab-content p-4">
+                            <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.curl }}</code></pre>
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.curl|escapejs }}`)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+
+                        <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="JavaScript" />
+                        <div role="tabpanel" class="tab-content p-4">
+                            <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.javascript }}</code></pre>
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.javascript|escapejs }}`)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+
+                        <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="Python" />
+                        <div role="tabpanel" class="tab-content p-4">
+                            <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.python }}</code></pre>
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.python|escapejs }}`)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+
+                        <input type="radio" name="api_tabs" role="tab" class="tab" aria-label="n8n" />
+                        <div role="tabpanel" class="tab-content p-4">
+                            <pre class="bg-base-300 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ api_examples.n8n }}</code></pre>
+                            <button class="btn btn-xs btn-ghost mt-2" onclick="navigator.clipboard.writeText(`{{ api_examples.n8n|escapejs }}`)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -235,7 +304,7 @@
 
 <!-- Create Schedule Modal -->
 <dialog id="create_schedule_modal" class="modal">
-    <div class="modal-box">
+    <div class="modal-box max-w-2xl">
         <h3 class="font-bold text-lg mb-4">Create Schedule</h3>
         <form method="post" action="{% url 'schedule_create' script.id %}">
             {% csrf_token %}
@@ -243,22 +312,58 @@
                 <label class="label">
                     <span class="label-text">Schedule Name</span>
                 </label>
-                <input type="text" name="name" placeholder="Daily at 3 AM" class="input input-bordered w-full" required />
+                <input type="text" name="name" placeholder="e.g., Daily backup at 3 AM" class="input input-bordered w-full" required />
             </div>
+            
+            <!-- Preset Options -->
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text">Quick Presets (Optional)</span>
+                </label>
+                <select id="preset_select" class="select select-bordered w-full" onchange="applyPreset(this.value)">
+                    <option value="">-- Select a preset or enter custom below --</option>
+                    <option value="*/5 * * * *">Every 5 minutes</option>
+                    <option value="*/15 * * * *">Every 15 minutes</option>
+                    <option value="*/30 * * * *">Every 30 minutes</option>
+                    <option value="0 * * * *">Every hour</option>
+                    <option value="0 */2 * * *">Every 2 hours</option>
+                    <option value="0 */6 * * *">Every 6 hours</option>
+                    <option value="0 */12 * * *">Every 12 hours</option>
+                    <option value="0 0 * * *">Daily at midnight</option>
+                    <option value="0 12 * * *">Daily at noon</option>
+                    <option value="0 9 * * *">Daily at 9 AM</option>
+                    <option value="0 18 * * *">Daily at 6 PM</option>
+                    <option value="0 0 * * 0">Weekly on Sunday</option>
+                    <option value="0 0 * * 1">Weekly on Monday</option>
+                    <option value="0 0 1 * *">Monthly on the 1st</option>
+                </select>
+            </div>
+            
             <div class="form-control w-full mb-4">
                 <label class="label">
                     <span class="label-text">Cron Expression</span>
                 </label>
-                <input type="text" name="cron_expression" placeholder="0 3 * * *" class="input input-bordered w-full" required />
+                <input type="text" id="cron_expression" name="cron_expression" placeholder="0 3 * * *" class="input input-bordered w-full" required />
                 <label class="label">
-                    <span class="label-text-alt">Examples: "0 */6 * * *" (every 6 hours), "0 0 * * 0" (weekly on Sunday)</span>
+                    <span class="label-text-alt">Format: minute hour day month weekday</span>
                 </label>
+                <label class="label">
+                    <span class="label-text-alt">Examples: <code>0 */6 * * *</code> (every 6 hours), <code>0 0 * * 1</code> (weekly on Monday)</span>
+                </label>
+                <div id="cron_description" class="alert alert-info mt-2 hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span id="cron_description_text"></span>
+                </div>
             </div>
+            
             <div class="form-control w-full mb-4">
                 <label class="label">
                     <span class="label-text">Timezone</span>
                 </label>
                 <input type="text" name="timezone" value="UTC" class="input input-bordered w-full" required />
+                <label class="label">
+                    <span class="label-text-alt">e.g., UTC, America/New_York, Europe/London</span>
+                </label>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn" onclick="create_schedule_modal.close()">Cancel</button>
@@ -270,4 +375,65 @@
         <button>close</button>
     </form>
 </dialog>
+
+<script>
+// Apply preset to cron expression field
+function applyPreset(value) {
+    if (value) {
+        document.getElementById('cron_expression').value = value;
+        updateCronDescription();
+    }
+}
+
+// Update cron description when user types
+document.getElementById('cron_expression')?.addEventListener('input', updateCronDescription);
+
+function updateCronDescription() {
+    const cronInput = document.getElementById('cron_expression');
+    const descDiv = document.getElementById('cron_description');
+    const descText = document.getElementById('cron_description_text');
+    
+    if (!cronInput || !descDiv || !descText) return;
+    
+    const cron = cronInput.value.trim();
+    if (!cron) {
+        descDiv.classList.add('hidden');
+        return;
+    }
+    
+    // Basic validation and description
+    const description = describeCron(cron);
+    if (description) {
+        descText.textContent = description;
+        descDiv.classList.remove('hidden');
+    } else {
+        descDiv.classList.add('hidden');
+    }
+}
+
+function describeCron(cron) {
+    const patterns = {
+        "* * * * *": "Every minute",
+        "*/5 * * * *": "Every 5 minutes",
+        "*/10 * * * *": "Every 10 minutes",
+        "*/15 * * * *": "Every 15 minutes",
+        "*/30 * * * *": "Every 30 minutes",
+        "0 * * * *": "Every hour",
+        "0 */2 * * *": "Every 2 hours",
+        "0 */3 * * *": "Every 3 hours",
+        "0 */4 * * *": "Every 4 hours",
+        "0 */6 * * *": "Every 6 hours",
+        "0 */12 * * *": "Every 12 hours",
+        "0 0 * * *": "Daily at midnight",
+        "0 9 * * *": "Daily at 9 AM",
+        "0 12 * * *": "Daily at noon",
+        "0 18 * * *": "Daily at 6 PM",
+        "0 0 * * 0": "Weekly on Sunday at midnight",
+        "0 0 * * 1": "Weekly on Monday at midnight",
+        "0 0 1 * *": "Monthly on the 1st at midnight",
+    };
+    
+    return patterns[cron] || "Custom schedule";
+}
+</script>
 {% endblock %}
