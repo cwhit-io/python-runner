@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import APILog, UserProfile, APIToken
+from .models import APILog, UserProfile, APIToken, Script, ScriptExecution, ScriptSchedule
 from unfold.admin import ModelAdmin
 
 
@@ -207,3 +207,94 @@ class APILogAdmin(ModelAdmin):
         """Optimize queryset with select_related."""
         qs = super().get_queryset(request)
         return qs.select_related('user')
+
+
+@admin.register(Script)
+class ScriptAdmin(ModelAdmin):
+    """Admin interface for scripts."""
+    list_display = ['name', 'owner', 'last_status', 'execution_count', 'last_run', 'is_public', 'created_at']
+    list_filter = ['last_status', 'is_public', 'created_at', 'owner']
+    search_fields = ['name', 'description', 'owner__username']
+    readonly_fields = ['venv_path', 'venv_created', 'venv_updated_at', 'execution_count', 'last_run', 'last_success', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'description', 'owner')
+        }),
+        ('Code', {
+            'fields': ('code', 'dependencies')
+        }),
+        ('Virtual Environment', {
+            'fields': ('venv_path', 'venv_created', 'venv_updated_at'),
+            'classes': ('collapse',)
+        }),
+        ('Status', {
+            'fields': ('last_status', 'last_run', 'last_success', 'execution_count')
+        }),
+        ('Permissions', {
+            'fields': ('is_public',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ScriptExecution)
+class ScriptExecutionAdmin(ModelAdmin):
+    """Admin interface for script executions."""
+    list_display = ['script', 'status', 'trigger_type', 'triggered_by', 'started_at', 'duration_seconds', 'exit_code']
+    list_filter = ['status', 'trigger_type', 'created_at']
+    search_fields = ['script__name', 'triggered_by__username', 'stdout', 'stderr']
+    readonly_fields = ['script', 'triggered_by', 'status', 'started_at', 'completed_at', 'duration_seconds', 
+                      'stdout', 'stderr', 'exit_code', 'error_message', 'process_id', 'created_at', 'trigger_type']
+    
+    fieldsets = (
+        ('Execution Info', {
+            'fields': ('script', 'triggered_by', 'trigger_type', 'status')
+        }),
+        ('Timing', {
+            'fields': ('created_at', 'started_at', 'completed_at', 'duration_seconds')
+        }),
+        ('Output', {
+            'fields': ('stdout', 'stderr', 'exit_code', 'error_message')
+        }),
+        ('Process', {
+            'fields': ('process_id',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        """Disable manual addition."""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Read-only."""
+        return False
+
+
+@admin.register(ScriptSchedule)
+class ScriptScheduleAdmin(ModelAdmin):
+    """Admin interface for script schedules."""
+    list_display = ['name', 'script', 'cron_expression', 'is_active', 'last_run', 'next_run', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'script__name', 'cron_expression']
+    readonly_fields = ['last_run', 'next_run', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'script', 'created_by')
+        }),
+        ('Schedule', {
+            'fields': ('cron_expression', 'timezone', 'is_active')
+        }),
+        ('Status', {
+            'fields': ('last_run', 'next_run')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
