@@ -15,6 +15,8 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
   
+  {% block extra_head %}{% endblock %}
+  
   <!-- Theme initialization script (must run before body renders) -->
   <script>
     // Initialize theme from localStorage or user preference
@@ -35,14 +37,16 @@
       <div class="flex-1">
         <a class="btn btn-ghost text-xl font-bold" href="/">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
-          My Site
+          Python Runner
         </a>
       </div>
       <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
-          <li><a href="/">Home</a></li>
+          {% if user.is_authenticated %}
+            <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
+          {% endif %}
           <li><a href="/api/docs">API Docs</a></li>
           {% if user.is_authenticated %}
             {% if user.is_staff %}
@@ -82,7 +86,9 @@
               <li class="menu-title">
                 <span>{{ user.username }}</span>
               </li>
+              <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
               <li><a href="{% url 'profile' %}">Profile</a></li>
+              <li><a href="{% url 'api_tokens' %}">API Tokens</a></li>
               <li>
                 <details>
                   <summary>Theme</summary>
@@ -219,8 +225,8 @@
   </script>
     </div>
     <div>
-      <p class="font-bold">Django Starter Template</p>
-      <p>Built with Django Ninja, htmx, and daisyUI</p>
+      <p class="font-bold">Python Script Runner</p>
+      <p>Centralized script manager with scheduling and isolated venvs</p>
       <p class="text-sm opacity-70">Copyright © 2026 - All rights reserved</p>
     </div>
   </footer>

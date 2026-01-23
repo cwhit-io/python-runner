@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Execution #{{ execution.id }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <div class="breadcrumbs text-sm">
+            <ul>
+                <li><a href="{% url 'scripts_list' %}">Scripts</a></li>
+                <li><a href="{% url 'script_detail' execution.script.id %}">{{ execution.script.name }}</a></li>
+                <li>Execution #{{ execution.id }}</li>
+            </ul>
+        </div>
+    </div>
+
+    <h1 class="text-3xl font-bold mb-6">Execution Details</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">Execution Info</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Status:</span>
+                        <span>
+                            {% if execution.status == 'running' %}
+                            <div class="badge badge-info">Running</div>
+                            {% elif execution.status == 'success' %}
+                            <div class="badge badge-success">Success</div>
+                            {% elif execution.status == 'failed' %}
+                            <div class="badge badge-error">Failed</div>
+                            {% elif execution.status == 'queued' %}
+                            <div class="badge badge-warning">Queued</div>
+                            {% else %}
+                            <div class="badge badge-ghost">{{ execution.status }}</div>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Trigger:</span>
+                        <span>{{ execution.get_trigger_type_display }}</span>
+                    </div>
+                    {% if execution.triggered_by %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Triggered by:</span>
+                        <span>{{ execution.triggered_by.username }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Exit Code:</span>
+                        <span>{{ execution.exit_code|default:"-" }}</span>
+                    </div>
+                    {% if execution.process_id %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Process ID:</span>
+                        <span>{{ execution.process_id }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">Timing</h2>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Created:</span>
+                        <span>{{ execution.created_at }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Started:</span>
+                        <span>{{ execution.started_at|default:"Not started" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Completed:</span>
+                        <span>{{ execution.completed_at|default:"Not completed" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Duration:</span>
+                        <span>
+                            {% if execution.duration_seconds %}
+                            {{ execution.duration_seconds|floatformat:3 }}s
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if execution.error_message %}
+    <div class="alert alert-error mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+            <h3 class="font-bold">Error</h3>
+            <pre class="text-xs mt-2">{{ execution.error_message }}</pre>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 gap-6">
+        <!-- Standard Output -->
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">Standard Output (stdout)</h2>
+                {% if execution.stdout %}
+                <div class="mockup-code">
+                    <pre><code>{{ execution.stdout }}</code></pre>
+                </div>
+                {% else %}
+                <p class="text-sm opacity-70">No output</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Standard Error -->
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">Standard Error (stderr)</h2>
+                {% if execution.stderr %}
+                <div class="mockup-code">
+                    <pre><code>{{ execution.stderr }}</code></pre>
+                </div>
+                {% else %}
+                <p class="text-sm opacity-70">No errors</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6">
+        <a href="{% url 'script_detail' execution.script.id %}" class="btn btn-ghost">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Script
+        </a>
+    </div>
+</div>
+{% endblock %}
