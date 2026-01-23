@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center py-12 px-4">
+  <div class="card w-full max-w-md bg-base-100 shadow-2xl">
+    <div class="card-body">
+      <h2 class="card-title text-3xl font-bold text-center justify-center mb-4">Login</h2>
+      
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} mb-4">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      {% endif %}
+      
+      {% if form.non_field_errors %}
+        <div class="alert alert-error mb-4">
+          {% for error in form.non_field_errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Username</span>
+          </label>
+          <input type="text" name="username" placeholder="Enter your username" 
+                 class="input input-bordered {% if form.username.errors %}input-error{% endif %}" 
+                 required autofocus>
+          {% if form.username.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.username.errors.0 }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control mt-4">
+          <label class="label">
+            <span class="label-text">Password</span>
+            <a href="{% url 'password_reset' %}" class="label-text-alt link link-hover">Forgot password?</a>
+          </label>
+          <input type="password" name="password" placeholder="Enter your password" 
+                 class="input input-bordered {% if form.password.errors %}input-error{% endif %}" 
+                 required>
+          {% if form.password.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.password.errors.0 }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <input type="hidden" name="next" value="{{ next }}">
+        
+        <div class="form-control mt-6">
+          <button type="submit" class="btn btn-primary btn-block">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            Login
+          </button>
+        </div>
+      </form>
+      
+      <div class="divider">OR</div>
+      
+      <div class="text-center">
+        <p class="text-sm">Don't have an account?</p>
+        <a href="{% url 'register' %}" class="btn btn-outline btn-block mt-2">
+          Create Account
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

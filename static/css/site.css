@@ -1,0 +1,22 @@
+/* Custom styles to complement daisyUI */
+
+/* Smooth transitions for htmx swaps */
+.htmx-swapping {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.htmx-added {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Additional utility classes if needed */
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}

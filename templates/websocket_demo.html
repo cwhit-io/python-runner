@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}WebSocket Chat Demo{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-4xl">
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title text-3xl mb-6">WebSocket Chat Demo</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Chat Room -->
+        <div>
+          <h3 class="text-xl font-bold mb-4">Chat Room: lobby</h3>
+          <div id="chat-log" class="bg-base-200 p-4 rounded-lg h-64 overflow-y-auto mb-4">
+            <p class="text-sm opacity-70">Connecting to chat...</p>
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="chat-message-input" 
+                   placeholder="Type a message..." 
+                   class="input input-bordered flex-1"
+                   onkeypress="if(event.key === 'Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()" class="btn btn-primary">Send</button>
+          </div>
+        </div>
+        
+        <!-- Notifications -->
+        <div>
+          <h3 class="text-xl font-bold mb-4">Notifications</h3>
+          <div id="notification-log" class="bg-base-200 p-4 rounded-lg h-64 overflow-y-auto mb-4">
+            {% if user.is_authenticated %}
+              <p class="text-sm opacity-70">Connecting to notifications...</p>
+            {% else %}
+              <p class="text-sm opacity-70">Login to receive notifications</p>
+            {% endif %}
+          </div>
+          {% if user.is_authenticated %}
+            <div class="flex gap-2">
+              <input type="text" id="notification-message-input" 
+                     placeholder="Test notification..." 
+                     class="input input-bordered flex-1"
+                     onkeypress="if(event.key === 'Enter') sendNotification()">
+              <button onclick="sendNotification()" class="btn btn-secondary">Test</button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="prose max-w-none">
+        <h3>WebSocket Integration</h3>
+        <p>This page demonstrates real-time WebSocket communication:</p>
+        <ul>
+          <li><strong>Chat Room:</strong> Public chat that all connected users can see</li>
+          <li><strong>Notifications:</strong> User-specific notifications (requires login)</li>
+        </ul>
+        
+        <h4>Implementation Example:</h4>
+        <pre><code>// Connect to WebSocket
+const ws = new WebSocket('ws://localhost:8000/ws/chat/lobby/');
+
+// Handle incoming messages
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(data.message);
+};
+
+// Send a message
+ws.send(JSON.stringify({message: 'Hello!'}));</code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="user-data" type="application/json">
+  {"isAuthenticated": {% if user.is_authenticated %}true{% else %}false{% endif %}}
+</script>
+
+<script>
+let chatSocket = null;
+let notificationSocket = null;
+const userData = JSON.parse(document.getElementById('user-data').textContent);
+const isAuthenticated = userData.isAuthenticated;
+
+// Initialize chat WebSocket
+function initChatSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/ws/chat/lobby/`;
+  
+  chatSocket = new WebSocket(wsUrl);
+  
+  chatSocket.onopen = () => {
+    addToChatLog('Connected to chat room', 'system');
+  };
+  
+  chatSocket.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'system') {
+      addToChatLog(data.message, 'system');
+    } else {
+      addToChatLog(`${data.username}: ${data.message}`, 'message');
+    }
+  };
+  
+  chatSocket.onclose = () => {
+    addToChatLog('Disconnected from chat', 'system');
+  };
+  
+  chatSocket.onerror = (error) => {
+    addToChatLog('Connection error', 'error');
+  };
+}
+
+// Initialize notification WebSocket (if authenticated)
+function initNotificationSocket() {
+  if (!isAuthenticated) return;
+  
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/ws/notifications/`;
+  
+  notificationSocket = new WebSocket(wsUrl);
+  
+  notificationSocket.onopen = () => {
+    addToNotificationLog('Connected to notifications', 'system');
+  };
+  
+  notificationSocket.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    addToNotificationLog(data.message, 'notification');
+  };
+  
+  notificationSocket.onclose = () => {
+    addToNotificationLog('Disconnected from notifications', 'system');
+  };
+  
+  notificationSocket.onerror = (error) => {
+    addToNotificationLog('Connection error', 'error');
+  };
+}
+
+function addToChatLog(message, type) {
+  const log = document.getElementById('chat-log');
+  const timestamp = new Date().toLocaleTimeString();
+  const className = type === 'system' ? 'opacity-70' : type === 'error' ? 'text-error' : '';
+  log.innerHTML += `<p class="${className}"><span class="text-xs opacity-50">[${timestamp}]</span> ${message}</p>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function addToNotificationLog(message, type) {
+  const log = document.getElementById('notification-log');
+  const timestamp = new Date().toLocaleTimeString();
+  const className = type === 'system' ? 'opacity-70' : 'font-bold';
+  log.innerHTML += `<p class="${className}"><span class="text-xs opacity-50">[${timestamp}]</span> ${message}</p>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-message-input');
+  const message = input.value.trim();
+  if (message && chatSocket) {
+    chatSocket.send(JSON.stringify({message: message}));
+    input.value = '';
+  }
+}
+
+function sendNotification() {
+  const input = document.getElementById('notification-message-input');
+  const message = input.value.trim();
+  if (message && notificationSocket) {
+    notificationSocket.send(JSON.stringify({message: message}));
+    input.value = '';
+  }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initChatSocket();
+  initNotificationSocket();
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (chatSocket) chatSocket.close();
+  if (notificationSocket) notificationSocket.close();
+});
+</script>
+{% endblock %}
