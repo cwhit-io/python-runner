@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-2xl">
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title text-3xl mb-6">Edit Profile</h2>
+      
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+          <div class="alert alert-error mb-4">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_first_name">
+            <span class="label-text">First Name</span>
+          </label>
+          <input type="text" name="first_name" id="id_first_name" 
+                 class="input input-bordered w-full" 
+                 value="{{ form.first_name.value|default:'' }}">
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_last_name">
+            <span class="label-text">Last Name</span>
+          </label>
+          <input type="text" name="last_name" id="id_last_name" 
+                 class="input input-bordered w-full" 
+                 value="{{ form.last_name.value|default:'' }}">
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_email">
+            <span class="label-text">Email Address</span>
+          </label>
+          <input type="email" name="email" id="id_email" 
+                 class="input input-bordered w-full {% if form.email.errors %}input-error{% endif %}" 
+                 value="{{ form.email.value|default:'' }}" required>
+          {% if form.email.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.email.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_bio">
+            <span class="label-text">Bio</span>
+          </label>
+          {{ form.bio }}
+          {% if form.bio.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.bio.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_avatar">
+            <span class="label-text">Avatar</span>
+          </label>
+          {% if user.profile.avatar %}
+            <div class="mb-2">
+              <img src="{{ user.profile.avatar.url }}" alt="Current avatar" class="w-20 h-20 rounded-full">
+            </div>
+          {% endif %}
+          {{ form.avatar }}
+          {% if form.avatar.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.avatar.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control mt-6 flex flex-row gap-2">
+          <button type="submit" class="btn btn-primary flex-1">Save Changes</button>
+          <a href="{% url 'profile' %}" class="btn btn-outline flex-1">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

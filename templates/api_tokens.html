@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}API Tokens{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-6xl">
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="card-title text-3xl">API Tokens</h2>
+          <p class="text-sm opacity-70 mt-2">Manage authentication tokens for API access</p>
+        </div>
+        <button class="btn btn-primary" onclick="create_token_modal.showModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create Token
+        </button>
+      </div>
+      
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} mb-4">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+      
+      {% if tokens %}
+        <div class="overflow-x-auto">
+          <table class="table w-full">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Token</th>
+                <th>Created</th>
+                <th>Last Used</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for token in tokens %}
+                <tr>
+                  <td class="font-semibold">{{ token.name }}</td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <code class="text-xs bg-base-200 px-2 py-1 rounded">{{ token.token|slice:":8" }}••••••••</code>
+                      <button class="btn btn-xs btn-ghost" onclick="copyToken('{{ token.token }}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td>{{ token.created_at|date:"M j, Y" }}</td>
+                  <td>{{ token.last_used|date:"M j, Y, g:i a"|default:"Never" }}</td>
+                  <td>
+                    {% if token.is_active %}
+                      <span class="badge badge-success">Active</span>
+                    {% else %}
+                      <span class="badge badge-error">Inactive</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                      <form method="post" action="{% url 'toggle_api_token' token.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline">
+                          {% if token.is_active %}Deactivate{% else %}Activate{% endif %}
+                        </button>
+                      </form>
+                      <form method="post" action="{% url 'delete_api_token' token.id %}" 
+                            onsubmit="return confirm('Are you sure you want to delete this token?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-error">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-12">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+          <p class="mt-4 text-lg opacity-70">No API tokens yet</p>
+          <p class="text-sm opacity-50">Create a token to authenticate API requests</p>
+        </div>
+      {% endif %}
+      
+      <div class="divider"></div>
+      
+      <div class="prose max-w-none">
+        <h3>Using API Tokens</h3>
+        <p>To authenticate your API requests, include the token in the Authorization header:</p>
+        <pre><code>Authorization: Bearer YOUR_TOKEN_HERE</code></pre>
+        <p>Example with curl:</p>
+        <pre><code>curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8000/api/protected/items/my-items</code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Token Modal -->
+<dialog id="create_token_modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-4">Create API Token</h3>
+    <form method="post" action="{% url 'create_api_token' %}">
+      {% csrf_token %}
+      <div class="form-control w-full">
+        <label class="label" for="token_name">
+          <span class="label-text">Token Name</span>
+        </label>
+        <input type="text" name="name" id="token_name" placeholder="e.g., Mobile App, CI/CD" 
+               class="input input-bordered w-full" required>
+        <label class="label">
+          <span class="label-text-alt">Choose a descriptive name to identify this token</span>
+        </label>
+      </div>
+      <div class="modal-action">
+        <button type="submit" class="btn btn-primary">Create Token</button>
+        <button type="button" class="btn" onclick="create_token_modal.close()">Cancel</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<script>
+function copyToken(token) {
+  navigator.clipboard.writeText(token).then(() => {
+    // Could add a toast notification here
+    alert('Token copied to clipboard!');
+  });
+}
+</script>
+{% endblock %}

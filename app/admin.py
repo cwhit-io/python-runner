@@ -1,0 +1,209 @@
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import APILog, UserProfile, APIToken
+from unfold.admin import ModelAdmin
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(ModelAdmin):
+    """Admin interface for user profiles."""
+    list_display = ['user', 'email_verified', 'theme_preference', 'created_at']
+    list_filter = ['email_verified', 'theme_preference', 'created_at']
+    search_fields = ['user__username', 'user__email', 'bio']
+    readonly_fields = ['created_at', 'updated_at', 'email_verification_token']
+    
+    fieldsets = (
+        ('User', {
+            'fields': ('user',)
+        }),
+        ('Profile Information', {
+            'fields': ('avatar', 'bio')
+        }),
+        ('Preferences', {
+            'fields': ('theme_preference',)
+        }),
+        ('Verification', {
+            'fields': ('email_verified', 'email_verification_token')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(APIToken)
+class APITokenAdmin(ModelAdmin):
+    """Admin interface for API tokens."""
+    list_display = ['user', 'name', 'is_active', 'created_at', 'last_used']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['user__username', 'name', 'token']
+    readonly_fields = ['token', 'created_at', 'last_used']
+    
+    fieldsets = (
+        ('Token Information', {
+            'fields': ('user', 'name', 'token', 'is_active')
+        }),
+        ('Usage', {
+            'fields': ('created_at', 'last_used')
+        }),
+    )
+    
+    def has_change_permission(self, request, obj=None):
+        """Users can only deactivate tokens, not change them."""
+        return True
+
+
+@admin.register(APILog)
+class APILogAdmin(ModelAdmin):
+    """Admin interface for API logs."""
+    
+    class Media:
+        css = {
+            'all': ('css/admin-custom.css',)
+        }
+    
+    list_display = [
+        'timestamp',
+        'method_colored',
+        'path',
+        'status_code_colored',
+        'user',
+        'duration_display',
+        'ip_address',
+    ]
+    
+    list_filter = [
+        'method',
+        'status_code',
+        'timestamp',
+        'user',
+    ]
+    
+    search_fields = [
+        'path',
+        'full_path',
+        'user__username',
+        'ip_address',
+        'query_params',
+        'error',
+    ]
+    
+    readonly_fields = [
+        'timestamp',
+        'method',
+        'path',
+        'full_path',
+        'user',
+        'ip_address',
+        'user_agent',
+        'query_params',
+        'request_body',
+        'status_code',
+        'response_body',
+        'duration_ms',
+        'error',
+    ]
+    
+    fieldsets = (
+        ('Request Information', {
+            'fields': (
+                'timestamp',
+                'method',
+                'path',
+                'full_path',
+                'query_params',
+                'request_body',
+            )
+        }),
+        ('User Information', {
+            'fields': (
+                'user',
+                'ip_address',
+                'user_agent',
+            )
+        }),
+        ('Response Information', {
+            'fields': (
+                'status_code',
+                'response_body',
+                'duration_ms',
+            )
+        }),
+        ('Error Details', {
+            'fields': ('error',),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    date_hierarchy = 'timestamp'
+    
+    def has_add_permission(self, request):
+        """Disable adding logs manually."""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Disable editing logs."""
+        return False
+    
+    @admin.display(description='Method', ordering='method')
+    def method_colored(self, obj):
+        """Display HTTP method with color coding."""
+        colors = {
+            'GET': '#28a745',
+            'POST': '#007bff',
+            'PUT': '#ffc107',
+            'PATCH': '#fd7e14',
+            'DELETE': '#dc3545',
+        }
+        color = colors.get(obj.method, '#6c757d')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.method
+        )
+    
+    @admin.display(description='Status', ordering='status_code')
+    def status_code_colored(self, obj):
+        """Display status code with color coding."""
+        if not obj.status_code:
+            return '-'
+        
+        if obj.status_code < 300:
+            color = '#28a745'  # Success - green
+        elif obj.status_code < 400:
+            color = '#17a2b8'  # Redirect - cyan
+        elif obj.status_code < 500:
+            color = '#ffc107'  # Client error - yellow
+        else:
+            color = '#dc3545'  # Server error - red
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.status_code
+        )
+    
+    @admin.display(description='Duration', ordering='duration_ms')
+    def duration_display(self, obj):
+        """Display duration with formatting."""
+        if not obj.duration_ms:
+            return '-'
+        
+        if obj.duration_ms < 100:
+            color = '#28a745'  # Fast - green
+        elif obj.duration_ms < 1000:
+            color = '#ffc107'  # Medium - yellow
+        else:
+            color = '#dc3545'  # Slow - red
+        
+        return format_html(
+            '<span style="color: {};">{}ms</span>',
+            color,
+            f'{obj.duration_ms:.2f}'
+        )
+    
+    def get_queryset(self, request):
+        """Optimize queryset with select_related."""
+        qs = super().get_queryset(request)
+        return qs.select_related('user')

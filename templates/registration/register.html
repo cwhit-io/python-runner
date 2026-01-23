@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center py-12 px-4">
+  <div class="card w-full max-w-md bg-base-100 shadow-2xl">
+    <div class="card-body">
+      <h2 class="card-title text-3xl font-bold text-center justify-center mb-4">Create Account</h2>
+      
+      {% if form.non_field_errors %}
+        <div class="alert alert-error mb-4">
+          {% for error in form.non_field_errors %}
+            <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      
+      <form method="post" action="{% url 'register' %}">
+        {% csrf_token %}
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Username</span>
+          </label>
+          <input type="text" name="username" value="{{ form.username.value|default:'' }}"
+                 placeholder="Choose a username" 
+                 class="input input-bordered {% if form.username.errors %}input-error{% endif %}" 
+                 required autofocus>
+          {% if form.username.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.username.errors.0 }}</span>
+            </label>
+          {% endif %}
+          <label class="label">
+            <span class="label-text-alt opacity-70">Letters, digits and @/./+/-/_ only.</span>
+          </label>
+        </div>
+        
+        <div class="form-control mt-4">
+          <label class="label">
+            <span class="label-text">Email (optional)</span>
+          </label>
+          <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+                 placeholder="your@email.com" 
+                 class="input input-bordered {% if form.email.errors %}input-error{% endif %}">
+          {% if form.email.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.email.errors.0 }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control mt-4">
+          <label class="label">
+            <span class="label-text">Password</span>
+          </label>
+          <input type="password" name="password1" placeholder="Create a password" 
+                 class="input input-bordered {% if form.password1.errors %}input-error{% endif %}" 
+                 required>
+          {% if form.password1.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.password1.errors.0 }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control mt-4">
+          <label class="label">
+            <span class="label-text">Confirm Password</span>
+          </label>
+          <input type="password" name="password2" placeholder="Confirm your password" 
+                 class="input input-bordered {% if form.password2.errors %}input-error{% endif %}" 
+                 required>
+          {% if form.password2.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.password2.errors.0 }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control mt-6">
+          <button type="submit" class="btn btn-primary btn-block">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Create Account
+          </button>
+        </div>
+      </form>
+      
+      <div class="divider">OR</div>
+      
+      <div class="text-center">
+        <p class="text-sm">Already have an account?</p>
+        <a href="{% url 'login' %}" class="btn btn-outline btn-block mt-2">
+          Login
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+/* Custom admin styles for Unfold theme compatibility */
+
+/* Fix all dropdown and select elements */
+select,
+select option,
+.select2-results__option {
+    color: #1f2937 !important;
+    background: white !important;
+}
+
+/* Highlighted/hovered state */
+.select2-results__option--highlighted,
+select option:hover {
+    color: white !important;
+    background: #8b5cf6 !important;
+}
+
+/* Selected state */
+select option:checked,
+.select2-results__option--selected {
+    color: white !important;
+    background: #7c3aed !important;
+}
+
+/* Dark mode overrides */
+html[data-theme="dark"] select,
+html[data-theme="dark"] select option,
+html[data-theme="dark"] .select2-results__option {
+    color: #f3f4f6 !important;
+    background: #1f2937 !important;
+}
+
+html[data-theme="dark"] .select2-results__option--highlighted,
+html[data-theme="dark"] select option:hover {
+    color: white !important;
+    background: #8b5cf6 !important;
+}
+
+html[data-theme="dark"] select option:checked,
+html[data-theme="dark"] .select2-results__option--selected {
+    color: white !important;
+    background: #7c3aed !important;
+}
+
+/* Better visibility for colored status indicators */
+.admin-colored-text {
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-4xl">
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="card-title text-3xl">My Profile</h2>
+        <a href="{% url 'profile_edit' %}" class="btn btn-primary">Edit Profile</a>
+      </div>
+      
+      {% if not user.profile.email_verified %}
+        <div class="alert alert-warning mb-6">
+          <div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 class="font-bold">Email Not Verified</h3>
+              <div class="text-sm">Please verify your email address to access all features.</div>
+            </div>
+          </div>
+          <div class="flex-none">
+            <a href="{% url 'resend_verification' %}" class="btn btn-sm">Resend Email</a>
+          </div>
+        </div>
+      {% endif %}
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Avatar Section -->
+        <div class="flex flex-col items-center">
+          <div class="avatar mb-4">
+            <div class="w-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+              {% if user.profile.avatar %}
+                <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}'s avatar">
+              {% else %}
+                <div class="bg-neutral text-neutral-content w-full h-full flex items-center justify-center">
+                  <span class="text-5xl">{{ user.username|first|upper }}</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          <h3 class="text-xl font-bold">{{ user.get_full_name|default:user.username }}</h3>
+          <p class="text-sm opacity-70">@{{ user.username }}</p>
+        </div>
+        
+        <!-- Profile Information -->
+        <div class="md:col-span-2">
+          <div class="space-y-4">
+            <div>
+              <label class="label font-semibold">Email</label>
+              <div class="flex items-center gap-2">
+                <p>{{ user.email }}</p>
+                {% if user.profile.email_verified %}
+                  <span class="badge badge-success gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Verified
+                  </span>
+                {% else %}
+                  <span class="badge badge-warning">Not Verified</span>
+                {% endif %}
+              </div>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Full Name</label>
+              <p>{{ user.get_full_name|default:"Not set" }}</p>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Bio</label>
+              <p>{{ user.profile.bio|default:"No bio yet" }}</p>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Member Since</label>
+              <p>{{ user.date_joined|date:"F j, Y" }}</p>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Last Login</label>
+              <p>{{ user.last_login|date:"F j, Y, g:i a"|default:"Never" }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="card-actions justify-end gap-2">
+        <a href="{% url 'api_tokens' %}" class="btn btn-outline">API Tokens</a>
+        <a href="{% url 'password_reset' %}" class="btn btn-outline">Change Password</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

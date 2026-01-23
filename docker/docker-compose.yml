@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ./run.sh
+    volumes:
+      - ..:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=django_3yox@eft6cd_@&fg&its#g36!@ublj5qrsns6mc9@+2asvycvd
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+

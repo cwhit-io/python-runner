@@ -1,0 +1,368 @@
+/* Night Theme for Django Admin - Matching daisyUI Night Theme */
+
+:root {
+  /* Night theme colors from daisyUI */
+  --night-bg: #0f172a;
+  --night-bg-light: #1e293b;
+  --night-border: #334155;
+  --night-text: #e2e8f0;
+  --night-text-dim: #94a3b8;
+  --night-primary: #38bdf8;
+  --night-primary-hover: #0ea5e9;
+  --night-accent: #818cf8;
+  --night-success: #4ade80;
+  --night-warning: #fbbf24;
+  --night-error: #f87171;
+}
+
+/* Base Background Colors */
+body,
+#container {
+  background-color: var(--night-bg) !important;
+  color: var(--night-text) !important;
+}
+
+/* Header */
+#header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  border-bottom: 2px solid var(--night-primary) !important;
+  color: var(--night-text) !important;
+}
+
+#branding h1,
+#branding h1 a,
+#branding h1 a:link,
+#branding h1 a:visited {
+  color: var(--night-primary) !important;
+  font-weight: 700 !important;
+}
+
+#user-tools a {
+  color: var(--night-text) !important;
+  border-bottom: none !important;
+}
+
+#user-tools a:hover {
+  color: var(--night-primary) !important;
+}
+
+/* Content Area */
+#content {
+  background-color: var(--night-bg) !important;
+  color: var(--night-text) !important;
+}
+
+.colMS, .colSM {
+  background-color: var(--night-bg) !important;
+}
+
+/* Module Styling */
+.module {
+  background-color: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+  background: var(--night-bg-light) !important;
+  color: var(--night-primary) !important;
+  border-bottom: 2px solid var(--night-border) !important;
+  font-weight: 600 !important;
+}
+
+/* Tables */
+table {
+  background-color: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+}
+
+thead th,
+tfoot td {
+  background: var(--night-bg) !important;
+  color: var(--night-primary) !important;
+  border-bottom: 2px solid var(--night-border) !important;
+}
+
+tbody tr {
+  background-color: var(--night-bg-light) !important;
+  border-bottom: 1px solid var(--night-border) !important;
+}
+
+tbody tr:hover {
+  background-color: #334155 !important;
+}
+
+tbody tr.selected {
+  background-color: #1e3a8a !important;
+}
+
+tbody th,
+tbody td {
+  color: var(--night-text) !important;
+  border-bottom: 1px solid var(--night-border) !important;
+}
+
+/* Links */
+a:link,
+a:visited {
+  color: var(--night-primary) !important;
+}
+
+a:hover,
+a:active {
+  color: var(--night-primary-hover) !important;
+}
+
+/* Buttons */
+.button,
+input[type=submit],
+input[type=button],
+.submit-row input,
+button {
+  background: var(--night-primary) !important;
+  color: #0f172a !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  padding: 10px 20px !important;
+  transition: all 0.2s !important;
+}
+
+.button:hover,
+input[type=submit]:hover,
+input[type=button]:hover,
+.submit-row input:hover,
+button:hover {
+  background: var(--night-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3) !important;
+}
+
+.button.default,
+input[type=submit].default,
+.submit-row input.default {
+  background: var(--night-accent) !important;
+}
+
+.button.default:hover,
+input[type=submit].default:hover {
+  background: #6366f1 !important;
+}
+
+/* Delete buttons */
+.deletelink,
+.deletelink-box a {
+  background: var(--night-error) !important;
+  color: white !important;
+}
+
+.deletelink:hover,
+.deletelink-box a:hover {
+  background: #dc2626 !important;
+}
+
+/* Forms */
+.form-row,
+.field-box {
+  background-color: var(--night-bg-light) !important;
+  border-bottom: 1px solid var(--night-border) !important;
+}
+
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=url],
+input[type=number],
+textarea,
+select {
+  background-color: var(--night-bg) !important;
+  border: 1px solid var(--night-border) !important;
+  color: var(--night-text) !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+}
+
+input[type=text]:focus,
+input[type=password]:focus,
+input[type=email]:focus,
+input[type=url]:focus,
+input[type=number]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--night-primary) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1) !important;
+}
+
+/* Messages */
+.messagelist li {
+  background: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+  color: var(--night-text) !important;
+  border-radius: 6px !important;
+}
+
+.messagelist li.success {
+  background: rgba(74, 222, 128, 0.1) !important;
+  border-color: var(--night-success) !important;
+  color: var(--night-success) !important;
+}
+
+.messagelist li.warning {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: var(--night-warning) !important;
+  color: var(--night-warning) !important;
+}
+
+.messagelist li.error {
+  background: rgba(248, 113, 113, 0.1) !important;
+  border-color: var(--night-error) !important;
+  color: var(--night-error) !important;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  background: var(--night-bg-light) !important;
+  border-bottom: 1px solid var(--night-border) !important;
+  color: var(--night-text) !important;
+  padding: 12px 20px !important;
+  border-radius: 6px !important;
+  margin-bottom: 20px !important;
+}
+
+.breadcrumbs a {
+  color: var(--night-primary) !important;
+}
+
+/* Sidebar */
+.module ul,
+.module ol {
+  background-color: var(--night-bg-light) !important;
+}
+
+.module li {
+  color: var(--night-text) !important;
+}
+
+/* Change List */
+#changelist {
+  background-color: var(--night-bg) !important;
+}
+
+#changelist .results {
+  background-color: var(--night-bg-light) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+#changelist-filter {
+  background-color: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+  border-radius: 8px !important;
+}
+
+#changelist-filter h2,
+#changelist-filter h3 {
+  color: var(--night-primary) !important;
+}
+
+#changelist-filter li {
+  border-bottom: 1px solid var(--night-border) !important;
+}
+
+#changelist-filter li.selected a {
+  color: var(--night-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Pagination */
+.paginator {
+  color: var(--night-text) !important;
+}
+
+.paginator a:link,
+.paginator a:visited {
+  background: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+  color: var(--night-primary) !important;
+  border-radius: 4px !important;
+}
+
+.paginator a:hover {
+  background: var(--night-primary) !important;
+  color: #0f172a !important;
+}
+
+/* Dashboard */
+#content-main .module h2 a {
+  color: var(--night-primary) !important;
+}
+
+.dashboard .module table th {
+  background: var(--night-bg) !important;
+  color: var(--night-primary) !important;
+}
+
+/* Calendar Widget */
+.calendarbox,
+.clockbox {
+  background: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+}
+
+.calendar caption,
+.calendarbox h2 {
+  background: var(--night-bg) !important;
+  color: var(--night-primary) !important;
+}
+
+.calendar td,
+.calendar th {
+  background: var(--night-bg-light) !important;
+  color: var(--night-text) !important;
+  border: 1px solid var(--night-border) !important;
+}
+
+.calendar td a {
+  color: var(--night-primary) !important;
+}
+
+.calendar td.selected a {
+  background: var(--night-primary) !important;
+  color: #0f172a !important;
+}
+
+/* Help Text */
+.help,
+p.help {
+  color: var(--night-text-dim) !important;
+}
+
+/* Fieldsets */
+fieldset {
+  background-color: var(--night-bg-light) !important;
+  border: 1px solid var(--night-border) !important;
+  border-radius: 8px !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--night-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--night-border);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--night-primary);
+}
