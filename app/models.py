@@ -6,7 +6,9 @@ from django.core.mail import send_mail
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.utils import timezone
 import secrets
+import os
 
 
 class UserProfile(models.Model):
@@ -183,3 +185,172 @@ class APILog(models.Model):
     def duration_seconds(self):
         """Get duration in seconds."""
         return self.duration_ms / 1000 if self.duration_ms else None
+
+
+class Script(models.Model):
+    """Python script model."""
+    STATUS_CHOICES = [
+        ('idle', 'Idle'),
+        ('running', 'Running'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+    ]
+    
+    name = models.CharField(max_length=200, unique=True)
+    description = models.TextField(blank=True)
+    code = models.TextField(default='# Write your Python script here\nprint("Hello, World!")')
+    dependencies = models.TextField(
+        blank=True,
+        help_text="One package per line (e.g., 'requests==2.28.0')"
+    )
+    
+    # Virtual environment
+    venv_path = models.CharField(max_length=500, blank=True)
+    venv_created = models.BooleanField(default=False)
+    venv_updated_at = models.DateTimeField(null=True, blank=True)
+    
+    # Ownership and permissions
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='scripts')
+    is_public = models.BooleanField(default=False, help_text="Allow other users to view/run")
+    
+    # Status
+    last_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='idle')
+    last_run = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    execution_count = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Script'
+        verbose_name_plural = 'Scripts'
+        indexes = [
+            models.Index(fields=['owner', '-updated_at']),
+            models.Index(fields=['last_status']),
+        ]
+    
+    def __str__(self):
+        return self.name
+    
+    def get_venv_path(self):
+        """Get the virtual environment path for this script."""
+        if not self.venv_path:
+            # Store venvs in media/venvs/{script_id}
+            from django.conf import settings
+            venv_dir = os.path.join(settings.MEDIA_ROOT, 'venvs', str(self.id))
+            self.venv_path = venv_dir
+            self.save(update_fields=['venv_path'])
+        return self.venv_path
+    
+    def get_python_executable(self):
+        """Get the Python executable path in the venv."""
+        venv_path = self.get_venv_path()
+        return os.path.join(venv_path, 'bin', 'python')
+
+
+class ScriptExecution(models.Model):
+    """Execution history for scripts."""
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('running', 'Running'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    script = models.ForeignKey(Script, on_delete=models.CASCADE, related_name='executions')
+    triggered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='triggered_executions'
+    )
+    
+    # Execution details
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
+    
+    # Output
+    stdout = models.TextField(blank=True)
+    stderr = models.TextField(blank=True)
+    exit_code = models.IntegerField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+    
+    # Process info
+    process_id = models.IntegerField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    trigger_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('manual', 'Manual'),
+            ('scheduled', 'Scheduled'),
+            ('api', 'API'),
+        ],
+        default='manual'
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Script Execution'
+        verbose_name_plural = 'Script Executions'
+        indexes = [
+            models.Index(fields=['script', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.script.name} - {self.status} ({self.created_at})"
+    
+    @property
+    def is_running(self):
+        """Check if execution is currently running."""
+        return self.status == 'running'
+    
+    @property
+    def is_complete(self):
+        """Check if execution is complete."""
+        return self.status in ['success', 'failed', 'cancelled']
+
+
+class ScriptSchedule(models.Model):
+    """Scheduled execution for scripts."""
+    script = models.ForeignKey(Script, on_delete=models.CASCADE, related_name='schedules')
+    
+    # Schedule configuration
+    name = models.CharField(max_length=200)
+    cron_expression = models.CharField(
+        max_length=100,
+        help_text="Cron expression (e.g., '0 */6 * * *' for every 6 hours)"
+    )
+    timezone = models.CharField(max_length=50, default='UTC')
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    last_run = models.DateTimeField(null=True, blank=True)
+    next_run = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_schedules'
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Script Schedule'
+        verbose_name_plural = 'Script Schedules'
+    
+    def __str__(self):
+        return f"{self.script.name} - {self.name}"

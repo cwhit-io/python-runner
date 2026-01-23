@@ -1,13 +1,14 @@
 from ninja import NinjaAPI
 from .items import router as items_router, protected_router as protected_items_router
+from .scripts import router as scripts_router
 from .schemas import MessageSchema
 from datetime import datetime
 
 # Create main API instance
 api = NinjaAPI(
-    title="Django Starter API",
+    title="Python Script Runner API",
     version="1.0.0",
-    description="A modern Django API built with Django Ninja, htmx, and daisyUI"
+    description="Centralized Python script manager with web UI, scheduling, and isolated venvs"
 )
 
 
@@ -15,7 +16,7 @@ api = NinjaAPI(
 def api_root(request):
     """API root endpoint - health check."""
     return {
-        "message": "Django Ninja API is running!",
+        "message": "Python Script Runner API is running!",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -23,3 +24,4 @@ def api_root(request):
 # Register routers
 api.add_router("/items", items_router)
 api.add_router("/protected/items", protected_items_router)
+api.add_router("/v1", scripts_router)
