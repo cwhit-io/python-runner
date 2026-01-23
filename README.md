@@ -1,51 +1,63 @@
-# Django Starter Template
+# Python Script Runner
 
-A modern, production-ready Django starter template with built-in authentication, API support, real-time features, and a beautiful admin interface.
+A centralized Python script manager with web UI for DevOps automation, ETL jobs, and scheduled tasks. Edit scripts in Monaco editor, run manually or on schedule (APScheduler), each with isolated virtual environments. Captures logs, stdout/stderr, and execution history.
 
-## Features
+Built on **Django + Django Ninja API + HTMX + DaisyUI + Unfold admin**.
 
-### 🎨 Modern UI
+Perfect for DevOps automation, ETL jobs, and scheduled tasks without container overhead.
 
-- **daisyUI + Tailwind CSS** - Beautiful, responsive components
-- **Light/Dark Mode** - Theme switching with localStorage persistence
-- **htmx** - Dynamic interactions without page reloads
-- **Unfold Admin** - Modern, customizable admin interface with custom purple theme
+## Key Features
 
-### 🔐 Authentication & User Management
+### 🐍 Script Management
 
-- **User Registration** - With email verification
-- **Password Reset** - Complete forgot password flow
-- **Email Verification** - Token-based email confirmation
-- **User Profiles** - With avatar upload support
+- **Monaco Editor** - Professional code editor with Python syntax highlighting
+- **Isolated Virtual Environments** - Each script has its own venv with custom dependencies
+- **Dependency Management** - Specify requirements per script (e.g., `requests==2.28.0`)
+- **Version Control Ready** - All scripts stored in database with full history
+
+### ⏰ Scheduling & Execution
+
+- **APScheduler Integration** - Cron-based scheduling for automated execution
+- **Manual Execution** - Run scripts on-demand with a single click
+- **Execution History** - Complete logs of every run with stdout/stderr
+- **Real-time Status** - Track running, success, and failed executions
+- **Multiple Trigger Types** - Manual, scheduled, or API-triggered
+
+### 📊 Monitoring & Logging
+
+- **Execution Logs** - Full stdout and stderr capture for debugging
+- **Performance Metrics** - Track execution duration and exit codes
+- **Status Tracking** - Monitor script health and last successful run
+- **Error Handling** - Detailed error messages and stack traces
+
+### 🔐 Authentication & Security
+
+- **Role-based Access** - User-owned scripts with optional public sharing
 - **API Token Authentication** - Secure token-based API access
+- **User Profiles** - Avatar upload and theme preferences
+- **Email Verification** - Token-based email confirmation
 
 ### 🚀 API Features
 
 - **Django Ninja** - Fast, type-safe API framework
 - **Auto-generated API Docs** - Interactive Swagger/OpenAPI documentation
-- **API Logging** - Automatic request/response logging with admin visibility
+- **Script Management API** - Full CRUD for scripts via REST API
+- **Execution Triggers** - Start scripts remotely via API
+- **Schedule Management** - Create/update schedules programmatically
 - **Token Authentication** - Secure Bearer token authentication
-- **Protected Endpoints** - Example authenticated API routes
 
 ### ⚡ Real-time Features
 
 - **WebSocket Support** - Built-in channels integration
-- **Chat Rooms** - Public chat room example
-- **User Notifications** - Private user-specific notifications
-- **Live Demo Page** - Interactive WebSocket demonstration
+- **Live Log Streaming** - Real-time execution output (coming soon)
+- **Status Updates** - WebSocket-based status notifications (coming soon)
 
-### 📁 File Management
+### 🎨 Modern UI
 
-- **Media Files** - Configured for user uploads (avatars, etc.)
-- **Avatar Upload** - Profile picture support with Pillow
-- **Static Files** - Organized CSS, JS, and asset management
-
-### 🛠 Developer Experience
-
-- **Docker Support** - Development and production configurations
-- **API Logging** - Color-coded status/method display in admin
-- **Custom Middleware** - Request logging middleware
-- **Type Safety** - Django Ninja schemas for API validation
+- **daisyUI + Tailwind CSS** - Beautiful, responsive components
+- **Light/Dark Mode** - 29 themes with localStorage persistence
+- **htmx** - Dynamic interactions without page reloads
+- **Unfold Admin** - Modern, customizable admin interface
 
 ## Quick Start
 
@@ -96,54 +108,138 @@ python manage.py runserver
 
 7. **Visit the application**
 
-- Frontend: http://localhost:8000
-- Admin: http://localhost:8000/admin
-- API Docs: http://localhost:8000/api/docs
-- WebSocket Demo: http://localhost:8000/websocket-demo
+- **Script Manager**: http://localhost:8000
+- **Admin Panel**: http://localhost:8000/admin
+- **API Docs**: http://localhost:8000/api/docs
+
+## Usage Guide
+
+### Creating a Script
+
+1. **Login** and navigate to "My Scripts"
+2. Click **"Create Script"**
+3. Enter a name and description
+4. Click **"Create"**
+
+### Editing Scripts
+
+1. Open the script editor
+2. Write your Python code in the **Monaco Editor**
+3. Add **dependencies** (one per line):
+   ```
+   requests==2.28.0
+   pandas>=1.5.0
+   numpy
+   ```
+4. Click **"Save Changes"**
+
+### Running Scripts
+
+**Manual Execution:**
+- Click **"Run Now"** on the script detail page
+- View real-time status and logs
+
+**Scheduled Execution:**
+1. Add a schedule with a cron expression
+2. Examples:
+   - `0 */6 * * *` - Every 6 hours
+   - `0 0 * * *` - Daily at midnight
+   - `0 0 * * 0` - Weekly on Sunday
+3. Enable/disable schedules as needed
+
+### Viewing Execution Logs
+
+1. Go to script detail page
+2. Click on any execution in the history
+3. View:
+   - **Status** (success/failed)
+   - **Duration**
+   - **Standard Output** (stdout)
+   - **Standard Error** (stderr)
+   - **Exit Code**
+
+## API Usage
+
+### Authentication
+
+Create an API token:
+1. Profile → API Tokens → Create Token
+2. Copy the token immediately
+
+### API Examples
+
+```bash
+# List all scripts
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/api/v1/scripts
+
+# Create a script
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"My Script","code":"print(\"Hello\")"}' \
+     http://localhost:8000/api/v1/scripts
+
+# Execute a script
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/api/v1/scripts/1/execute
+
+# Get execution details
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/api/v1/executions/1
+```
+
+Full API documentation: http://localhost:8000/api/docs
 
 ## Project Structure
 
 ```
-django-starter-template/
+python-runner/
 ├── app/
 │   ├── api/              # Django Ninja API endpoints
-│   │   ├── items.py      # Item API routes
-│   │   └── schemas.py    # Pydantic schemas
-│   ├── services/         # Business logic layer
-│   │   └── item_service.py
-│   ├── utils/            # Helper functions
-│   ├── admin.py          # Admin interface configuration
-│   ├── auth.py           # API token authentication
-│   ├── consumers.py      # WebSocket consumers
-│   ├── forms.py          # Django forms
-│   ├── middleware.py     # Custom middleware
+│   │   ├── scripts.py    # Script management API
+│   │   └── items.py      # Example API
+│   ├── services/         # Business logic
+│   │   ├── script_runner.py  # Script execution engine
+│   │   └── scheduler.py      # APScheduler integration
 │   ├── models.py         # Database models
-│   ├── routing.py        # WebSocket routing
-│   ├── settings.py       # Django settings
-│   ├── urls.py           # URL configuration
-│   └── views.py          # View functions
+│   │   ├── Script        # Script definition
+│   │   ├── ScriptExecution  # Execution logs
+│   │   └── ScriptSchedule   # Scheduled jobs
+│   ├── views_scripts.py  # Script UI views
+│   ├── admin.py          # Admin interface
+│   └── settings.py       # Configuration
 ├── templates/
-│   ├── registration/     # Auth templates
-│   ├── base.html         # Base template
-│   ├── index.html        # Home page
-│   ├── profile.html      # User profile
-│   ├── profile_edit.html # Profile editing
-│   ├── api_tokens.html   # API token management
-│   └── websocket_demo.html # WebSocket demo
-├── static/
-│   └── css/
-│       ├── site.css      # Main styles
-│       └── admin-custom.css # Admin overrides
-├── media/                # User uploaded files
+│   ├── scripts/          # Script management UI
+│   │   ├── list.html     # Script list
+│   │   ├── detail.html   # Script details
+│   │   ├── edit.html     # Monaco editor
+│   │   └── execution_detail.html
+│   └── base.html         # Base template
+├── media/
+│   └── venvs/            # Isolated virtual environments
 ├── requirements.txt      # Python dependencies
-└── manage.py            # Django CLI
+└── manage.py
 ```
 
 ## Configuration
 
+### Virtual Environments
+
+Each script gets an isolated virtual environment:
+- **Location**: `media/venvs/{script_id}/`
+- **Auto-created**: On first execution
+- **Dependencies**: Installed from script's requirements
+
+### Scheduling
+
+APScheduler runs in-process:
+- **Timezone**: Configurable per schedule
+- **Persistence**: Database-backed (optional)
+- **Auto-reload**: On server restart
+
 ### Email Settings
 
-The template uses console email backend for development. To use real email in production:
+For password reset and verification (development uses console):
 
 ```python
 # app/settings.py

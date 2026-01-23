@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ script.name }}{% endblock %}
+
+{% block extra_head %}
+<!-- Monaco Editor -->
+<style>
+    #editor-container {
+        height: 500px;
+        border: 1px solid #444;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <div class="breadcrumbs text-sm">
+            <ul>
+                <li><a href="{% url 'scripts_list' %}">Scripts</a></li>
+                <li><a href="{% url 'script_detail' script.id %}">{{ script.name }}</a></li>
+                <li>Edit</li>
+            </ul>
+        </div>
+    </div>
+
+    <h1 class="text-3xl font-bold mb-6">Edit Script</h1>
+
+    <form method="post" action="{% url 'script_edit' script.id %}">
+        {% csrf_token %}
+        
+        <div class="form-control w-full mb-4">
+            <label class="label">
+                <span class="label-text font-semibold">Script Name</span>
+            </label>
+            <input type="text" name="name" value="{{ script.name }}" class="input input-bordered w-full" required />
+        </div>
+
+        <div class="form-control w-full mb-4">
+            <label class="label">
+                <span class="label-text font-semibold">Description</span>
+            </label>
+            <textarea name="description" class="textarea textarea-bordered h-24" placeholder="What does this script do?">{{ script.description }}</textarea>
+        </div>
+
+        <div class="form-control w-full mb-4">
+            <label class="label">
+                <span class="label-text font-semibold">Python Code</span>
+            </label>
+            <div id="editor-container"></div>
+            <textarea name="code" id="code-input" style="display: none;">{{ script.code }}</textarea>
+        </div>
+
+        <div class="form-control w-full mb-4">
+            <label class="label">
+                <span class="label-text font-semibold">Dependencies</span>
+                <span class="label-text-alt">One package per line (e.g., requests==2.28.0)</span>
+            </label>
+            <textarea name="dependencies" class="textarea textarea-bordered h-32 font-mono text-sm" placeholder="requests==2.28.0
+pandas>=1.5.0
+numpy">{{ script.dependencies }}</textarea>
+        </div>
+
+        <div class="form-control mb-6">
+            <label class="label cursor-pointer justify-start gap-4">
+                <input type="checkbox" name="is_public" class="checkbox" {% if script.is_public %}checked{% endif %} />
+                <span class="label-text">
+                    <strong>Make Public</strong> - Allow other users to view and run this script
+                </span>
+            </label>
+        </div>
+
+        <div class="flex gap-4">
+            <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Save Changes
+            </button>
+            <a href="{% url 'script_detail' script.id %}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
+    
+    require(['vs/editor/editor.main'], function() {
+        // Get the initial code from the textarea
+        const initialCode = document.getElementById('code-input').value;
+        
+        // Create the Monaco editor
+        const editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: initialCode,
+            language: 'python',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            minimap: { enabled: true },
+            fontSize: 14,
+            scrollBeyondLastLine: false,
+            wordWrap: 'on',
+            tabSize: 4,
+        });
+        
+        // Update the hidden textarea when the form is submitted
+        document.querySelector('form').addEventListener('submit', function(e) {
+            document.getElementById('code-input').value = editor.getValue();
+        });
+        
+        // Auto-save every 30 seconds
+        setInterval(function() {
+            document.getElementById('code-input').value = editor.getValue();
+        }, 30000);
+    });
+</script>
+{% endblock %}

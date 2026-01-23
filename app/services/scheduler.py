@@ -3,7 +3,6 @@ Scheduler service using APScheduler for running scripts on schedule.
 """
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from django_apscheduler.jobstores import DjangoJobStore
 from django.conf import settings
 from app.models import ScriptSchedule
 from app.services.script_runner import execute_script
@@ -20,8 +19,6 @@ def get_scheduler():
     global _scheduler
     if _scheduler is None:
         _scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
-        # Use Django's database as job store for persistence
-        # Note: django-apscheduler is optional, using in-memory for now
         _scheduler.start()
     return _scheduler
 
