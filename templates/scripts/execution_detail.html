@@ -301,6 +301,9 @@
         const liveOutput = document.getElementById('live-output');
         const liveOutputContainer = document.getElementById('live-output-container');
         
+        console.log('liveOutput element:', liveOutput);
+        console.log('liveOutputContainer element:', liveOutputContainer);
+        
         socket.onopen = function(e) {
             console.log('Connected to execution monitor');
         };
@@ -322,13 +325,20 @@
                     document.getElementById('elapsed-time').textContent = data.elapsed_seconds.toFixed(1) + 's';
                 }
             } else if (data.type === 'output') {
-                // Append real-time output
-                const line = document.createElement('div');
+                // Append real-time output as text
+                console.log('Appending output:', data.line, 'to element:', liveOutput);
+                const line = data.line + '\n';
                 if (data.stream === 'stderr') {
-                    line.className = 'text-error';
+                    // Wrap stderr in span for color
+                    const span = document.createElement('span');
+                    span.className = 'text-error';
+                    span.textContent = line;
+                    liveOutput.appendChild(span);
+                } else {
+                    // Append stdout as plain text
+                    liveOutput.appendChild(document.createTextNode(line));
                 }
-                line.textContent = data.line;
-                liveOutput.appendChild(line);
+                console.log('Live output content:', liveOutput.textContent);
                 
                 // Auto-scroll to bottom
                 liveOutputContainer.scrollTop = liveOutputContainer.scrollHeight;

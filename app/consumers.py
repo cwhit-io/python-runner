@@ -163,6 +163,41 @@ class ExecutionMonitorConsumer(AsyncWebsocketConsumer):
             )
         )
 
+        # Send any accumulated output that was generated before WebSocket connected
+        from app.models import ScriptExecution
+
+        execution = await database_sync_to_async(ScriptExecution.objects.get)(
+            id=self.execution_id
+        )
+
+        # Send accumulated stdout if any
+        if execution.stdout:
+            for line in execution.stdout.splitlines():
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "output",
+                            "execution_id": self.execution_id,
+                            "stream": "stdout",
+                            "line": line,
+                        }
+                    )
+                )
+
+        # Send accumulated stderr if any
+        if execution.stderr:
+            for line in execution.stderr.splitlines():
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "output",
+                            "execution_id": self.execution_id,
+                            "stream": "stderr",
+                            "line": line,
+                        }
+                    )
+                )
+
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
         # Leave execution group

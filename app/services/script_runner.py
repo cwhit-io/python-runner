@@ -249,13 +249,28 @@ class ScriptRunner:
         peak_memory = 0.0
         timeout = self.execution.timeout_seconds
 
+        # Initialize CPU monitoring (first call returns 0)
+        try:
+            process.cpu_percent()
+        except:
+            pass
+
         try:
             while process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
                 try:
-                    # Get resource usage
-                    cpu_percent = process.cpu_percent(interval=0.1)
-                    memory_info = process.memory_info()
-                    memory_mb = memory_info.rss / (1024 * 1024)  # Convert to MB
+                    # Get resource usage including children
+                    cpu_percent = process.cpu_percent(interval=0.5)
+
+                    # Get memory including all children
+                    memory_mb = process.memory_info().rss / (1024 * 1024)
+                    try:
+                        for child in process.children(recursive=True):
+                            try:
+                                memory_mb += child.memory_info().rss / (1024 * 1024)
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
 
                     peak_cpu = max(peak_cpu, cpu_percent)
                     peak_memory = max(peak_memory, memory_mb)
@@ -296,7 +311,7 @@ class ScriptRunner:
                         },
                     )
 
-                    time.sleep(0.5)  # Update every 0.5 seconds
+                    # cpu_percent(interval=0.5) already sleeps, no additional sleep needed
 
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     break
@@ -360,6 +375,9 @@ class ScriptRunner:
                 for line in iter(process.stdout.readline, ""):
                     if line:
                         stdout_lines.append(line)
+                        # Update execution stdout in DB periodically
+                        self.execution.stdout = "".join(stdout_lines)
+                        self.execution.save(update_fields=["stdout"])
                         self._send_websocket_update(
                             "output", {"stream": "stdout", "line": line.rstrip("\n")}
                         )
@@ -370,6 +388,9 @@ class ScriptRunner:
                 for line in iter(process.stderr.readline, ""):
                     if line:
                         stderr_lines.append(line)
+                        # Update execution stderr in DB periodically
+                        self.execution.stderr = "".join(stderr_lines)
+                        self.execution.save(update_fields=["stderr"])
                         self._send_websocket_update(
                             "output", {"stream": "stderr", "line": line.rstrip("\n")}
                         )
