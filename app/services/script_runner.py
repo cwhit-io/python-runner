@@ -9,11 +9,15 @@ import threading
 import time
 import hashlib
 import json
+import psutil
+import signal
 from datetime import datetime
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from django.conf import settings
 from django.utils import timezone
 from app.models import Script, ScriptExecution
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 
 class ScriptRunner:
@@ -171,10 +175,15 @@ class ScriptRunner:
         self.script.venv_updated_at = timezone.now()
         self.script.save(update_fields=["venv_updated_at"])
 
-    def execute(self, triggered_by=None, trigger_type="manual"):
+    def execute(self, triggered_by=None, trigger_type="manual", timeout_seconds=None):
         """
         Execute the script in its virtual environment.
         Returns the ScriptExecution object.
+
+        Args:
+            triggered_by: User who triggered the execution
+            trigger_type: How the execution was triggered (manual, scheduled, api)
+            timeout_seconds: Maximum execution time in seconds (None for no timeout)
         """
         # Ensure venv is ready
         try:
@@ -197,6 +206,7 @@ class ScriptRunner:
             trigger_type=trigger_type,
             status="running",
             started_at=timezone.now(),
+            timeout_seconds=timeout_seconds,
         )
 
         # Update script status
@@ -210,8 +220,93 @@ class ScriptRunner:
 
         return self.execution
 
+    def _send_websocket_update(self, message_type: str, data: dict):
+        """Send WebSocket update about execution progress."""
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer and self.execution:
+                async_to_sync(channel_layer.group_send)(
+                    f"execution_{self.execution.id}",
+                    {
+                        "type": "execution_update",
+                        "message_type": message_type,
+                        "execution_id": self.execution.id,
+                        **data,
+                    },
+                )
+        except Exception as e:
+            # Don't fail execution if websocket update fails
+            print(f"Failed to send websocket update: {e}")
+
+    def _monitor_process(
+        self, process: psutil.Process, start_time: float
+    ) -> Tuple[float, float]:
+        """
+        Monitor process resource usage.
+        Returns (peak_cpu_percent, peak_memory_mb).
+        """
+        peak_cpu = 0.0
+        peak_memory = 0.0
+        timeout = self.execution.timeout_seconds
+
+        try:
+            while process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
+                try:
+                    # Get resource usage
+                    cpu_percent = process.cpu_percent(interval=0.1)
+                    memory_info = process.memory_info()
+                    memory_mb = memory_info.rss / (1024 * 1024)  # Convert to MB
+
+                    peak_cpu = max(peak_cpu, cpu_percent)
+                    peak_memory = max(peak_memory, memory_mb)
+
+                    # Check timeout
+                    if timeout and (time.time() - start_time) > timeout:
+                        # Kill the process
+                        process.terminate()
+                        time.sleep(0.5)
+                        if process.is_running():
+                            process.kill()
+
+                        # Mark as timed out
+                        self.execution.timed_out = True
+                        self.execution.error_message = (
+                            f"Execution timed out after {timeout} seconds"
+                        )
+                        self.execution.save(
+                            update_fields=["timed_out", "error_message"]
+                        )
+
+                        self._send_websocket_update(
+                            "timeout",
+                            {
+                                "timeout_seconds": timeout,
+                                "elapsed_seconds": time.time() - start_time,
+                            },
+                        )
+                        break
+
+                    # Send periodic resource updates
+                    self._send_websocket_update(
+                        "resource_update",
+                        {
+                            "cpu_percent": round(cpu_percent, 2),
+                            "memory_mb": round(memory_mb, 2),
+                            "elapsed_seconds": round(time.time() - start_time, 2),
+                        },
+                    )
+
+                    time.sleep(0.5)  # Update every 0.5 seconds
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    break
+        except Exception as e:
+            print(f"Error monitoring process: {e}")
+
+        return peak_cpu, peak_memory
+
     def _run_script(self):
-        """Internal method to run the script (called in thread)."""
+        """Internal method to run the script with resource monitoring (called in thread)."""
         python_path = self.script.get_python_executable()
 
         # Create a per-execution script file to avoid collisions during concurrent runs
@@ -221,10 +316,11 @@ class ScriptRunner:
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
         exec_id = getattr(self.execution, "id", None) or "unknown"
         script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}.py")
-        with open(script_file, "w") as f:
-            f.write(self.script.code)
 
         try:
+            with open(script_file, "w") as f:
+                f.write(self.script.code)
+
             # Run the script
             start_time = time.time()
             process = subprocess.Popen(
@@ -232,15 +328,84 @@ class ScriptRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                bufsize=1,  # Line buffered
+                universal_newlines=True,
             )
 
             # Store process ID
             self.execution.process_id = process.pid
             self.execution.save(update_fields=["process_id"])
 
-            # Wait for completion and capture output
-            stdout, stderr = process.communicate()
+            # Send start notification
+            self._send_websocket_update(
+                "started",
+                {
+                    "process_id": process.pid,
+                    "started_at": self.execution.started_at.isoformat()
+                    if self.execution.started_at
+                    else None,
+                },
+            )
+
+            # Collect stdout/stderr in real-time
+            stdout_lines = []
+            stderr_lines = []
+
+            def read_stdout():
+                """Read stdout in real-time and send updates."""
+                for line in iter(process.stdout.readline, ""):
+                    if line:
+                        stdout_lines.append(line)
+                        self._send_websocket_update(
+                            "output", {"stream": "stdout", "line": line.rstrip("\n")}
+                        )
+                process.stdout.close()
+
+            def read_stderr():
+                """Read stderr in real-time and send updates."""
+                for line in iter(process.stderr.readline, ""):
+                    if line:
+                        stderr_lines.append(line)
+                        self._send_websocket_update(
+                            "output", {"stream": "stderr", "line": line.rstrip("\n")}
+                        )
+                process.stderr.close()
+
+            # Start stdout/stderr reader threads
+            stdout_thread = threading.Thread(target=read_stdout)
+            stderr_thread = threading.Thread(target=read_stderr)
+            stdout_thread.daemon = True
+            stderr_thread.daemon = True
+            stdout_thread.start()
+            stderr_thread.start()
+
+            # Monitor resource usage in parallel
+            psutil_process = psutil.Process(process.pid)
+            monitor_thread = threading.Thread(
+                target=lambda: setattr(
+                    self,
+                    "_resource_stats",
+                    self._monitor_process(psutil_process, start_time),
+                )
+            )
+            monitor_thread.daemon = True
+            monitor_thread.start()
+
+            # Wait for completion
+            process.wait()
             end_time = time.time()
+
+            # Wait for output threads to finish
+            stdout_thread.join(timeout=1.0)
+            stderr_thread.join(timeout=1.0)
+
+            # Wait for monitoring thread to finish
+            monitor_thread.join(timeout=1.0)
+            peak_cpu, peak_memory = getattr(self, "_resource_stats", (0.0, 0.0))
+
+            # Combine all output lines
+            stdout = "".join(stdout_lines)
+            stderr = "".join(stderr_lines)
 
             # Update execution record
             self.execution.stdout = stdout
@@ -248,14 +413,36 @@ class ScriptRunner:
             self.execution.exit_code = process.returncode
             self.execution.completed_at = timezone.now()
             self.execution.duration_seconds = end_time - start_time
-            self.execution.status = "success" if process.returncode == 0 else "failed"
+            self.execution.peak_cpu_percent = peak_cpu
+            self.execution.peak_memory_mb = peak_memory
+
+            # Determine status
+            if self.execution.timed_out:
+                self.execution.status = "cancelled"
+            else:
+                self.execution.status = (
+                    "success" if process.returncode == 0 else "failed"
+                )
+
             self.execution.save()
+
+            # Send completion notification
+            self._send_websocket_update(
+                "completed",
+                {
+                    "status": self.execution.status,
+                    "exit_code": process.returncode,
+                    "duration_seconds": round(self.execution.duration_seconds, 2),
+                    "peak_cpu_percent": round(peak_cpu, 2),
+                    "peak_memory_mb": round(peak_memory, 2),
+                },
+            )
 
             # Update script status
             self.script.last_status = self.execution.status
             self.script.last_run = timezone.now()
             self.script.execution_count += 1
-            if process.returncode == 0:
+            if process.returncode == 0 and not self.execution.timed_out:
                 self.script.last_success = timezone.now()
             self.script.save(
                 update_fields=[
@@ -273,6 +460,8 @@ class ScriptRunner:
             self.execution.completed_at = timezone.now()
             self.execution.save()
 
+            self._send_websocket_update("error", {"error_message": str(e)})
+
             self.script.last_status = "failed"
             self.script.last_run = timezone.now()
             self.script.save(update_fields=["last_status", "last_run"])
@@ -283,13 +472,92 @@ class ScriptRunner:
                 os.remove(script_file)
 
 
-def execute_script(script_id, triggered_by=None, trigger_type="manual"):
+def execute_script(
+    script_id, triggered_by=None, trigger_type="manual", timeout_seconds=None
+):
     """
     Convenience function to execute a script by ID.
+
+    Args:
+        script_id: ID of the script to execute
+        triggered_by: User who triggered the execution
+        trigger_type: How the execution was triggered (manual, scheduled, api)
+        timeout_seconds: Maximum execution time in seconds (None for no timeout)
     """
     try:
         script = Script.objects.get(id=script_id)
         runner = ScriptRunner(script)
-        return runner.execute(triggered_by=triggered_by, trigger_type=trigger_type)
+        return runner.execute(
+            triggered_by=triggered_by,
+            trigger_type=trigger_type,
+            timeout_seconds=timeout_seconds,
+        )
     except Script.DoesNotExist:
         return None
+
+
+def kill_execution(execution_id: int) -> bool:
+    """
+    Kill a running script execution.
+
+    Args:
+        execution_id: ID of the execution to kill
+
+    Returns:
+        True if execution was killed, False otherwise
+    """
+    try:
+        execution = ScriptExecution.objects.get(id=execution_id)
+
+        if execution.status != "running" or not execution.process_id:
+            return False
+
+        try:
+            # Try to kill the process
+            process = psutil.Process(execution.process_id)
+            process.terminate()  # Try graceful termination first
+
+            # Wait a bit for graceful shutdown
+            time.sleep(0.5)
+
+            if process.is_running():
+                process.kill()  # Force kill if still running
+
+            # Update execution status
+            execution.status = "cancelled"
+            execution.completed_at = timezone.now()
+            execution.error_message = "Execution was manually cancelled"
+            if execution.started_at:
+                execution.duration_seconds = (
+                    execution.completed_at - execution.started_at
+                ).total_seconds()
+            execution.save()
+
+            # Send WebSocket update
+            try:
+                channel_layer = get_channel_layer()
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        f"execution_{execution_id}",
+                        {
+                            "type": "execution_update",
+                            "message_type": "cancelled",
+                            "execution_id": execution_id,
+                            "status": "cancelled",
+                        },
+                    )
+            except Exception:
+                pass
+
+            return True
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            # Process doesn't exist or can't be accessed
+            execution.status = "failed"
+            execution.completed_at = timezone.now()
+            execution.error_message = f"Failed to kill process: {str(e)}"
+            execution.save()
+            return False
+
+    except ScriptExecution.DoesNotExist:
+        return False

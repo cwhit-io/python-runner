@@ -382,9 +382,25 @@ def script_execute(request, script_id):
     """Execute a script manually."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
+    # Get optional timeout from form, default to 10 minutes (600 seconds)
+    timeout_seconds = request.POST.get("timeout_seconds", "").strip()
+    if timeout_seconds:
+        try:
+            timeout_seconds = int(timeout_seconds)
+            if timeout_seconds <= 0:
+                timeout_seconds = 600  # Default to 10 minutes
+        except (ValueError, TypeError):
+            timeout_seconds = 600  # Default to 10 minutes
+    else:
+        timeout_seconds = 600  # Default to 10 minutes
+
     # Execute the script
     runner = ScriptRunner(script)
-    execution = runner.execute(triggered_by=request.user, trigger_type="manual")
+    execution = runner.execute(
+        triggered_by=request.user,
+        trigger_type="manual",
+        timeout_seconds=timeout_seconds,
+    )
 
     messages.success(request, f'Script "{script.name}" execution started!')
     return redirect("execution_detail", execution_id=execution.id)
@@ -401,6 +417,30 @@ def execution_detail(request, execution_id):
         return redirect("scripts_list")
 
     return render(request, "scripts/execution_detail.html", {"execution": execution})
+
+
+@login_required
+@require_http_methods(["POST"])
+def execution_kill(request, execution_id):
+    """Kill a running execution."""
+    execution = get_object_or_404(ScriptExecution, id=execution_id)
+
+    # Check if user has permission
+    if execution.script.owner != request.user:
+        messages.error(request, "You do not have permission to kill this execution.")
+        return redirect("scripts_list")
+
+    # Try to kill the execution
+    from app.services.script_runner import kill_execution
+
+    if kill_execution(execution_id):
+        messages.success(request, "Execution cancelled successfully!")
+    else:
+        messages.error(
+            request, "Failed to cancel execution. It may have already completed."
+        )
+
+    return redirect("execution_detail", execution_id=execution_id)
 
 
 @login_required

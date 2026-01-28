@@ -354,6 +354,20 @@ class ScriptExecution(models.Model):
     # Process info
     process_id = models.IntegerField(null=True, blank=True)
 
+    # Resource monitoring
+    peak_cpu_percent = models.FloatField(
+        null=True, blank=True, help_text="Peak CPU usage percentage"
+    )
+    peak_memory_mb = models.FloatField(
+        null=True, blank=True, help_text="Peak memory usage in MB"
+    )
+    timeout_seconds = models.IntegerField(
+        null=True, blank=True, help_text="Execution timeout in seconds"
+    )
+    timed_out = models.BooleanField(
+        default=False, help_text="Whether execution was terminated due to timeout"
+    )
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     trigger_type = models.CharField(

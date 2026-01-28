@@ -14,7 +14,64 @@
         </div>
     </div>
 
-    <h1 class="text-3xl font-bold mb-6">Execution Details</h1>
+    <h1 class="text-3xl font-bold mb-6 flex items-center gap-4">
+        Execution #{{ execution.id }}
+        {% if execution.status == 'running' %}
+        <form method="post" action="{% url 'execution_kill' execution.id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-error btn-sm gap-2" onclick="return confirm('Are you sure you want to cancel this execution?');">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Kill
+            </button>
+        </form>
+        {% endif %}
+    </h1>
+
+    {% if execution.status == 'running' %}
+    <!-- Real-time monitoring card -->
+    <div class="card bg-base-200 shadow-xl mb-6" id="monitoring-card">
+        <div class="card-body">
+            <h2 class="card-title">Live Resource Monitoring</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="stat bg-base-300 rounded-lg">
+                    <div class="stat-title">CPU Usage</div>
+                    <div class="stat-value text-primary" id="cpu-usage">-</div>
+                    <div class="stat-desc">Current usage</div>
+                </div>
+                <div class="stat bg-base-300 rounded-lg">
+                    <div class="stat-title">Memory Usage</div>
+                    <div class="stat-value text-secondary" id="memory-usage">-</div>
+                    <div class="stat-desc">Current usage</div>
+                </div>
+                <div class="stat bg-base-300 rounded-lg">
+                    <div class="stat-title">Elapsed Time</div>
+                    <div class="stat-value text-accent" id="elapsed-time">-</div>
+                    <div class="stat-desc">Seconds</div>
+                </div>
+            </div>
+            <div class="mt-2 text-sm opacity-70">
+                <span class="loading loading-dots loading-sm"></span>
+                Monitoring in real-time...
+            </div>
+        </div>
+    </div>
+    
+    <!-- Real-time output card -->
+    <div class="card bg-base-200 shadow-xl mb-6">
+        <div class="card-body">
+            <h2 class="card-title">Live Output</h2>
+            <div class="mockup-code max-h-96 overflow-y-auto" id="live-output-container">
+                <pre id="live-output" class="text-sm"><code></code></pre>
+            </div>
+            <div class="text-xs opacity-70 mt-2">
+                <span class="loading loading-dots loading-xs"></span>
+                Streaming output in real-time...
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div class="card bg-base-200 shadow-xl">
@@ -23,13 +80,15 @@
                 <div class="space-y-2">
                     <div class="flex justify-between">
                         <span class="font-semibold">Status:</span>
-                        <span>
+                        <span id="status-badge">
                             {% if execution.status == 'running' %}
                             <div class="badge badge-info">Running</div>
                             {% elif execution.status == 'success' %}
                             <div class="badge badge-success">Success</div>
                             {% elif execution.status == 'failed' %}
                             <div class="badge badge-error">Failed</div>
+                            {% elif execution.status == 'cancelled' %}
+                            <div class="badge badge-warning">Cancelled</div>
                             {% elif execution.status == 'queued' %}
                             <div class="badge badge-warning">Queued</div>
                             {% else %}
@@ -49,12 +108,24 @@
                     {% endif %}
                     <div class="flex justify-between">
                         <span class="font-semibold">Exit Code:</span>
-                        <span>{{ execution.exit_code|default:"-" }}</span>
+                        <span id="exit-code">{{ execution.exit_code|default:"-" }}</span>
                     </div>
                     {% if execution.process_id %}
                     <div class="flex justify-between">
                         <span class="font-semibold">Process ID:</span>
                         <span>{{ execution.process_id }}</span>
+                    </div>
+                    {% endif %}
+                    {% if execution.timeout_seconds %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Timeout:</span>
+                        <span>{{ execution.timeout_seconds }}s</span>
+                    </div>
+                    {% endif %}
+                    {% if execution.timed_out %}
+                    <div class="alert alert-warning py-2 px-3 mt-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <span class="text-sm">Execution timed out</span>
                     </div>
                     {% endif %}
                 </div>
@@ -63,7 +134,7 @@
 
         <div class="card bg-base-200 shadow-xl">
             <div class="card-body">
-                <h2 class="card-title">Timing</h2>
+                <h2 class="card-title">Timing & Resources</h2>
                 <div class="space-y-2">
                     <div class="flex justify-between">
                         <span class="font-semibold">Created:</span>
@@ -75,11 +146,11 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="font-semibold">Completed:</span>
-                        <span>{{ execution.completed_at|default:"Not completed" }}</span>
+                        <span id="completed-at">{{ execution.completed_at|default:"Not completed" }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="font-semibold">Duration:</span>
-                        <span>
+                        <span id="duration">
                             {% if execution.duration_seconds %}
                             {{ execution.duration_seconds|floatformat:3 }}s
                             {% else %}
@@ -87,6 +158,18 @@
                             {% endif %}
                         </span>
                     </div>
+                    {% if execution.peak_cpu_percent %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Peak CPU:</span>
+                        <span>{{ execution.peak_cpu_percent|floatformat:2 }}%</span>
+                    </div>
+                    {% endif %}
+                    {% if execution.peak_memory_mb %}
+                    <div class="flex justify-between">
+                        <span class="font-semibold">Peak Memory:</span>
+                        <span>{{ execution.peak_memory_mb|floatformat:2 }} MB</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -206,5 +289,77 @@
             }, 2000);
         });
     }
+
+    // WebSocket connection for real-time monitoring
+    {% if execution.status == 'running' %}
+    (function() {
+        const executionId = {{ execution.id }};
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/execution/${executionId}/`;
+        
+        const socket = new WebSocket(wsUrl);
+        const liveOutput = document.getElementById('live-output');
+        const liveOutputContainer = document.getElementById('live-output-container');
+        
+        socket.onopen = function(e) {
+            console.log('Connected to execution monitor');
+        };
+        
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log('Received:', data);
+            
+            if (data.type === 'resource_update') {
+                // Update live monitoring stats
+                if (data.cpu_percent !== undefined) {
+                    document.getElementById('cpu-usage').textContent = data.cpu_percent.toFixed(2) + '%';
+                }
+                if (data.memory_mb !== undefined) {
+                    document.getElementById('memory-usage').textContent = data.memory_mb.toFixed(2) + ' MB';
+                }
+                if (data.elapsed_seconds !== undefined) {
+                    document.getElementById('elapsed-time').textContent = data.elapsed_seconds.toFixed(1) + 's';
+                }
+            } else if (data.type === 'output') {
+                // Append real-time output
+                const line = document.createElement('div');
+                if (data.stream === 'stderr') {
+                    line.className = 'text-error';
+                }
+                line.textContent = data.line;
+                liveOutput.appendChild(line);
+                
+                // Auto-scroll to bottom
+                liveOutputContainer.scrollTop = liveOutputContainer.scrollHeight;
+            } else if (data.type === 'completed') {
+                // Execution completed - update UI and reload
+                console.log('Execution completed:', data.status);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else if (data.type === 'cancelled') {
+                // Execution was cancelled
+                console.log('Execution cancelled');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            } else if (data.type === 'timeout') {
+                // Execution timed out
+                console.log('Execution timed out');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        };
+        
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+        
+        socket.onclose = function(event) {
+            console.log('Disconnected from execution monitor');
+        };
+    })();
+    {% endif %}
 </script>
 {% endblock %}

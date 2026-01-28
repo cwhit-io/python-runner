@@ -118,6 +118,11 @@ urlpatterns = [
         views_scripts.execution_detail,
         name="execution_detail",
     ),
+    path(
+        "executions/<int:execution_id>/kill/",
+        views_scripts.execution_kill,
+        name="execution_kill",
+    ),
     # Tags
     path("tags/", views_scripts.tags_list, name="tags_list"),
     path("tags/create/", views_scripts.tag_create, name="tag_create"),
