@@ -401,18 +401,33 @@ class ScriptSchedule(models.Model):
     cron_expression = models.CharField(
         max_length=100,
         help_text="Cron expression (e.g., '0 */6 * * *' for every 6 hours)",
+        blank=True,
+        default="",
     )
-    # Support calendar-based scheduling: 'cron' (default), 'single' (one-time), 'rrule' (RFC5545 RRULE)
+    # Support scheduling: 'cron', 'single' (one-time), 'interval' (repeating)
     SCHEDULE_TYPE_CHOICES = [
         ("cron", "Cron"),
         ("single", "Single datetime"),
-        ("rrule", "Recurring rule (RRULE)"),
+        ("interval", "Interval (repeating)"),
     ]
     schedule_type = models.CharField(
-        max_length=20, choices=SCHEDULE_TYPE_CHOICES, default="cron"
+        max_length=20, choices=SCHEDULE_TYPE_CHOICES, default="single"
     )
-    # For non-cron schedules, store the calendar expression (ISO datetime for 'single', RFC RRULE string for 'rrule')
-    calendar_expression = models.TextField(blank=True, default="")
+    # For single/interval schedules, store the start datetime
+    start_datetime = models.DateTimeField(null=True, blank=True)
+    # For interval schedules
+    INTERVAL_UNIT_CHOICES = [
+        ("hours", "Hourly"),
+        ("days", "Daily"),
+        ("weeks", "Weekly"),
+        ("months", "Monthly"),
+    ]
+    interval_unit = models.CharField(
+        max_length=10, choices=INTERVAL_UNIT_CHOICES, blank=True, default=""
+    )
+    interval_value = models.IntegerField(
+        default=1, help_text="How many units between runs"
+    )
     timezone = models.CharField(max_length=50, default="UTC")
 
     # Status

@@ -4,12 +4,12 @@ Scheduler service using APScheduler for running scripts on schedule.
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from django.conf import settings
 from app.models import ScriptSchedule
 from app.services.script_runner import execute_script
 import logging
 from django.utils import timezone
-from dateutil.rrule import rrulestr
 from dateutil.parser import parse as parse_dt
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,9 @@ def schedule_job(schedule: ScriptSchedule):
 
     try:
         if schedule.schedule_type == "cron":
+            if not schedule.cron_expression:
+                logger.error(f"Cron schedule {job_id} missing cron_expression")
+                return
             # Parse cron expression and create trigger
             trigger = CronTrigger.from_crontab(
                 schedule.cron_expression, timezone=schedule.timezone
@@ -72,11 +75,10 @@ def schedule_job(schedule: ScriptSchedule):
                 logger.exception("Failed to persist next_run for cron job %s", job_id)
 
         elif schedule.schedule_type == "single":
-            # calendar_expression expected to be an ISO datetime string
-            if not schedule.calendar_expression:
-                logger.error(f"Single schedule {job_id} missing calendar_expression")
+            if not schedule.start_datetime:
+                logger.error(f"Single schedule {job_id} missing start_datetime")
                 return
-            dt = parse_dt(schedule.calendar_expression)
+            dt = schedule.start_datetime
             # ensure timezone-aware
             if dt.tzinfo is None:
                 dt = timezone.make_aware(dt, timezone=timezone.get_default_timezone())
@@ -96,50 +98,37 @@ def schedule_job(schedule: ScriptSchedule):
             except Exception:
                 logger.exception("Failed to persist next_run for single job %s", job_id)
 
-        elif schedule.schedule_type == "rrule":
-            # calendar_expression expected to be an RFC5545 RRULE string
-            if not schedule.calendar_expression:
-                logger.error(f"RRULE schedule {job_id} missing calendar_expression")
-                return
-            now = timezone.now()
-            try:
-                # Parse the rrule string and ensure dtstart is timezone-aware
-                import re
-
-                dtstart_match = re.search(
-                    r"DTSTART:(\d{8}T\d{6})", schedule.calendar_expression
+        elif schedule.schedule_type == "interval":
+            if not schedule.start_datetime or not schedule.interval_unit:
+                logger.error(
+                    f"Interval schedule {job_id} missing start_datetime or interval_unit"
                 )
-                if dtstart_match:
-                    # Parse DTSTART and make timezone-aware
-                    dtstart_str = dtstart_match.group(1)
-                    dtstart = parse_dt(dtstart_str)
-                    if dtstart.tzinfo is None:
-                        dtstart = timezone.make_aware(
-                            dtstart, timezone=timezone.get_default_timezone()
-                        )
-                    rule = rrulestr(schedule.calendar_expression, dtstart=dtstart)
-                else:
-                    rule = rrulestr(schedule.calendar_expression, dtstart=now)
+                return
 
-                next_dt = rule.after(now, inc=True)
-            except Exception as e:
-                logger.error(f"Failed parsing RRULE for {job_id}: {e}")
-                return
-            if not next_dt:
-                logger.info(f"RRULE {job_id} has no future occurrences")
-                return
-            # Ensure timezone-aware
-            if next_dt.tzinfo is None:
-                next_dt = timezone.make_aware(
-                    next_dt, timezone=timezone.get_default_timezone()
+            start_dt = schedule.start_datetime
+            # ensure timezone-aware
+            if start_dt.tzinfo is None:
+                start_dt = timezone.make_aware(
+                    start_dt, timezone=timezone.get_default_timezone()
                 )
+
+            # Build interval trigger kwargs
+            interval_kwargs = {schedule.interval_unit: schedule.interval_value}
+            if schedule.interval_unit == "months":
+                # APScheduler doesn't have months, approximate with 30 days
+                interval_kwargs = {"days": schedule.interval_value * 30}
+
+            trigger = IntervalTrigger(
+                start_date=start_dt, timezone=schedule.timezone, **interval_kwargs
+            )
+
             scheduler.add_job(
                 func=_execute_scheduled_script,
-                trigger="date",
-                run_date=next_dt,
+                trigger=trigger,
                 id=job_id,
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
+                max_instances=1,
             )
             try:
                 job = scheduler.get_job(job_id)
@@ -147,7 +136,9 @@ def schedule_job(schedule: ScriptSchedule):
                     schedule.next_run = job.next_run_time
                     schedule.save(update_fields=["next_run"])
             except Exception:
-                logger.exception("Failed to persist next_run for rrule job %s", job_id)
+                logger.exception(
+                    "Failed to persist next_run for interval job %s", job_id
+                )
 
         logger.info(f"Scheduled job added: {job_id}")
 
@@ -276,9 +267,23 @@ def compute_next_run(schedule: ScriptSchedule):
             if not schedule.calendar_expression:
                 return None
             try:
-                # rrulestr can parse DTSTART if present in the string
-                rule = rrulestr(schedule.calendar_expression)
-                # prefer using schedule.next_run if set and in future
+                # Extract DTSTART from the calendar expression and make it timezone-aware
+                dtstart_match = re.search(
+                    r"DTSTART:(\d{8}T\d{6})", schedule.calendar_expression
+                )
+                if dtstart_match:
+                    dtstart_str = dtstart_match.group(1)
+                    from dateutil.parser import parse as parse_dt
+
+                    dt_start = parse_dt(dtstart_str)
+                    if dt_start.tzinfo is None:
+                        dt_start = timezone.make_aware(
+                            dt_start, timezone=timezone.get_default_timezone()
+                        )
+                    rule = rrulestr(schedule.calendar_expression, dtstart=dt_start)
+                else:
+                    rule = rrulestr(schedule.calendar_expression, dtstart=now)
+
                 next_dt = rule.after(now, inc=True)
                 if next_dt and next_dt.tzinfo is None:
                     next_dt = timezone.make_aware(
