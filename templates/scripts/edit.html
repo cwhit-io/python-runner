@@ -154,12 +154,14 @@ numpy">{{ script.dependencies }}</textarea>
 <script>
     require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
 
+    let editorInstance = null;
+
     require(['vs/editor/editor.main'], function () {
         // Get the initial code from the textarea
         const initialCode = document.getElementById('code-input').value;
 
         // Create the Monaco editor
-        const editor = monaco.editor.create(document.getElementById('editor-container'), {
+        editorInstance = monaco.editor.create(document.getElementById('editor-container'), {
             value: initialCode,
             language: 'python',
             theme: 'vs-dark',
@@ -171,15 +173,35 @@ numpy">{{ script.dependencies }}</textarea>
             tabSize: 4,
         });
 
+        // Sync editor content to hidden textarea
+        function syncEditorContent() {
+            if (editorInstance) {
+                document.getElementById('code-input').value = editorInstance.getValue();
+            }
+        }
+
         // Update the hidden textarea when the form is submitted
-        document.querySelector('form').addEventListener('submit', function (e) {
-            document.getElementById('code-input').value = editor.getValue();
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function (e) {
+            syncEditorContent();
+        });
+
+        // Also sync on any change with a debounce
+        let debounceTimer;
+        editorInstance.onDidChangeModelContent(function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(syncEditorContent, 1000);
         });
 
         // Auto-save every 30 seconds
-        setInterval(function () {
-            document.getElementById('code-input').value = editor.getValue();
-        }, 30000);
+        setInterval(syncEditorContent, 30000);
+    });
+
+    // Fallback: sync before unload if editor is loaded
+    window.addEventListener('beforeunload', function() {
+        if (editorInstance) {
+            document.getElementById('code-input').value = editorInstance.getValue();
+        }
     });
 </script>
 <script>

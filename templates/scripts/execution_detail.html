@@ -63,7 +63,7 @@
         <div class="card-body">
             <h2 class="card-title">Live Output</h2>
             <div class="mockup-code max-h-96 overflow-y-auto" id="live-output-container">
-                <pre id="live-output" class="text-sm"><code></code></pre>
+                <pre id="live-output" class="text-sm whitespace-pre-wrap"></pre>
             </div>
             <div class="text-xs opacity-70 mt-2">
                 <span class="loading loading-dots loading-xs"></span>
@@ -308,6 +308,7 @@
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
             console.log('Received:', data);
+            console.log('Message type:', data.type);
             
             if (data.type === 'resource_update') {
                 // Update live monitoring stats

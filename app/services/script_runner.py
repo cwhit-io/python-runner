@@ -321,15 +321,19 @@ class ScriptRunner:
             with open(script_file, "w") as f:
                 f.write(self.script.code)
 
-            # Run the script
+            # Run the script with unbuffered output
             start_time = time.time()
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"  # Force Python to use unbuffered output
+
             process = subprocess.Popen(
-                [python_path, script_file],
+                [python_path, "-u", script_file],  # -u flag for unbuffered
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,  # Line buffered
                 universal_newlines=True,
+                env=env,
             )
 
             # Store process ID
