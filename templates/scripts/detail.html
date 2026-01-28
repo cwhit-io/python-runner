@@ -46,7 +46,7 @@
             </div>
             {% endif %}
         </div>
-        <div class="flex gap-2">
+            <div class="flex gap-2">
             <a href="{% url 'script_edit' script.id %}" class="btn btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
@@ -55,6 +55,7 @@
                 </svg>
                 Edit
             </a>
+
             <form method="post" action="{% url 'script_duplicate' script.id %}" class="inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline">
@@ -79,29 +80,8 @@
                     Run Now
                 </button>
             </form>
-        </div>
-    </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Statistics -->
-        <div class="lg:col-span-3">
-            <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-                <div class="stat">
-                    <div class="stat-title">Status</div>
-                    <div class="stat-value text-2xl">
-                        {% if script.last_status == 'running' %}
-                        <div class="badge badge-info badge-lg">Running</div>
-                        {% elif script.last_status == 'success' %}
-                        <div class="badge badge-success badge-lg">Success</div>
-                        {% elif script.last_status == 'failed' %}
-                        <div class="badge badge-error badge-lg">Failed</div>
-                        {% else %}
-                        <div class="badge badge-ghost badge-lg">Idle</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="stat">
+            <div class="stat">
                     <div class="stat-title">Total Executions</div>
                     <div class="stat-value">{{ script.execution_count }}</div>
                 </div>
@@ -301,6 +281,7 @@
     }
 </script>
 
+
 <!-- Create Schedule Modal -->
 <dialog id="create_schedule_modal" class="modal">
     <div class="modal-box">
@@ -316,15 +297,29 @@
             </div>
             <div class="form-control w-full mb-4">
                 <label class="label">
-                    <span class="label-text">Cron Expression</span>
+                    <span class="label-text">Next run (date & time)</span>
                 </label>
-                <input type="text" name="cron_expression" placeholder="0 3 * * *" class="input input-bordered w-full"
-                    required />
-                <label class="label">
-                    <span class="label-text-alt">Examples: "0 */6 * * *" (every 6 hours), "0 0 * * 0" (weekly on
-                        Sunday)</span>
-                </label>
+                <input type="datetime-local" name="next_run_dt" id="next_run_dt" class="input input-bordered w-full" required />
+                <label class="label"><span class="label-text-alt">Pick the next date/time to run (local timezone)</span></label>
             </div>
+
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text">Repeat</span>
+                </label>
+                <select name="repeat" id="repeat" class="select select-bordered w-full">
+                    <option value="none">Does not repeat (one-time)</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+                <label class="label"><span class="label-text-alt">If repeating, the system will schedule recurring runs.</span></label>
+            </div>
+
+            <!-- Hidden fields used by backend for backward compatibility -->
+            <input type="hidden" name="schedule_type" id="schedule_type_hidden" value="single" />
+            <textarea name="calendar_expression" id="calendar_expression_hidden" style="display:none;"></textarea>
+
             <div class="form-control w-full mb-4">
                 <label class="label">
                     <span class="label-text">Timezone</span>
@@ -341,4 +336,50 @@
         <button>close</button>
     </form>
 </dialog>
+<script>
+    (function(){
+        const repeat = document.getElementById('repeat');
+        const nextRun = document.getElementById('next_run_dt');
+        const scheduleTypeHidden = document.getElementById('schedule_type_hidden');
+        const calendarExprHidden = document.getElementById('calendar_expression_hidden');
+
+        // On form submit, populate hidden fields appropriately
+        const form = document.querySelector('#create_schedule_modal form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                const repeatVal = repeat.value;
+                const dtVal = nextRun.value; // format: YYYY-MM-DDTHH:MM
+                if (!dtVal) {
+                    e.preventDefault();
+                    alert('Please select next run date/time');
+                    return;
+                }
+
+                // Build compact DTSTART format YYYYMMDDTHHMMSS
+                const d = new Date(dtVal);
+                function pad(n){return (n<10?'0':'')+n}
+                const dtStr = '' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+
+                if (repeatVal === 'none') {
+                    scheduleTypeHidden.value = 'single';
+                    calendarExprHidden.value = dtVal;
+                } else {
+                    scheduleTypeHidden.value = 'rrule';
+                    if (repeatVal === 'weekly') {
+                        const days = ['SU','MO','TU','WE','TH','FR','SA'];
+                        const byday = days[d.getDay()];
+                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=WEEKLY;BYDAY=${byday}`;
+                    } else if (repeatVal === 'monthly') {
+                        const day = d.getDate();
+                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=MONTHLY;BYMONTHDAY=${day}`;
+                    } else if (repeatVal === 'daily') {
+                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=DAILY`;
+                    } else {
+                        calendarExprHidden.value = dtVal;
+                    }
+                }
+            });
+        }
+    })();
+</script>
 {% endblock %}

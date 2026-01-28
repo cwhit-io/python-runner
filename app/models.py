@@ -402,6 +402,17 @@ class ScriptSchedule(models.Model):
         max_length=100,
         help_text="Cron expression (e.g., '0 */6 * * *' for every 6 hours)",
     )
+    # Support calendar-based scheduling: 'cron' (default), 'single' (one-time), 'rrule' (RFC5545 RRULE)
+    SCHEDULE_TYPE_CHOICES = [
+        ("cron", "Cron"),
+        ("single", "Single datetime"),
+        ("rrule", "Recurring rule (RRULE)"),
+    ]
+    schedule_type = models.CharField(
+        max_length=20, choices=SCHEDULE_TYPE_CHOICES, default="cron"
+    )
+    # For non-cron schedules, store the calendar expression (ISO datetime for 'single', RFC RRULE string for 'rrule')
+    calendar_expression = models.TextField(blank=True, default="")
     timezone = models.CharField(max_length=50, default="UTC")
 
     # Status

@@ -390,9 +390,21 @@ def schedule_create(request, script_id):
     name = request.POST.get("name", "").strip()
     cron_expression = request.POST.get("cron_expression", "").strip()
     timezone = request.POST.get("timezone", "UTC").strip()
+    schedule_type = request.POST.get("schedule_type", "cron").strip()
+    calendar_expression = request.POST.get("calendar_expression", "").strip()
 
-    if not name or not cron_expression:
-        messages.error(request, "Schedule name and cron expression are required.")
+    if not name:
+        messages.error(request, "Schedule name is required.")
+        return redirect("script_detail", script_id=script_id)
+
+    # Validate based on schedule type
+    if schedule_type == "cron" and not cron_expression:
+        messages.error(request, "Cron expression is required for cron schedules.")
+        return redirect("script_detail", script_id=script_id)
+    if schedule_type in ("single", "rrule") and not calendar_expression:
+        messages.error(
+            request, "Calendar expression is required for this schedule type."
+        )
         return redirect("script_detail", script_id=script_id)
 
     try:
@@ -401,6 +413,8 @@ def schedule_create(request, script_id):
             name=name,
             cron_expression=cron_expression,
             timezone=timezone,
+            schedule_type=schedule_type,
+            calendar_expression=calendar_expression,
             created_by=request.user,
         )
 
