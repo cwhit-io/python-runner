@@ -15,23 +15,38 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load encrypted secrets (if master key and store present) into environment early
+try:
+    from app.services.secret_store import load_secrets_into_env
+
+    load_secrets_into_env()
+except Exception:
+    # Best-effort: do not crash settings import if secrets can't be loaded
+    pass
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django_3yox@eft6cd_@&fg&its#g36!@ublj5qrsns6mc9@+2asvycvd'
+# Prefer secret from environment (populated from encrypted store), fall back to existing value
+import os
+
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY", "django_3yox@eft6cd_@&fg&its#g36!@ublj5qrsns6mc9@+2asvycvd"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 import os
+
 # Read ALLOWED_HOSTS from environment, fall back to '*' in DEBUG (dev convenience)
-_env_allowed = os.environ.get('ALLOWED_HOSTS')
+_env_allowed = os.environ.get("ALLOWED_HOSTS")
 if _env_allowed:
-    ALLOWED_HOSTS = _env_allowed.split(',')
+    ALLOWED_HOSTS = _env_allowed.split(",")
 else:
-    ALLOWED_HOSTS = ['*'] if DEBUG else []
+    ALLOWED_HOSTS = ["*"] if DEBUG else []
 
 # Application definition
 
@@ -39,54 +54,54 @@ INSTALLED_APPS = [
     "unfold",  # Must be before django.contrib.admin
     "unfold.contrib.filters",  # optional, if special filters are needed
     "unfold.contrib.forms",  # optional, if special form elements are needed
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'corsheaders',
-    'channels',  # WebSocket support
-    'app',  # Main app for models and admin
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",
+    "channels",  # WebSocket support
+    "app",  # Main app for models and admin
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files with Daphne
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'app.middleware.APILoggingMiddleware',  # Log API requests
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Serve static files with Daphne
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "app.middleware.APILoggingMiddleware",  # Log API requests
 ]
 
-ROOT_URLCONF = 'app.urls'
+ROOT_URLCONF = "app.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'app.wsgi.application'
-ASGI_APPLICATION = 'app.asgi.application'
+WSGI_APPLICATION = "app.wsgi.application"
+ASGI_APPLICATION = "app.asgi.application"
 
 # Channels configuration
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
         # For production, use Redis:
         # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
         # 'CONFIG': {
@@ -100,9 +115,9 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -112,16 +127,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -129,9 +144,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -141,14 +156,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 
 # Directory where `collectstatic` will collect static files for production
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Additional directories to look for static files (project-level)
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    BASE_DIR / "static",
 ]
 
 # Optional (production): use WhiteNoise to serve static files. Install with:
@@ -166,16 +181,16 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # Authentication settings
-LOGIN_REDIRECT_URL = '/'
-LOGIN_URL = '/login/'
-LOGOUT_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = "/login/"
+LOGOUT_REDIRECT_URL = "/"
 
 # Media files (uploads)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Email settings (for development - prints to console)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # For production, use:
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
@@ -183,25 +198,24 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = 'your-email@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your-app-password'
-DEFAULT_FROM_EMAIL = 'noreply@mysite.com'
+DEFAULT_FROM_EMAIL = "noreply@mysite.com"
 
 # Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Unfold Admin Configuration
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 
 UNFOLD = {
-    "SITE_TITLE": "Python Script Runner",        # Shows in browser tab
-    "SITE_HEADER": "Python Script Runner",       # Shows in admin header
+    "SITE_TITLE": "Python Script Runner",  # Shows in browser tab
+    "SITE_HEADER": "Python Script Runner",  # Shows in admin header
     "SITE_URL": "/",
     "SITE_ICON": None,  # Optional - add your favicon path here
     "SITE_LOGO": None,  # Optional - add your logo path here
     "SITE_SYMBOL": "code",  # Material icon name for the site symbol
     "SHOW_HISTORY": True,  # Show history on detail pages
     "SHOW_VIEW_ON_SITE": True,  # Show "view on site" button
-    
     # Custom colors (comment this out and use "THEME" below for built-in themes)
     "COLORS": {
         "primary": {
@@ -211,7 +225,7 @@ UNFOLD = {
             "200": "221 214 254",
             "300": "196 181 253",
             "400": "167 139 250",
-            "500": "139 92 246",   # Main primary color
+            "500": "139 92 246",  # Main primary color
             "600": "124 58 237",
             "700": "109 40 217",
             "800": "91 33 182",
@@ -219,10 +233,8 @@ UNFOLD = {
             "950": "46 16 101",
         },
     },
-    
     # OR use a built-in theme (uncomment this and remove COLORS above)
     # "THEME": "blue",  # Options: "green", "blue", "purple", "red", "yellow", "monochrome"
-    
     "SIDEBAR": {
         "show_search": True,  # Show search in sidebar
         "show_all_applications": True,  # Show all apps in sidebar

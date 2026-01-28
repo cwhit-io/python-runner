@@ -34,6 +34,33 @@ pip install -r requirements.txt
 - django-unfold
 - APScheduler>=3.10.0
 - croniter>=2.0.0
+- cryptography>=41.0.0
+
+### 2.a Encrypted secrets (optional but recommended)
+
+This project supports storing environment variables encrypted at rest in `secrets.enc` and loading them into `os.environ` at startup.
+
+To generate a master key (and persist it to `.secrets.key`):
+
+```bash
+python manage.py shell -c "from app.services.secret_store import ensure_master_key; ensure_master_key(persist_to_file=True)"
+```
+
+To set a secret:
+
+```bash
+python manage.py setsecret DJANGO_SECRET_KEY='your-production-secret' --persist-key
+```
+
+To list, get, or delete secrets:
+
+```bash
+python manage.py listsecrets
+python manage.py getsecret DJANGO_SECRET_KEY
+python manage.py delsecret DJANGO_SECRET_KEY
+```
+
+When the Django settings import runs it will attempt to load `secrets.enc` into `os.environ`. If a secret is present there it will be preferred over hard-coded defaults.
 
 ### 3. Database Setup
 
