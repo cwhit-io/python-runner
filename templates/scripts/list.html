@@ -3,126 +3,188 @@
 {% block title %}My Scripts{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">My Python Scripts</h1>
-        <div class="flex gap-2">
-            <button class="btn btn-outline" onclick="import_script_modal.showModal()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Import Script
-            </button>
-            <button class="btn btn-primary" onclick="create_script_modal.showModal()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Create Script
-            </button>
-        </div>
-    </div>
-
-    {% if scripts %}
-    <div class="flex justify-between items-center mb-4">
-        <div class="flex items-center gap-4">
-            <label class="label cursor-pointer">
-                <input type="checkbox" id="select-all" class="checkbox checkbox-sm" />
-                <span class="label-text ml-2">Select All</span>
-            </label>
-            <div class="flex gap-2" id="bulk-actions" style="display: none;">
-                <button type="button" class="btn btn-sm btn-outline btn-error" onclick="bulkDelete()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    My Python Scripts
+                </h1>
+                <p class="text-sm opacity-70 mt-1">Manage and execute your automation scripts</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-2">
+                <button class="btn btn-outline gap-2" onclick="import_script_modal.showModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    Delete Selected
+                    Import
                 </button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="bulkExport()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <button class="btn btn-primary gap-2" onclick="create_script_modal.showModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    Export Selected
+                    New Script
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- Tag Filter -->
-    {% if user_tags %}
-    <div class="flex items-center gap-4 mb-4">
-        <span class="text-sm font-medium">Filter by tag:</span>
-        <div class="flex gap-2 flex-wrap">
-            <a href="{% url 'scripts_list' %}"
-                class="btn btn-xs {% if not current_tag %}btn-primary{% else %}btn-outline{% endif %}">
-                All
-            </a>
-            {% for tag in user_tags %}
-            <a href="?tag={{ tag.name }}"
-                class="btn btn-xs {% if current_tag == tag.name %}btn-primary{% else %}btn-outline{% endif %}"
-                style="border-color: {{ tag.color }}; color: {% if current_tag == tag.name %}white{% else %}{{ tag.color }}{% endif %}">
-                {{ tag.name }}
-            </a>
-            {% endfor %}
+        <!-- Tag Filter Section -->
+        {% if user_tags %}
+        <div class="card bg-base-200/50 shadow-sm">
+            <div class="card-body p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <span class="text-sm font-semibold">Filter:</span>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <a href="{% url 'scripts_list' %}" class="btn btn-xs {% if not current_tag %}btn-primary{% else %}btn-ghost{% endif %}">
+                            All Scripts
+                        </a>
+                        {% for tag in user_tags %}
+                        <a href="?tag={{ tag.name }}" class="btn btn-xs {% if current_tag == tag.name %}btn-primary{% else %}btn-ghost{% endif %}" style="{% if current_tag == tag.name %}background-color: {{ tag.color }}; border-color: {{ tag.color }};{% else %}border-color: {{ tag.color }}; color: {{ tag.color }};{% endif %}">
+                            {{ tag.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Bulk actions removed -->
+    </div>
+
+    <!-- Scripts Grid -->
+    {% if scripts %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {% for script in scripts %}
-        <div class="card bg-base-200 shadow-xl">
+        <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-all duration-200 border border-base-300">
             <div class="card-body">
-                <div class="flex items-start gap-3">
-                    <input type="checkbox" class="checkbox checkbox-sm script-checkbox mt-1" value="{{ script.id }}" />
-                    <div class="flex-1">
-                        <h2 class="card-title">
-                            {{ script.name }}
+                <div class="flex items-start gap-4">
+                    <!-- (bulk checkbox removed) -->
+                    
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <!-- Title and Status -->
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <h2 class="card-title text-xl flex-1 break-words">
+                                {{ script.name }}
+                            </h2>
                             {% if script.last_status == 'running' %}
-                            <div class="badge badge-info">Running</div>
+                            <div class="badge badge-info gap-1">
+                                <span class="loading loading-spinner loading-xs"></span>
+                                Running
+                            </div>
                             {% elif script.last_status == 'success' %}
-                            <div class="badge badge-success">Success</div>
+                            <div class="badge badge-success gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Success
+                            </div>
                             {% elif script.last_status == 'failed' %}
-                            <div class="badge badge-error">Failed</div>
+                            <div class="badge badge-error gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Failed
+                            </div>
                             {% else %}
                             <div class="badge badge-ghost">Idle</div>
                             {% endif %}
-                        </h2>
-                        <p class="text-sm opacity-70">{{ script.description|default:"No description" }}</p>
+                        </div>
 
+                        <!-- Description -->
+                        <p class="text-sm opacity-70 mb-3 line-clamp-2">
+                            {{ script.description|default:"No description provided" }}
+                        </p>
+
+                        <!-- Tags -->
                         {% if script.tags.all %}
-                        <div class="flex flex-wrap gap-1 mt-2">
+                        <div class="flex flex-wrap gap-1 mb-4">
                             {% for tag in script.tags.all %}
-                            <span class="badge badge-xs" style="background-color: {{ tag.color }}; color: white;">
+                            <span class="badge badge-sm" style="background-color: {{ tag.color }}20; color: {{ tag.color }}; border: 1px solid {{ tag.color }}40;">
                                 {{ tag.name }}
                             </span>
                             {% endfor %}
                         </div>
                         {% endif %}
 
-                        <div class="stats stats-horizontal shadow mt-4">
-                            <div class="stat place-items-center py-2">
-                                <div class="stat-title text-xs">Executions</div>
-                                <div class="stat-value text-lg">{{ script.execution_count }}</div>
+                        <!-- Execution Info -->
+                        <div class="bg-base-200 rounded-lg p-3 mb-4 space-y-1">
+                            <div class="flex items-center gap-2 text-xs">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {% if script.last_run %}
+                                <span class="font-medium">Last run:</span>
+                                {% if script.last_status == 'success' %}
+                                <span class="text-success">{{ script.last_run|date:"M d, Y H:i" }}</span>
+                                {% elif script.last_status == 'failed' %}
+                                <span class="text-error">{{ script.last_run|date:"M d, Y H:i" }}</span>
+                                {% else %}
+                                <span>{{ script.last_run|date:"M d, Y H:i" }}</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="font-medium">Never executed</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="flex items-center gap-2 text-xs">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span class="font-medium">Schedule:</span>
+                                {% if script.next_run %}
+                                <span class="text-info">Next run {{ script.next_run|date:"M d, Y H:i" }}</span>
+                                {% else %}
+                                <span class="text-xs opacity-70">Not scheduled</span>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <div class="text-xs opacity-60 mt-2">
-                            {% if script.last_run %}
-                            Last run: {{ script.last_run|timesince }} ago
-                            {% else %}
-                            Never run
-                            {% endif %}
-                        </div>
-
-                        <div class="card-actions justify-end mt-4">
-                            <a href="{% url 'script_detail' script.id %}" class="btn btn-sm btn-primary">
-                                View Details
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-2">
+                            <form method="post" action="{% url 'script_execute' script.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Run
+                                </button>
+                            </form>
+                            
+                            <a href="{% url 'script_detail' script.id %}" class="btn btn-sm btn-outline gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Details
                             </a>
+                            
+                            <a href="/scripts/{{ script.id }}/export/" class="btn btn-sm btn-ghost gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export
+                            </a>
+                            
+                            <form method="post" action="{% url 'script_delete' script.id %}" class="inline ml-auto" onsubmit="return confirm('Are you sure you want to delete this script? This action cannot be undone.')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-ghost text-error gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -131,38 +193,61 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="alert">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-info shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <span>No scripts yet. Create your first script to get started!</span>
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center py-16 px-4">
+        <div class="text-center max-w-md">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-6 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="text-2xl font-bold mb-2">No scripts yet</h3>
+            <p class="text-base opacity-70 mb-6">Create your first Python script to automate your workflows and boost productivity.</p>
+            <button class="btn btn-primary gap-2" onclick="create_script_modal.showModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Your First Script
+            </button>
+        </div>
     </div>
     {% endif %}
 </div>
 
 <!-- Create Script Modal -->
 <dialog id="create_script_modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Create New Script</h3>
+    <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-2xl mb-2">Create New Script</h3>
+        <p class="text-sm opacity-70 mb-6">Set up a new Python automation script</p>
+        
         <form method="post" action="{% url 'script_create' %}">
             {% csrf_token %}
             <div class="form-control w-full mb-4">
                 <label class="label">
-                    <span class="label-text">Script Name</span>
+                    <span class="label-text font-semibold">Script Name *</span>
                 </label>
-                <input type="text" name="name" placeholder="My Script" class="input input-bordered w-full" required />
-            </div>
-            <div class="form-control w-full mb-4">
+                <input type="text" name="name" placeholder="e.g., Daily Report Generator" class="input input-bordered w-full" required />
                 <label class="label">
-                    <span class="label-text">Description</span>
+                    <span class="label-text-alt opacity-70">Choose a descriptive name for your script</span>
                 </label>
-                <textarea name="description" placeholder="What does this script do?" class="textarea textarea-bordered"
-                    rows="3"></textarea>
             </div>
+            
+            <div class="form-control w-full mb-6">
+                <label class="label">
+                    <span class="label-text font-semibold">Description</span>
+                </label>
+                <textarea name="description" placeholder="Describe what this script does and when it should run..." class="textarea textarea-bordered h-24" rows="4"></textarea>
+                <label class="label">
+                    <span class="label-text-alt opacity-70">Help others understand the purpose of this script</span>
+                </label>
+            </div>
+            
             <div class="modal-action">
-                <button type="button" class="btn" onclick="create_script_modal.close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="button" class="btn btn-ghost" onclick="create_script_modal.close()">Cancel</button>
+                <button type="submit" class="btn btn-primary gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Script
+                </button>
             </div>
         </form>
     </div>
@@ -173,23 +258,37 @@
 
 <!-- Import Script Modal -->
 <dialog id="import_script_modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Import Script from JSON</h3>
+    <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-2xl mb-2">Import Script</h3>
+        <p class="text-sm opacity-70 mb-6">Upload a previously exported script JSON file</p>
+        
         <form method="post" action="{% url 'script_import' %}" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="form-control w-full mb-4">
+            <div class="form-control w-full mb-6">
                 <label class="label">
-                    <span class="label-text">JSON File</span>
+                    <span class="label-text font-semibold">JSON File *</span>
                 </label>
-                <input type="file" name="json_file" accept=".json" class="file-input file-input-bordered w-full"
-                    required />
+                <input type="file" name="json_file" accept=".json" class="file-input file-input-bordered w-full" required />
                 <label class="label">
-                    <span class="label-text-alt">Select a JSON file exported from this application</span>
+                    <span class="label-text-alt opacity-70">Select a .json file exported from this application</span>
                 </label>
             </div>
+            
+            <div class="alert alert-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-sm">Only JSON files exported from this application are supported</span>
+            </div>
+            
             <div class="modal-action">
-                <button type="button" class="btn" onclick="import_script_modal.close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Import Script</button>
+                <button type="button" class="btn btn-ghost" onclick="import_script_modal.close()">Cancel</button>
+                <button type="submit" class="btn btn-primary gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Import Script
+                </button>
             </div>
         </form>
     </div>
@@ -198,85 +297,5 @@
     </form>
 </dialog>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const selectAllCheckbox = document.getElementById('select-all');
-        const scriptCheckboxes = document.querySelectorAll('.script-checkbox');
-        const bulkActions = document.getElementById('bulk-actions');
-
-        // Handle select all functionality
-        selectAllCheckbox.addEventListener('change', function () {
-            scriptCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateBulkActionsVisibility();
-        });
-
-        // Handle individual checkbox changes
-        scriptCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const checkedBoxes = document.querySelectorAll('.script-checkbox:checked');
-                selectAllCheckbox.checked = checkedBoxes.length === scriptCheckboxes.length;
-                selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < scriptCheckboxes.length;
-                updateBulkActionsVisibility();
-            });
-        });
-
-        function updateBulkActionsVisibility() {
-            const checkedBoxes = document.querySelectorAll('.script-checkbox:checked');
-            bulkActions.style.display = checkedBoxes.length > 0 ? 'flex' : 'none';
-        }
-    });
-
-    function bulkDelete() {
-        const selectedScripts = document.querySelectorAll('.script-checkbox:checked');
-        const scriptIds = Array.from(selectedScripts).map(cb => cb.value);
-
-        if (scriptIds.length === 0) return;
-
-        if (confirm(`Are you sure you want to delete ${scriptIds.length} script(s)? This action cannot be undone.`)) {
-            // Create a form and submit it
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '{% url "scripts_bulk_delete" %}';
-
-            // Add CSRF token
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            form.appendChild(csrfInput);
-
-            // Add script IDs
-            scriptIds.forEach(id => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'script_ids';
-                input.value = id;
-                form.appendChild(input);
-            });
-
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-
-    function bulkExport() {
-        const selectedScripts = document.querySelectorAll('.script-checkbox:checked');
-        const scriptIds = Array.from(selectedScripts).map(cb => cb.value);
-
-        if (scriptIds.length === 0) return;
-
-        // Create download links for each script
-        scriptIds.forEach(scriptId => {
-            const link = document.createElement('a');
-            link.href = `/scripts/${scriptId}/export/`;
-            link.download = `script_${scriptId}.json`;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    }
-</script>
+<!-- Bulk JS removed -->
 {% endblock %}

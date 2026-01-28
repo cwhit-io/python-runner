@@ -167,15 +167,56 @@ def delete_script(request, script_id: int):
     return {"success": True}
 
 
-@router.post(
-    "/scripts/{script_id}/execute", response=ExecutionSchema, auth=APITokenAuth()
-)
+@router.post("/scripts/{script_id}/execute", response=ExecutionSchema, auth=None)
 def execute_script_api(request, script_id: int):
-    """Execute a script."""
-    script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
+    """Execute a script.
 
+    Behavior:
+    - If a valid Bearer API token is provided, require that the token's user owns the script.
+    - If no/invalid token is provided, allow execution only when `script.is_public` is True.
+    """
+    from app.auth import APITokenAuth
+
+    # Optional token auth: inspect Authorization header for a Bearer token
+    auth_backend = APITokenAuth()
+    auth_header = None
+    try:
+        # Ninja exposes headers on request.headers
+        auth_header = request.headers.get("authorization")
+    except Exception:
+        auth_header = None
+
+    token = None
+    api_token_obj = None
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+
+    if token:
+        api_token_obj = auth_backend.authenticate(request, token)
+        if api_token_obj is None:
+            return {"error": "Invalid API token"}, 401
+
+    # Load the script (no owner restriction here; we'll enforce below)
+    script = get_object_or_404(Script, id=script_id)
+
+    # If token present, ensure the token owner matches script owner
+    if api_token_obj:
+        if script.owner_id != api_token_obj.user_id:
+            return {"error": "Permission denied"}, 403
+        # attach auth for downstream logic/consistency
+        request.auth = api_token_obj
+
+    # If no token and script is not public, reject
+    if not api_token_obj and not script.is_public:
+        return {"error": "Authentication required"}, 401
+
+    # Execute the script. For public runs triggered_by is None.
     runner = ScriptRunner(script)
-    execution = runner.execute(triggered_by=request.auth.user, trigger_type="api")
+    execution = runner.execute(
+        triggered_by=(api_token_obj.user if api_token_obj else None), trigger_type="api"
+    )
 
     return execution
 

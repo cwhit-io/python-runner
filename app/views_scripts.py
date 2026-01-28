@@ -37,6 +37,18 @@ def scripts_list(request):
 
     user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
 
+    # Attach next_run to each script if any active schedule has a next_run
+    for s in scripts:
+        try:
+            next_sched = (
+                s.schedules.filter(is_active=True, next_run__isnull=False)
+                .order_by("next_run")
+                .first()
+            )
+            s.next_run = next_sched.next_run if next_sched else None
+        except Exception:
+            s.next_run = None
+
     return render(
         request,
         "scripts/list.html",
@@ -75,7 +87,17 @@ def script_detail(request, script_id):
     """View script details and execution history."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
     executions = script.executions.all()[:20]  # Last 20 executions
-    schedules = script.schedules.all()
+    schedules = list(script.schedules.all())
+
+    # Compute next_run for schedules that don't have it persisted
+    from app.services.scheduler import compute_next_run
+
+    for sched in schedules:
+        try:
+            if not getattr(sched, "next_run", None):
+                sched.next_run = compute_next_run(sched)
+        except Exception:
+            sched.next_run = None
 
     return render(
         request,

@@ -40,6 +40,12 @@ def schedule_job(schedule: ScriptSchedule):
 
     # Only add if schedule is active
     if not schedule.is_active:
+        # ensure DB reflects that there's no next run when inactive
+        try:
+            schedule.next_run = None
+            schedule.save(update_fields=["next_run"])
+        except Exception:
+            pass
         return
 
     try:
@@ -56,6 +62,14 @@ def schedule_job(schedule: ScriptSchedule):
                 replace_existing=True,
                 max_instances=1,  # Prevent overlapping executions
             )
+            # persist the next_run time to the schedule record
+            try:
+                job = scheduler.get_job(job_id)
+                if job and getattr(job, "next_run_time", None):
+                    schedule.next_run = job.next_run_time
+                    schedule.save(update_fields=["next_run"])
+            except Exception:
+                logger.exception("Failed to persist next_run for cron job %s", job_id)
 
         elif schedule.schedule_type == "single":
             # calendar_expression expected to be an ISO datetime string
@@ -74,6 +88,13 @@ def schedule_job(schedule: ScriptSchedule):
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
             )
+            try:
+                job = scheduler.get_job(job_id)
+                if job and getattr(job, "next_run_time", None):
+                    schedule.next_run = job.next_run_time
+                    schedule.save(update_fields=["next_run"])
+            except Exception:
+                logger.exception("Failed to persist next_run for single job %s", job_id)
 
         elif schedule.schedule_type == "rrule":
             # calendar_expression expected to be an RFC5545 RRULE string
@@ -103,6 +124,13 @@ def schedule_job(schedule: ScriptSchedule):
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
             )
+            try:
+                job = scheduler.get_job(job_id)
+                if job and getattr(job, "next_run_time", None):
+                    schedule.next_run = job.next_run_time
+                    schedule.save(update_fields=["next_run"])
+            except Exception:
+                logger.exception("Failed to persist next_run for rrule job %s", job_id)
 
         logger.info(f"Scheduled job added: {job_id}")
 
@@ -118,6 +146,11 @@ def remove_schedule(schedule: ScriptSchedule):
     if scheduler.get_job(job_id):
         scheduler.remove_job(job_id)
         logger.info(f"Scheduled job removed: {job_id}")
+    try:
+        schedule.next_run = None
+        schedule.save(update_fields=["next_run"])
+    except Exception:
+        pass
 
 
 def _execute_scheduled_script(script_id, schedule_id):
@@ -178,3 +211,70 @@ def shutdown_scheduler():
     if _scheduler is not None:
         _scheduler.shutdown()
         _scheduler = None
+
+
+def compute_next_run(schedule: ScriptSchedule):
+    """Compute the next run datetime for a schedule without mutating scheduler state.
+
+    Returns a timezone-aware datetime or None if no future run.
+    """
+    from django.utils import timezone
+
+    try:
+        now = timezone.now()
+        if not schedule.is_active:
+            return None
+
+        if schedule.schedule_type == "cron":
+            # Build a CronTrigger and compute next fire time
+            try:
+                trigger = CronTrigger.from_crontab(
+                    schedule.cron_expression, timezone=schedule.timezone
+                )
+                next_dt = trigger.get_next_fire_time(None, now)
+                return next_dt
+            except Exception:
+                logger.exception(
+                    "Failed computing next_run for cron schedule %s", schedule.id
+                )
+                return None
+
+        if schedule.schedule_type == "single":
+            if not schedule.calendar_expression:
+                return None
+            try:
+                dt = parse_dt(schedule.calendar_expression)
+                if dt.tzinfo is None:
+                    dt = timezone.make_aware(
+                        dt, timezone=timezone.get_default_timezone()
+                    )
+                return dt if dt >= now else None
+            except Exception:
+                logger.exception(
+                    "Failed parsing single calendar_expression for %s", schedule.id
+                )
+                return None
+
+        if schedule.schedule_type == "rrule":
+            if not schedule.calendar_expression:
+                return None
+            try:
+                # rrulestr can parse DTSTART if present in the string
+                rule = rrulestr(schedule.calendar_expression)
+                # prefer using schedule.next_run if set and in future
+                next_dt = rule.after(now, inc=True)
+                if next_dt and next_dt.tzinfo is None:
+                    next_dt = timezone.make_aware(
+                        next_dt, timezone=timezone.get_default_timezone()
+                    )
+                return next_dt
+            except Exception:
+                logger.exception("Failed computing RRULE next_run for %s", schedule.id)
+                return None
+
+    except Exception:
+        logger.exception(
+            "Unexpected error computing next_run for schedule %s",
+            getattr(schedule, "id", "?"),
+        )
+        return None
