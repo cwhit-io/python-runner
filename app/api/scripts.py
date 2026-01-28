@@ -1,6 +1,7 @@
 """
 API endpoints for script management.
 """
+
 from ninja import Router, Schema
 from typing import List, Optional
 from datetime import datetime
@@ -13,12 +14,19 @@ router = Router(tags=["Scripts"])
 
 
 # Schemas
+class TagSchema(Schema):
+    id: int
+    name: str
+    color: str
+
+
 class ScriptSchema(Schema):
     id: int
     name: str
     description: str
     code: str
     dependencies: str
+    tags: List[TagSchema]
     last_status: str
     last_run: Optional[datetime]
     execution_count: int
@@ -32,6 +40,7 @@ class ScriptCreateSchema(Schema):
     description: Optional[str] = ""
     code: Optional[str] = "# Write your Python script here\nprint('Hello, World!')"
     dependencies: Optional[str] = ""
+    tags: Optional[List[str]] = []
 
 
 class ScriptUpdateSchema(Schema):
@@ -40,6 +49,7 @@ class ScriptUpdateSchema(Schema):
     code: Optional[str] = None
     dependencies: Optional[str] = None
     is_public: Optional[bool] = None
+    tags: Optional[List[str]] = None
 
 
 class ExecutionSchema(Schema):
@@ -81,20 +91,35 @@ class ScheduleCreateSchema(Schema):
 @router.get("/scripts", response=List[ScriptSchema], auth=APITokenAuth())
 def list_scripts(request):
     """List all scripts owned by the authenticated user."""
-    scripts = Script.objects.filter(owner=request.auth.user).order_by('-updated_at')
+    scripts = Script.objects.filter(owner=request.auth.user).order_by("-updated_at")
     return scripts
 
 
 @router.post("/scripts", response=ScriptSchema, auth=APITokenAuth())
 def create_script(request, payload: ScriptCreateSchema):
     """Create a new script."""
+    from app.models import Tag
+
     script = Script.objects.create(
         name=payload.name,
         description=payload.description,
         code=payload.code,
         dependencies=payload.dependencies,
-        owner=request.auth.user
+        owner=request.auth.user,
     )
+
+    # Handle tags - only assign existing tags
+    if payload.tags:
+        tags = []
+        for tag_name in payload.tags:
+            try:
+                tag = Tag.objects.get(name=tag_name, created_by=request.auth.user)
+                tags.append(tag)
+            except Tag.DoesNotExist:
+                # Skip tags that don't exist or don't belong to the user
+                pass
+        script.tags.set(tags)  # type: ignore[attr-defined]
+
     return script
 
 
@@ -108,11 +133,28 @@ def get_script(request, script_id: int):
 @router.put("/scripts/{script_id}", response=ScriptSchema, auth=APITokenAuth())
 def update_script(request, script_id: int, payload: ScriptUpdateSchema):
     """Update a script."""
+    from app.models import Tag
+
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-    
+
     for attr, value in payload.dict(exclude_unset=True).items():
-        setattr(script, attr, value)
-    
+        if attr == "tags":
+            # Handle tags separately - only assign existing tags
+            if value is not None:
+                tags = []
+                for tag_name in value:
+                    try:
+                        tag = Tag.objects.get(
+                            name=tag_name, created_by=request.auth.user
+                        )
+                        tags.append(tag)
+                    except Tag.DoesNotExist:
+                        # Skip tags that don't exist or don't belong to the user
+                        pass
+                script.tags.set(tags)  # type: ignore[attr-defined]
+        else:
+            setattr(script, attr, value)
+
     script.save()
     return script
 
@@ -125,62 +167,74 @@ def delete_script(request, script_id: int):
     return {"success": True}
 
 
-@router.post("/scripts/{script_id}/execute", response=ExecutionSchema, auth=APITokenAuth())
+@router.post(
+    "/scripts/{script_id}/execute", response=ExecutionSchema, auth=APITokenAuth()
+)
 def execute_script_api(request, script_id: int):
     """Execute a script."""
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-    
+
     runner = ScriptRunner(script)
-    execution = runner.execute(triggered_by=request.auth.user, trigger_type='api')
-    
+    execution = runner.execute(triggered_by=request.auth.user, trigger_type="api")
+
     return execution
 
 
-@router.get("/scripts/{script_id}/executions", response=List[ExecutionSchema], auth=APITokenAuth())
+@router.get(
+    "/scripts/{script_id}/executions",
+    response=List[ExecutionSchema],
+    auth=APITokenAuth(),
+)
 def list_executions(request, script_id: int):
     """List executions for a script."""
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-    executions = script.executions.all()[:50]
+    executions = script.executions.all()[:50]  # type: ignore[attr-defined]
     return executions
 
 
-@router.get("/executions/{execution_id}", response=ExecutionDetailSchema, auth=APITokenAuth())
+@router.get(
+    "/executions/{execution_id}", response=ExecutionDetailSchema, auth=APITokenAuth()
+)
 def get_execution(request, execution_id: int):
     """Get execution details."""
     execution = get_object_or_404(ScriptExecution, id=execution_id)
-    
+
     # Check permission
     if execution.script.owner != request.auth.user:
         return {"error": "Permission denied"}, 403
-    
+
     return execution
 
 
-@router.get("/scripts/{script_id}/schedules", response=List[ScheduleSchema], auth=APITokenAuth())
+@router.get(
+    "/scripts/{script_id}/schedules", response=List[ScheduleSchema], auth=APITokenAuth()
+)
 def list_schedules(request, script_id: int):
     """List schedules for a script."""
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-    schedules = script.schedules.all()
+    schedules = script.schedules.all()  # type: ignore[attr-defined]
     return schedules
 
 
-@router.post("/scripts/{script_id}/schedules", response=ScheduleSchema, auth=APITokenAuth())
+@router.post(
+    "/scripts/{script_id}/schedules", response=ScheduleSchema, auth=APITokenAuth()
+)
 def create_schedule(request, script_id: int, payload: ScheduleCreateSchema):
     """Create a schedule for a script."""
     from app.services.scheduler import schedule_job
-    
+
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-    
+
     schedule = ScriptSchedule.objects.create(
         script=script,
         name=payload.name,
         cron_expression=payload.cron_expression,
         timezone=payload.timezone,
-        created_by=request.auth.user
+        created_by=request.auth.user,
     )
-    
+
     schedule_job(schedule)
-    
+
     return schedule
 
 
@@ -188,14 +242,73 @@ def create_schedule(request, script_id: int, payload: ScheduleCreateSchema):
 def delete_schedule(request, schedule_id: int):
     """Delete a schedule."""
     from app.services.scheduler import remove_schedule
-    
+
     schedule = get_object_or_404(ScriptSchedule, id=schedule_id)
-    
+
     # Check permission
     if schedule.script.owner != request.auth.user:
         return {"error": "Permission denied"}, 403
-    
+
     remove_schedule(schedule)
     schedule.delete()
-    
+
+
+# Tag API endpoints
+@router.get("/tags", response=List[TagSchema], auth=APITokenAuth())
+def list_tags(request):
+    """List all tags for the current user."""
+    from app.models import Tag
+
+    tags = Tag.objects.filter(created_by=request.auth.user).order_by("name")
+    return tags
+
+
+@router.post("/tags", response=TagSchema, auth=APITokenAuth())
+def create_tag(request, payload: dict):
+    """Create a new tag."""
+    from app.models import Tag
+    from django.core.exceptions import ValidationError
+
+    try:
+        tag = Tag.objects.create(
+            name=payload["name"],
+            color=payload.get("color", "#3B82F6"),
+            description=payload.get("description", ""),
+            created_by=request.auth.user,
+        )
+        return tag
+    except Exception as e:
+        return {"error": str(e)}, 400
+
+
+@router.put("/tags/{tag_id}", response=TagSchema, auth=APITokenAuth())
+def update_tag(request, tag_id: int, payload: dict):
+    """Update a tag."""
+    from app.models import Tag
+
+    tag = get_object_or_404(Tag, id=tag_id, created_by=request.auth.user)
+
+    if "name" in payload:
+        tag.name = payload["name"]
+    if "color" in payload:
+        tag.color = payload["color"]
+    if "description" in payload:
+        tag.description = payload["description"]
+
+    try:
+        tag.save()
+        return tag
+    except Exception as e:
+        return {"error": str(e)}, 400
+
+
+@router.delete("/tags/{tag_id}", auth=APITokenAuth())
+def delete_tag(request, tag_id: int):
+    """Delete a tag."""
+    from app.models import Tag
+
+    tag = get_object_or_404(Tag, id=tag_id, created_by=request.auth.user)
+    tag.delete()
+    return {"message": "Tag deleted successfully"}
+
     return {"success": True}

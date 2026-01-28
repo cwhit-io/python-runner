@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tag{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <div class="breadcrumbs text-sm">
+            <ul>
+                <li><a href="{% url 'scripts_list' %}">Scripts</a></li>
+                <li><a href="{% url 'tags_list' %}">Tags</a></li>
+                <li>Edit</li>
+            </ul>
+        </div>
+    </div>
+
+    <h1 class="text-3xl font-bold mb-6">Edit Tag</h1>
+
+    <div class="max-w-md">
+        <form method="post" action="{% url 'tag_edit' tag.id %}">
+            {% csrf_token %}
+
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text font-semibold">Tag Name *</span>
+                </label>
+                <input type="text" name="name" value="{{ tag.name }}" class="input input-bordered w-full" required />
+            </div>
+
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text font-semibold">Color</span>
+                </label>
+                <input type="color" name="color" value="{{ tag.color }}" class="input input-bordered w-full h-12" />
+                <div class="mt-2 flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-full border-2 border-gray-300" id="color-preview"
+                        style="background-color: {{ tag.color }};"></div>
+                    <span class="text-sm text-gray-600">Preview</span>
+                </div>
+            </div>
+
+            <div class="form-control w-full mb-6">
+                <label class="label">
+                    <span class="label-text font-semibold">Description</span>
+                </label>
+                <textarea name="description" class="textarea textarea-bordered h-24"
+                    placeholder="What is this tag for?">{{ tag.description }}</textarea>
+            </div>
+
+            <div class="flex gap-4">
+                <button type="submit" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Save Changes
+                </button>
+                <a href="{% url 'tags_list' %}" class="btn btn-ghost">Cancel</a>
+            </div>
+        </form>
+
+        {% if tag.scripts.all %}
+        <div class="mt-8">
+            <h3 class="text-lg font-semibold mb-4">Scripts using this tag</h3>
+            <div class="space-y-2">
+                {% for script in tag.scripts.all %}
+                <a href="{% url 'script_detail' script.id %}"
+                    class="block p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors">
+                    <div class="font-medium">{{ script.name }}</div>
+                    <div class="text-sm text-gray-600">{{ script.description|truncatechars:100 }}</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Update color preview when color picker changes
+    document.querySelector('input[type="color"]').addEventListener('input', function (e) {
+        document.getElementById('color-preview').style.backgroundColor = e.target.value;
+    });
+</script>
+{% endblock %}

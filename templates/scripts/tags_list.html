@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}My Tags{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold">My Tags</h1>
+            <p class="text-gray-600 mt-2">Create and manage tags to organize your scripts</p>
+        </div>
+        <button class="btn btn-primary" onclick="create_tag_modal.showModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Create Tag
+        </button>
+    </div>
+
+    {% if tags %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for tag in tags %}
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-6 h-6 rounded-full border-2 border-gray-300"
+                        style="background-color: {{ tag.color }}; /* stylelint-disable-line property-no-unknown */">
+                    </div>
+                    <h2 class="card-title flex-1">{{ tag.name }}</h2>
+                    <div class="dropdown dropdown-end">
+                        <label tabindex="0" class="btn btn-ghost btn-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                        </label>
+                        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                            <li><a href="{% url 'tag_edit' tag.id %}">Edit Tag</a></li>
+                            <li><a href="#" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}"
+                                    onclick="confirmDelete(this)" class="text-error">Delete Tag</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                {% if tag.description %}
+                <p class="text-sm opacity-70 mb-3">{{ tag.description }}</p>
+                {% endif %}
+
+                <div class="stats stats-horizontal shadow">
+                    <div class="stat place-items-center py-2">
+                        <div class="stat-title text-xs">Scripts</div>
+                        <div class="stat-value text-lg">{{ tag.scripts.count }}</div>
+                    </div>
+                </div>
+
+                {% if tag.scripts.all %}
+                <div class="mt-3">
+                    <p class="text-xs font-medium mb-2">Used in scripts:</p>
+                    <div class="flex flex-wrap gap-1">
+                        {% for script in tag.scripts.all|slice:":5" %}
+                        <a href="{% url 'script_detail' script.id %}"
+                            class="badge badge-outline badge-sm hover:badge-primary">
+                            {{ script.name|truncatechars:20 }}
+                        </a>
+                        {% endfor %}
+                        {% if tag.scripts.count > 5 %}
+                        <span class="badge badge-ghost badge-sm">+{{ tag.scripts.count|add:"-5" }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto text-gray-400 mb-4" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">No tags yet</h3>
+        <p class="text-gray-500 mb-4">Create your first tag to start organizing your scripts</p>
+        <button class="btn btn-primary" onclick="create_tag_modal.showModal()">Create Your First Tag</button>
+    </div>
+    {% endif %}
+
+    <!-- Create Tag Modal -->
+    <dialog id="create_tag_modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">Create New Tag</h3>
+            <form method="post" action="{% url 'tag_create' %}">
+                {% csrf_token %}
+                <div class="form-control w-full mb-4">
+                    <label class="label">
+                        <span class="label-text font-semibold">Tag Name *</span>
+                    </label>
+                    <input type="text" name="name" class="input input-bordered w-full" required />
+                </div>
+
+                <div class="form-control w-full mb-4">
+                    <label class="label">
+                        <span class="label-text font-semibold">Color</span>
+                    </label>
+                    <input type="color" name="color" value="#3B82F6" class="input input-bordered w-full h-12" />
+                </div>
+
+                <div class="form-control w-full mb-6">
+                    <label class="label">
+                        <span class="label-text font-semibold">Description</span>
+                    </label>
+                    <textarea name="description" class="textarea textarea-bordered h-24"
+                        placeholder="What is this tag for?"></textarea>
+                </div>
+
+                <div class="modal-action">
+                    <button type="button" class="btn" onclick="create_tag_modal.close()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Tag</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Delete Confirmation Modal -->
+    <dialog id="delete_modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">Delete Tag</h3>
+            <p class="py-4">Are you sure you want to delete the tag "<span id="delete-tag-name"></span>"? This action
+                cannot be undone.</p>
+            <div class="modal-action">
+                <button type="button" class="btn" onclick="delete_modal.close()">Cancel</button>
+                <form id="delete-form" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-error">Delete Tag</button>
+                </form>
+            </div>
+        </div>
+    </dialog>
+</div>
+
+<script>
+    function confirmDelete(element) {
+        const tagId = element.getAttribute('data-tag-id');
+        const tagName = element.getAttribute('data-tag-name');
+        document.getElementById('delete-tag-name').textContent = tagName;
+        document.getElementById('delete-form').action = `/tags/${tagId}/delete/`;
+        delete_modal.showModal();
+    }
+</script>
+{% endblock %}

@@ -13,7 +13,13 @@ Perfect for DevOps automation, ETL jobs, and scheduled tasks without container o
 - **Monaco Editor** - Professional code editor with Python syntax highlighting
 - **Isolated Virtual Environments** - Each script has its own venv with custom dependencies
 - **Dependency Management** - Specify requirements per script (e.g., `requests==2.28.0`)
+- **Dependency Optimization** - Hash-based change detection prevents unnecessary reinstalls
+- **Conflict Detection** - Automatic detection of conflicting package versions
 - **Version Control Ready** - All scripts stored in database with full history
+- **Duplicate Scripts** - Clone existing scripts with one click
+- **Bulk Operations** - Select and manage multiple scripts (delete, export)
+- **JSON Import/Export** - Backup and share scripts as JSON files
+- **Script Tags** - Organize scripts with customizable, user-created tags and colors
 
 ### ⏰ Scheduling & Execution
 
@@ -58,6 +64,10 @@ Perfect for DevOps automation, ETL jobs, and scheduled tasks without container o
 - **Light/Dark Mode** - 29 themes with localStorage persistence
 - **htmx** - Dynamic interactions without page reloads
 - **Unfold Admin** - Modern, customizable admin interface
+- **Copy to Clipboard** - One-click copying of execution output and API endpoints
+- **Keyboard Shortcuts** - Fast navigation (Ctrl+N, Ctrl+E, Ctrl+R, Ctrl+D, Ctrl+S)
+- **Bulk Selection** - Multi-select scripts with checkboxes for batch operations
+- **Tag Management** - Create and assign colored tags to organize scripts
 
 ## Quick Start
 
@@ -75,42 +85,42 @@ git clone <your-repo>
 cd django-starter-template
 ```
 
-2. **Create and activate virtual environment**
+1. **Create and activate virtual environment**
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. **Install dependencies**
+1. **Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Run migrations**
+1. **Run migrations**
 
 ```bash
 python manage.py migrate
 ```
 
-5. **Create superuser**
+1. **Create superuser**
 
 ```bash
 python manage.py createsuperuser
 ```
 
-6. **Run development server**
+1. **Run development server**
 
 ```bash
 python manage.py runserver
 ```
 
-7. **Visit the application**
+1. **Visit the application**
 
-- **Script Manager**: http://localhost:8000
-- **Admin Panel**: http://localhost:8000/admin
-- **API Docs**: http://localhost:8000/api/docs
+- **Script Manager**: <http://localhost:8000>
+- **Admin Panel**: <http://localhost:8000/admin>
+- **API Docs**: <http://localhost:8000/api/docs>
 
 ## Usage Guide
 
@@ -124,22 +134,81 @@ python manage.py runserver
 ### Editing Scripts
 
 1. Open the script editor
-2. Write your Python code in the **Monaco Editor**
+2. Write your Python code in the **Monaco Editor** with syntax highlighting
 3. Add **dependencies** (one per line):
-   ```
+
+   ```text
    requests==2.28.0
    pandas>=1.5.0
    numpy
    ```
-4. Click **"Save Changes"**
+
+4. **Dependency Optimization**: Dependencies are only reinstalled when changed (hash-based detection)
+5. **Conflict Detection**: Get warnings for conflicting package versions
+6. Click **"Save Changes"**
+
+### Managing Scripts
+
+**Duplicate Scripts:**
+
+- Click **"Duplicate"** to clone any script with a unique name
+
+**Bulk Operations:**
+
+- Use checkboxes to select multiple scripts
+- **Bulk Delete**: Remove multiple scripts at once
+- **Bulk Export**: Download multiple scripts as JSON files
+
+**Import Scripts:**
+
+- Click **"Import Script"** to upload JSON files
+- Supports scripts exported from this application
+
+**Keyboard Shortcuts:**
+
+- **Ctrl+N (Cmd+N)**: Create new script
+- **Ctrl+E (Cmd+E)**: Edit current script
+- **Ctrl+R (Cmd+R)**: Run current script
+- **Ctrl+D (Cmd+D)**: Duplicate current script
+- **Ctrl+S (Cmd+S)**: Save script changes
+
+### Managing Tags
+
+**Creating Tags:**
+
+1. Navigate to the "Tags" page from the main menu
+2. Click "Create Tag" to open the tag creation form
+3. Enter a name, choose a color, and add an optional description
+4. Click "Create Tag" to save
+
+**Editing Tags:**
+
+1. From the Tags page, click the menu (⋯) on any tag card
+2. Select "Edit Tag" to modify name, color, or description
+3. Save your changes
+
+**Organizing Scripts:**
+
+- Tags must be created first in the Tags management page
+- When editing a script, select from your existing tags
+- Filter scripts by clicking tag buttons in the script list
+- Use tags to group related scripts (e.g., "ETL", "Reporting", "Utilities")
+
+**Tag Management:**
+
+- Access tag management through the Django admin
+- Edit tag colors and descriptions
+- View script counts for each tag
 
 ### Running Scripts
 
 **Manual Execution:**
+
 - Click **"Run Now"** on the script detail page
 - View real-time status and logs
 
 **Scheduled Execution:**
+
 1. Add a schedule with a cron expression
 2. Examples:
    - `0 */6 * * *` - Every 6 hours
@@ -154,8 +223,8 @@ python manage.py runserver
 3. View:
    - **Status** (success/failed)
    - **Duration**
-   - **Standard Output** (stdout)
-   - **Standard Error** (stderr)
+   - **Standard Output** (stdout) - Click "Copy" to copy to clipboard
+   - **Standard Error** (stderr) - Click "Copy" to copy to clipboard
    - **Exit Code**
 
 ## API Usage
@@ -163,6 +232,7 @@ python manage.py runserver
 ### Authentication
 
 Create an API token:
+
 1. Profile → API Tokens → Create Token
 2. Copy the token immediately
 
@@ -186,13 +256,23 @@ curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
 # Get execution details
 curl -H "Authorization: Bearer YOUR_TOKEN" \
      http://localhost:8000/api/v1/executions/1
+
+# Export a script as JSON
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:8000/scripts/1/export/ \
+     -o script_backup.json
+
+# Import a script from JSON
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+     -F "json_file=@script_backup.json" \
+     http://localhost:8000/scripts/import/
 ```
 
-Full API documentation: http://localhost:8000/api/docs
+Full API documentation: <http://localhost:8000/api/docs>
 
 ## Project Structure
 
-```
+```text
 python-runner/
 ├── app/
 │   ├── api/              # Django Ninja API endpoints
@@ -226,6 +306,7 @@ python-runner/
 ### Virtual Environments
 
 Each script gets an isolated virtual environment:
+
 - **Location**: `media/venvs/{script_id}/`
 - **Auto-created**: On first execution
 - **Dependencies**: Installed from script's requirements
@@ -233,6 +314,7 @@ Each script gets an isolated virtual environment:
 ### Scheduling
 
 APScheduler runs in-process:
+
 - **Timezone**: Configurable per schedule
 - **Persistence**: Database-backed (optional)
 - **Auto-reload**: On server restart
@@ -323,7 +405,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
      http://localhost:8000/api/protected/items/my-items
 ```
 
-3. **In JavaScript**
+1. **In JavaScript**
 
 ```javascript
 fetch("/api/protected/items/my-items", {
@@ -362,6 +444,20 @@ notificationSocket.onmessage = (event) => {
 ```
 
 ### Custom API Endpoints
+
+#### Script Management Endpoints
+
+- `GET /scripts/{id}/export/` - Export a script as JSON
+- `POST /scripts/import/` - Import a script from JSON file
+- `POST /scripts/bulk-delete/` - Delete multiple scripts at once
+- `POST /scripts/bulk-duplicate/` - Duplicate multiple scripts at once
+
+#### Tag Management Endpoints
+
+- `GET /tags` - List all user tags
+- `POST /tags` - Create a new tag
+- `PUT /tags/{id}` - Update a tag
+- `DELETE /tags/{id}` - Delete a tag
 
 Add new API endpoints in `app/api/`:
 
@@ -429,6 +525,56 @@ Access the admin at `/admin` with your superuser credentials.
 - Automatic logging via middleware
 - Fields: endpoint, method, status_code, user, ip_address, timestamp, etc.
 - Color-coded display in admin
+
+### Script
+
+- Core model for Python scripts
+- Fields: name, code, requirements, user, created_at, updated_at
+- New fields: dependency_hash, has_conflicts, conflict_details
+- Supports scheduling with ScriptSchedule model
+- **Tags**: Many-to-many relationship with Tag model for organization
+
+### Tag
+
+- Model for categorizing scripts
+- Fields: name, color, description, created_by, created_at
+- User-created and managed through dedicated interface
+- Color-coded display in admin interface
+- Automatic creation when assigning to scripts
+
+### ScriptExecution
+
+- Execution history and logs
+- Fields: script, status, stdout, stderr, exit_code, duration, started_at, finished_at
+- Real-time updates via WebSockets
+
+### ScriptSchedule
+
+- Cron-based scheduling
+- Fields: script, cron_expression, is_active, next_run, last_run
+
+## Technical Details
+
+### Dependency Optimization
+
+The application uses hash-based dependency caching to optimize script execution:
+
+- **Hash Calculation**: SHA-256 hash of requirements.txt content
+- **Change Detection**: Only reinstalls dependencies when requirements change
+- **Conflict Detection**: Parses version specs to detect incompatible packages
+- **Performance**: Significantly reduces execution time for repeated runs
+
+### Virtual Environment Management
+
+- **Isolated Environments**: Each script runs in its own virtual environment
+- **Automatic Creation**: Environments created on-demand in `media/venvs/`
+- **Cleanup**: Old environments can be cleaned up manually
+
+### Monaco Editor Integration
+
+- **Syntax Highlighting**: Full Python syntax support
+- **Themes**: Light and dark theme support
+- **Keyboard Shortcuts**: Standard editor shortcuts available
 
 ## Testing
 
