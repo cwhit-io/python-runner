@@ -410,33 +410,42 @@ def schedule_create(request, script_id):
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     name = request.POST.get("name", "").strip()
-    cron_expression = request.POST.get("cron_expression", "").strip()
     timezone = request.POST.get("timezone", "UTC").strip()
-    schedule_type = request.POST.get("schedule_type", "cron").strip()
-    calendar_expression = request.POST.get("calendar_expression", "").strip()
+    interval_unit = request.POST.get("interval_unit", "").strip()
+    start_datetime = request.POST.get("start_datetime", "").strip()
 
     if not name:
         messages.error(request, "Schedule name is required.")
         return redirect("script_detail", script_id=script_id)
 
-    # Validate based on schedule type
-    if schedule_type == "cron" and not cron_expression:
-        messages.error(request, "Cron expression is required for cron schedules.")
-        return redirect("script_detail", script_id=script_id)
-    if schedule_type in ("single", "rrule") and not calendar_expression:
-        messages.error(
-            request, "Calendar expression is required for this schedule type."
-        )
+    # Determine schedule type based on whether interval_unit is provided
+    if interval_unit:
+        schedule_type = "interval"
+    else:
+        schedule_type = "single"
+
+    # Validate required fields
+    if not start_datetime:
+        messages.error(request, "Start date/time is required.")
         return redirect("script_detail", script_id=script_id)
 
     try:
+        # Parse the datetime string
+        from dateutil.parser import parse as parse_dt
+        from django.utils import timezone as django_tz
+
+        dt = parse_dt(start_datetime)
+        if dt.tzinfo is None:
+            dt = django_tz.make_aware(dt, django_tz.get_default_timezone())
+
         schedule = ScriptSchedule.objects.create(
             script=script,
             name=name,
-            cron_expression=cron_expression,
             timezone=timezone,
             schedule_type=schedule_type,
-            calendar_expression=calendar_expression,
+            start_datetime=dt,
+            interval_unit=interval_unit if interval_unit else "",
+            interval_value=1,
             created_by=request.user,
         )
 

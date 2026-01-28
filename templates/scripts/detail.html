@@ -450,20 +450,20 @@
                 <label class="label">
                     <span class="label-text font-semibold">Repeat Pattern</span>
                 </label>
-                <select name="repeat" id="repeat" class="select select-bordered w-full">
-                    <option value="none">Does not repeat (one-time execution)</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
+                <select name="interval_unit" id="interval_unit" class="select select-bordered w-full">
+                    <option value="">Does not repeat (one-time execution)</option>
+                    <option value="hours">Hourly</option>
+                    <option value="days">Daily</option>
+                    <option value="weeks">Weekly</option>
+                    <option value="months">Monthly</option>
                 </select>
                 <label class="label">
                     <span class="label-text-alt opacity-70">Choose how often this schedule should repeat</span>
                 </label>
             </div>
 
-            <!-- Hidden fields for backend compatibility -->
-            <input type="hidden" name="schedule_type" id="schedule_type_hidden" value="single" />
-            <textarea name="calendar_expression" id="calendar_expression_hidden" style="display:none;"></textarea>
+            <!-- Hidden field for start_datetime -->
+            <input type="hidden" name="start_datetime" id="start_datetime_hidden" />
 
             <div class="form-control w-full mb-6">
                 <label class="label">
@@ -517,15 +517,13 @@
     }
 
     (function(){
-        const repeat = document.getElementById('repeat');
+        const intervalUnit = document.getElementById('interval_unit');
         const nextRun = document.getElementById('next_run_dt');
-        const scheduleTypeHidden = document.getElementById('schedule_type_hidden');
-        const calendarExprHidden = document.getElementById('calendar_expression_hidden');
+        const startDatetimeHidden = document.getElementById('start_datetime_hidden');
 
         const form = document.querySelector('#create_schedule_modal form');
         if (form) {
             form.addEventListener('submit', function (e) {
-                const repeatVal = repeat.value;
                 const dtVal = nextRun.value;
                 if (!dtVal) {
                     e.preventDefault();
@@ -533,28 +531,8 @@
                     return;
                 }
 
-                const d = new Date(dtVal);
-                function pad(n){return (n<10?'0':'')+n}
-                const dtStr = '' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
-
-                if (repeatVal === 'none') {
-                    scheduleTypeHidden.value = 'single';
-                    calendarExprHidden.value = dtVal;
-                } else {
-                    scheduleTypeHidden.value = 'rrule';
-                    if (repeatVal === 'weekly') {
-                        const days = ['SU','MO','TU','WE','TH','FR','SA'];
-                        const byday = days[d.getDay()];
-                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=WEEKLY;BYDAY=${byday}`;
-                    } else if (repeatVal === 'monthly') {
-                        const day = d.getDate();
-                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=MONTHLY;BYMONTHDAY=${day}`;
-                    } else if (repeatVal === 'daily') {
-                        calendarExprHidden.value = `DTSTART:${dtStr}\nRRULE:FREQ=DAILY`;
-                    } else {
-                        calendarExprHidden.value = dtVal;
-                    }
-                }
+                // Set start_datetime to the selected value
+                startDatetimeHidden.value = dtVal;
             });
         }
     })();

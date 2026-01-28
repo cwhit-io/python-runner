@@ -248,10 +248,10 @@ def compute_next_run(schedule: ScriptSchedule):
                 return None
 
         if schedule.schedule_type == "single":
-            if not schedule.calendar_expression:
+            if not schedule.start_datetime:
                 return None
             try:
-                dt = parse_dt(schedule.calendar_expression)
+                dt = schedule.start_datetime
                 if dt.tzinfo is None:
                     dt = timezone.make_aware(
                         dt, timezone=timezone.get_default_timezone()
@@ -259,39 +259,49 @@ def compute_next_run(schedule: ScriptSchedule):
                 return dt if dt >= now else None
             except Exception:
                 logger.exception(
-                    "Failed parsing single calendar_expression for %s", schedule.id
+                    "Failed computing next_run for single schedule %s", schedule.id
                 )
                 return None
 
-        if schedule.schedule_type == "rrule":
-            if not schedule.calendar_expression:
+        if schedule.schedule_type == "interval":
+            if not schedule.start_datetime or not schedule.interval_unit:
                 return None
             try:
-                # Extract DTSTART from the calendar expression and make it timezone-aware
-                dtstart_match = re.search(
-                    r"DTSTART:(\d{8}T\d{6})", schedule.calendar_expression
-                )
-                if dtstart_match:
-                    dtstart_str = dtstart_match.group(1)
-                    from dateutil.parser import parse as parse_dt
-
-                    dt_start = parse_dt(dtstart_str)
-                    if dt_start.tzinfo is None:
-                        dt_start = timezone.make_aware(
-                            dt_start, timezone=timezone.get_default_timezone()
-                        )
-                    rule = rrulestr(schedule.calendar_expression, dtstart=dt_start)
-                else:
-                    rule = rrulestr(schedule.calendar_expression, dtstart=now)
-
-                next_dt = rule.after(now, inc=True)
-                if next_dt and next_dt.tzinfo is None:
-                    next_dt = timezone.make_aware(
-                        next_dt, timezone=timezone.get_default_timezone()
+                start_dt = schedule.start_datetime
+                if start_dt.tzinfo is None:
+                    start_dt = timezone.make_aware(
+                        start_dt, timezone=timezone.get_default_timezone()
                     )
+
+                # If start time is in the future, that's the next run
+                if start_dt >= now:
+                    return start_dt
+
+                # Calculate next occurrence based on interval
+                from datetime import timedelta
+
+                if schedule.interval_unit == "hours":
+                    delta = timedelta(hours=schedule.interval_value)
+                elif schedule.interval_unit == "days":
+                    delta = timedelta(days=schedule.interval_value)
+                elif schedule.interval_unit == "weeks":
+                    delta = timedelta(weeks=schedule.interval_value)
+                elif schedule.interval_unit == "months":
+                    # Approximate months as 30 days
+                    delta = timedelta(days=schedule.interval_value * 30)
+                else:
+                    return None
+
+                # Find the next occurrence after now
+                next_dt = start_dt
+                while next_dt < now:
+                    next_dt += delta
+
                 return next_dt
             except Exception:
-                logger.exception("Failed computing RRULE next_run for %s", schedule.id)
+                logger.exception(
+                    "Failed computing interval next_run for %s", schedule.id
+                )
                 return None
 
     except Exception:
