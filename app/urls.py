@@ -129,6 +129,27 @@ urlpatterns = [
         views_scripts.schedule_create,
         name="schedule_create",
     ),
+    # Script secrets (owner-only JSON endpoints)
+    path(
+        "scripts/<int:script_id>/secrets/",
+        views_scripts.script_secrets_list,
+        name="script_secrets_list",
+    ),
+    path(
+        "scripts/<int:script_id>/secrets/set/",
+        views_scripts.script_secret_set,
+        name="script_secret_set",
+    ),
+    path(
+        "scripts/<int:script_id>/secrets/delete/",
+        views_scripts.script_secret_delete,
+        name="script_secret_delete",
+    ),
+    path(
+        "scripts/<int:script_id>/secrets/get/",
+        views_scripts.script_secret_get,
+        name="script_secret_get",
+    ),
     path(
         "schedules/<int:schedule_id>/toggle/",
         views_scripts.schedule_toggle,

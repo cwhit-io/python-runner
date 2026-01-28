@@ -13,6 +13,12 @@ from django.utils import timezone
 from app.models import Script, ScriptExecution, ScriptSchedule
 from app.services.script_runner import ScriptRunner
 from app.services.scheduler import schedule_job, remove_schedule
+from app.services.secret_store import (
+    list_script_secrets,
+    get_script_secret,
+    set_script_secret,
+    delete_script_secret,
+)
 
 
 @login_required
@@ -223,6 +229,73 @@ def script_export(request, script_id):
         f'attachment; filename="{script.name.replace(" ", "_")}.json"'
     )
     return response
+
+
+@login_required
+def script_secrets_list(request, script_id):
+    """Return JSON list of secret names for this script (owner-only)."""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+    try:
+        names = list_script_secrets(script_id)
+    except RuntimeError as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"secrets": names})
+
+
+@login_required
+@require_http_methods(["POST"])
+def script_secret_set(request, script_id):
+    """Set/update a script secret. Params: name, value"""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+    name = request.POST.get("name", "").strip()
+    value = request.POST.get("value", "")
+    if not name:
+        return JsonResponse({"error": "Missing name"}, status=400)
+    # Basic validation for secret name
+    import re
+
+    if not re.match(r"^[A-Z0-9_\-]+$", name, re.I):
+        return JsonResponse(
+            {"error": "Invalid name (use letters, numbers, - or _)"}, status=400
+        )
+    try:
+        set_script_secret(script_id, name, value)
+    except RuntimeError as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"ok": True})
+
+
+@login_required
+def script_secret_get(request, script_id):
+    """Return the secret value for a given name (owner-only)."""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+    name = request.GET.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Missing name"}, status=400)
+    try:
+        val = get_script_secret(script_id, name)
+    except RuntimeError as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    if val is None:
+        return JsonResponse({"error": "Not found"}, status=404)
+    return JsonResponse({"value": val})
+
+
+@login_required
+@require_http_methods(["POST"])
+def script_secret_delete(request, script_id):
+    """Delete a script secret. Params: name"""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+    name = request.POST.get("name", "").strip()
+    if not name:
+        return JsonResponse({"error": "Missing name"}, status=400)
+    try:
+        ok = delete_script_secret(script_id, name)
+    except RuntimeError as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    if not ok:
+        return JsonResponse({"error": "Not found"}, status=404)
+    return JsonResponse({"ok": True})
 
 
 @login_required
