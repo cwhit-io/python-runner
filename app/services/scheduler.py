@@ -103,7 +103,24 @@ def schedule_job(schedule: ScriptSchedule):
                 return
             now = timezone.now()
             try:
-                rule = rrulestr(schedule.calendar_expression, dtstart=now)
+                # Parse the rrule string and ensure dtstart is timezone-aware
+                import re
+
+                dtstart_match = re.search(
+                    r"DTSTART:(\d{8}T\d{6})", schedule.calendar_expression
+                )
+                if dtstart_match:
+                    # Parse DTSTART and make timezone-aware
+                    dtstart_str = dtstart_match.group(1)
+                    dtstart = parse_dt(dtstart_str)
+                    if dtstart.tzinfo is None:
+                        dtstart = timezone.make_aware(
+                            dtstart, timezone=timezone.get_default_timezone()
+                        )
+                    rule = rrulestr(schedule.calendar_expression, dtstart=dtstart)
+                else:
+                    rule = rrulestr(schedule.calendar_expression, dtstart=now)
+
                 next_dt = rule.after(now, inc=True)
             except Exception as e:
                 logger.error(f"Failed parsing RRULE for {job_id}: {e}")
