@@ -112,7 +112,6 @@
         <!-- Optional: A subtle sheen effect overlay -->
         <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 skew-y-12"></div>
     </button>
-</div>
 
 
                     <a href="{% url 'script_edit' script.id %}" class="btn btn-secondary w-full gap-2">
@@ -558,7 +557,7 @@
                 const dtVal = nextRun.value;
                 if (!dtVal) {
                     e.preventDefault();
-                    alert('Please select next run date/time');
+                    showToast('Please select next run date/time', 'error');
                     return;
                 }
 

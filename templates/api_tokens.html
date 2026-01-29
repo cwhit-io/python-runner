@@ -71,10 +71,9 @@
                           {% if token.is_active %}Deactivate{% else %}Activate{% endif %}
                         </button>
                       </form>
-                      <form method="post" action="{% url 'delete_api_token' token.id %}" 
-                            onsubmit="return confirm('Are you sure you want to delete this token?');">
+                      <form method="post" action="{% url 'delete_api_token' token.id %}">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-error">Delete</button>
+                        <button type="button" class="btn btn-sm btn-error" onclick="confirmDeleteToken(event, '{{ token.name }}', '{{ token.id }}')">Delete</button>
                       </form>
                     </div>
                   </td>
@@ -133,12 +132,72 @@
   </form>
 </dialog>
 
+<!-- Confirmation Modal -->
+<div id="confirm-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg" id="confirm-title">Confirm Action</h3>
+    <p class="py-4" id="confirm-message">Are you sure you want to proceed?</p>
+    <div class="modal-action">
+      <button type="button" class="btn" onclick="closeConfirmModal()">Cancel</button>
+      <button type="button" class="btn btn-error" id="confirm-yes" onclick="executeConfirmedAction()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function copyToken(token) {
   navigator.clipboard.writeText(token).then(() => {
-    // Could add a toast notification here
-    alert('Token copied to clipboard!');
+    showToast('Token copied to clipboard!', 'success');
+  }).catch(() => {
+    showToast('Failed to copy token', 'error');
   });
 }
+
+// Modal functions for confirmation
+let confirmCallback = null;
+let isConfirmModalOpen = false;
+
+function showConfirmModal(title, message, callback) {
+  if (isConfirmModalOpen) return; // Prevent multiple modals
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  confirmCallback = callback;
+  document.getElementById('confirm-modal').classList.add('modal-open');
+  isConfirmModalOpen = true;
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('modal-open');
+  confirmCallback = null;
+  isConfirmModalOpen = false;
+}
+
+function executeConfirmedAction() {
+  if (confirmCallback) {
+    confirmCallback();
+  }
+  closeConfirmModal();
+}
+
+function confirmDeleteToken(event, tokenName, tokenId) {
+  if (isConfirmModalOpen) return; // Prevent multiple clicks
+  event.preventDefault();
+  event.stopPropagation();
+  showConfirmModal('Delete API Token', `Are you sure you want to delete the token "${tokenName}"? This action cannot be undone.`, function() {
+    // Submit the form
+    const form = document.querySelector(`form[action*="${tokenId}"]`);
+    if (form) {
+      form.submit();
+    }
+  });
+  return false;
+}
+
+// Close modal when clicking outside
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeConfirmModal();
+  }
+});
 </script>
 {% endblock %}

@@ -4,169 +4,154 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}My Site{% endblock %}</title>
+  <title>{% block title %}ScriptDash{% endblock %}</title>
 
-  <!-- Tailwind CSS + daisyUI via CDN -->
+  <!-- Tailwind CSS + daisyUI -->
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.6.0/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- htmx -->
+  <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
-  {% load static %}
-  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 
-  {% block extra_head %}{% endblock %}
+  {% load static %}
+  <!-- <link rel="stylesheet" href="{% static 'css/site.css' %}"> -->
 
-  
-
-  <!-- Theme initialization script (must run before body renders) -->
+  <!-- Theme Init (Prevents Flash) -->
   <script>
-    // Initialize theme from localStorage or user preference
     {% if user.is_authenticated %}
-    const theme = localStorage.getItem('theme') || {% if user.profile %}'{{ user.profile.theme_preference }}'{% else %} 'light'{% endif %};
+      const theme = localStorage.getItem('theme') || {% if user.profile %}'{{ user.profile.theme_preference }}'{% else %}'light'{% endif %};
     {% else %}
-    const theme = localStorage.getItem('theme') || 'light';
+      const theme = localStorage.getItem('theme') || 'light';
     {% endif %}
     document.documentElement.setAttribute('data-theme', theme);
-    // Sync localStorage with current theme
-    localStorage.setItem('theme', theme);
   </script>
+
+  {% block extra_head %}{% endblock %}
 </head>
 
-<body class="flex flex-col min-h-screen">
- 
-<header class="navbar bg-base-100 text-base-content shadow-sm sticky top-0 z-50 border-b border-base-200">
-  <div class="container mx-auto px-4"> 
-    <div class="navbar-start">
-      <div class="flex-1">
+<body class="flex flex-col min-h-screen bg-base-100 text-base-content">
+
+    <!-- Navbar -->
+  <header class="sticky top-0 z-50 w-full border-b border-base-200 bg-base-300 backdrop-blur">
+    <!-- Main Flex Container: w-full + justify-between pushes items to edges -->
+    <div class="w-full flex items-center justify-between px-4 lg:px-8 h-16">
+      
+      <!-- LEFT SIDE: Mobile Menu + Logo -->
+      <div class="flex items-center gap-2">
+        
+        <!-- Mobile Menu Dropdown (Hidden on Desktop) -->
+        <div class="dropdown lg:hidden">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
+          </div>
+          <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+            {% if user.is_authenticated %}
+            <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
+            <li><a href="{% url 'tags_list' %}">Tags</a></li>
+            {% endif %}
+            <li><a href="/api/docs">API Docs</a></li>
+          </ul>
+        </div>
+
+        <!-- Brand / Logo -->
         <a class="btn btn-ghost normal-case gap-3 px-2 hover:bg-transparent" href="/">
-          
-          <!-- Icon Container -->
-          <div class="w-10 h-10 relative">
+          <div class="w-9 h-9 relative">
             <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-sm">
               <defs>
-                <linearGradient id="scriptDashGradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#7C3AED"/>
-                  <stop offset="1" stop-color="#8B5CF6"/>
+                <linearGradient id="headerLogoGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#7C3AED" />
+                  <stop offset="1" stop-color="#8B5CF6" />
                 </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="2" result="blur"/>
-                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-                </filter>
               </defs>
-              
-              <!-- Background Container -->
-              <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#scriptDashGradient)"/>
-              
-              <!-- Motion Arrows -->
+              <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#headerLogoGrad)" />
               <g stroke-linecap="round" stroke-linejoin="round">
-                <path d="M28 35 L48 50 L28 65" stroke="white" stroke-width="8" opacity="0.4"/>
-                <path d="M40 35 L60 50 L40 65" stroke="white" stroke-width="8"/>
+                <path d="M28 35 L48 50 L28 65" stroke="white" stroke-width="8" opacity="0.4" />
+                <path d="M40 35 L60 50 L40 65" stroke="white" stroke-width="8" />
               </g>
-              
-              <!-- The Cursor -->
-              <rect x="72" y="58" width="10" height="8" fill="#4ADE80" filter="url(#glow)">
-                <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite"/>
+              <rect x="72" y="58" width="10" height="8" fill="#4ADE80">
+                <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite" />
               </rect>
             </svg>
           </div>
-
-          <!-- Brand Name with Space Grotesk -->
-          <span class="hidden sm:inline text-2xl font-bold tracking-tight" style="font-family: 'Space Grotesk', sans-serif;">
+          <span class="text-xl font-bold tracking-tight hidden sm:inline" style="font-family: 'Space Grotesk', sans-serif;">
             Script<span class="text-primary">Dash</span>
           </span>
         </a>
       </div>
-    </div>
 
-    <!-- Right Side Menu (Kept exactly as is) -->
-    <div class="flex-none">
-        <ul class="menu menu-horizontal px-1 font-medium">
-          {% if user.is_authenticated %}
-          <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
-          <li><a href="{% url 'tags_list' %}">Tags</a></li>
-          {% endif %}
-          <li><a href="/api/docs">API Docs</a></li>
-          {% if user.is_authenticated %}
-          {% if user.is_staff %}
-          <li><a href="/admin/">Admin</a></li>
-          {% endif %}
-          {% endif %}
-        </ul>
+      <!-- RIGHT SIDE: Desktop Menu + Actions -->
+      <div class="flex items-center gap-2">
+        
 
-        <!-- Theme Toggle Button -->
-        <label class="swap swap-rotate ml-2 btn btn-ghost btn-circle btn-sm">
+        <!-- Shortcuts Help -->
+        <div class="dropdown dropdown-end hidden sm:block">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-circle btn-sm" title="Keyboard Shortcuts">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64 border border-base-200">
+            <li class="menu-title px-4 py-2">Shortcuts</li>
+            <li><a class="justify-between">New Script <kbd class="kbd kbd-sm">Ctrl+N</kbd></a></li>
+            <li><a class="justify-between">Run Script <kbd class="kbd kbd-sm">Ctrl+R</kbd></a></li>
+            <li><a class="justify-between">Save <kbd class="kbd kbd-sm">Ctrl+S</kbd></a></li>
+          </ul>
+        </div>
+
+        <!-- Theme Toggle -->
+        <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
           <input type="checkbox" id="theme-toggle" class="theme-controller" />
-          
-          <!-- Sun icon -->
-          <svg class="swap-off fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
-          </svg>
-
-          <!-- Moon icon -->
-          <svg class="swap-on fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" />
-          </svg>
+          <svg class="swap-off fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" /></svg>
+          <svg class="swap-on fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" /></svg>
         </label>
 
+        <!-- User Profile -->
         {% if user.is_authenticated %}
         <div class="dropdown dropdown-end ml-2">
-          <label tabindex="0" class="btn btn-ghost btn-circle avatar placeholder">
-            <div class="bg-neutral text-neutral-content rounded-full w-10">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
+            <div class="bg-neutral text-neutral-content rounded-full w-9 ring ring-base-200 ring-offset-2">
               {% if user.profile and user.profile.avatar %}
               <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}">
               {% else %}
-              <span class="text-xl">{{ user.username|first|upper }}</span>
+              <span class="text-lg">{{ user.username|first|upper }}</span>
               {% endif %}
             </div>
-          </label>
-          <ul tabindex="0" class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 text-base-content rounded-box w-52 border border-base-200">
-            <li class="menu-title">
-              <span>{{ user.username }}</span>
-            </li>
+          </div>
+          <ul tabindex="0" class="mt-3 z-[1] p-2 shadow-lg menu menu-sm dropdown-content bg-base-100 text-base-content rounded-box w-52 border border-base-200">
+            <li class="menu-title px-4 py-2">{{ user.username }}</li>
             <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
             <li><a href="{% url 'profile' %}">Profile</a></li>
+            <li><a href="{% url 'tags_list' %}">Tags</a></li>
+            <li><a href="/api/docs">API</a></li>
             <li><a href="{% url 'api_tokens' %}">API Tokens</a></li>
-            <li>
-              <details>
-                <summary>Theme</summary>
-                <ul class="max-h-60 overflow-y-auto">
-                  <li><a onclick="changeTheme('light')">Light</a></li>
-                  <li><a onclick="changeTheme('dark')">Dark</a></li>
-                  <!-- Add other themes as needed -->
-                </ul>
-              </details>
-            </li>
+            <div class="divider my-1"></div>
             <li>
               <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
-                <button type="submit" class="w-full text-left">Logout</button>
+                <button type="submit" class="w-full text-left text-error">Logout</button>
               </form>
             </li>
           </ul>
         </div>
         {% else %}
-        <a href="{% url 'login' %}" class="btn btn-ghost btn-sm ml-2">
-          Login
-        </a>
-        <a href="{% url 'register' %}" class="btn btn-primary btn-sm ml-2">
-          Sign Up
-        </a>
+        <a href="{% url 'login' %}" class="btn btn-ghost btn-sm ml-2">Login</a>
+        <a href="{% url 'register' %}" class="btn btn-primary btn-sm ml-2">Sign Up</a>
         {% endif %}
       </div>
     </div>
-  </div>
-  </header> 
- 
- 
- 
+  </header>
+
+
+  
+
   <!-- Toast Container -->
   <div id="toast-container" class="toast toast-top toast-end z-[100]"></div>
-  
+
   <!-- Confirmation Modal -->
   <dialog id="confirm-modal" class="modal">
     <div class="modal-box">
@@ -181,231 +166,97 @@
       <button>close</button>
     </form>
   </dialog>
-  
+
   <!-- Hidden div for HTMX responses -->
   <div id="htmx-response" class="hidden"></div>
+
   <!-- Main Content -->
   <main class="flex-grow">
     {% block content %}{% endblock %}
   </main>
 
   <!-- Footer -->
-  <footer class="footer footer-center bg-base-300 text-base-content p-10 mt-10">
-    <div class="grid grid-flow-col gap-4">
-      <a class="link link-hover" href="/">Home</a>
-      <a class="link link-hover" href="/api/docs">API</a>
-      <a class="link link-hover" href="/admin/">Admin</a>
-      <a class="link link-hover" href="https://github.com">GitHub</a>
-    </div>
-    <div class="grid grid-flow-col gap-4">
-      
-
-      <!-- Theme Toggle Script -->
-      <script>
-        // Function to change theme
-        function changeTheme(newTheme) {
-          document.documentElement.setAttribute('data-theme', newTheme);
-          localStorage.setItem('theme', newTheme);
-
-          // Update toggle switch if changing to light/dark
-          const toggle = document.getElementById('theme-toggle');
-          if (toggle) {
-            toggle.checked = newTheme === 'dark';
-          }
-
-          // Save to user profile if logged in
-          {% if user.is_authenticated %}
-          fetch('{% url "update_theme" %}', {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': '{{ csrf_token }}',
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'theme=' + newTheme
-          });
-          {% endif %}
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-          const toggle = document.getElementById('theme-toggle');
-          const html = document.documentElement;
-
-          // Set initial state of toggle based on current theme
-          {% if user.is_authenticated %}
-          const currentTheme = localStorage.getItem('theme') || {% if user.profile %}'{{ user.profile.theme_preference }}'{% else %}'light'{% endif %};
-        {% else %}
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        {% endif %}
-        toggle.checked = currentTheme === 'dark';
-
-        // Listen for toggle changes
-        toggle.addEventListener('change', function () {
-          const newTheme = this.checked ? 'dark' : 'light';
-          changeTheme(newTheme);
-        });
-    });
-      </script>
-    </div>
-    <div>
-      <p class="font-bold">Python Script Runner</p>
-      <p>Centralized script manager with scheduling and isolated venvs</p>
-      <p class="text-sm opacity-70">Copyright © 2026 - All rights reserved</p>
-    </div>
+  <footer class="footer footer-center bg-base-200 text-base-content p-10 mt-10 border-t border-base-300">
+    <aside>
+      <div class="w-12 h-12 mb-2 opacity-50 grayscale hover:grayscale-0 transition-all">
+         <!-- Simplified footer logo -->
+         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="10" width="80" height="80" rx="20" fill="currentColor"/>
+            <path d="M35 35 L55 50 L35 65" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="65" y="58" width="10" height="8" fill="white"/>
+         </svg>
+      </div>
+      <p class="font-bold text-lg">ScriptDash</p>
+      <p class="text-sm opacity-70">Automate your workflow securely.</p>
+      <p class="text-xs opacity-50 mt-2">Copyright © 2026</p>
+    </aside>
   </footer>
 
-  <!-- Configure htmx CSRF token -->
+  <!-- GLOBAL SCRIPTS -->
   <script>
+    // 1. HTMX Config
     document.addEventListener('DOMContentLoaded', function () {
       document.body.addEventListener('htmx:configRequest', function (event) {
         event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
       });
     });
-  </script>
 
-  <!-- Keyboard Shortcuts -->
-  <script>
+    // 2. Theme Logic
+    function changeTheme(newTheme) {
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        
+        // Update toggle UI
+        const toggle = document.getElementById('theme-toggle');
+        if (toggle) toggle.checked = (newTheme === 'dark');
+
+        // Optional: Persist to backend
+        {% if user.is_authenticated %}
+        fetch('{% url "update_theme" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'theme=' + newTheme
+        });
+        {% endif %}
+    }
+
+    // Initialize Toggle Listener
     document.addEventListener('DOMContentLoaded', function () {
-      document.addEventListener('keydown', function (event) {
-        // Only handle shortcuts if not typing in an input/textarea/editor
-        const activeElement = document.activeElement;
-        const isInput = activeElement.tagName === 'INPUT' ||
-          activeElement.tagName === 'TEXTAREA' ||
-          activeElement.classList.contains('monaco-editor');
+        const toggle = document.getElementById('theme-toggle');
+        if(!toggle) return;
+        
+        const currentTheme = localStorage.getItem('theme') || document.documentElement.getAttribute('data-theme');
+        toggle.checked = (currentTheme === 'dark');
 
-        if (isInput && !event.ctrlKey && !event.metaKey) return;
-
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        const cmdOrCtrl = (isMac && event.metaKey) || (!isMac && event.ctrlKey);
-
-        if (!cmdOrCtrl) return;
-
-        switch (event.key.toLowerCase()) {
-          case 'n':
-            // Ctrl/Cmd+N: Create new script
-            event.preventDefault();
-            const createScriptBtn = document.querySelector('[onclick*="create_script_modal"]');
-            if (createScriptBtn) {
-              createScriptBtn.click();
-            } else {
-              window.location.href = '{% url "scripts_list" %}';
-            }
-            break;
-
-          case 'e':
-            // Ctrl/Cmd+E: Edit script (on detail page)
-            event.preventDefault();
-            const editBtn = document.querySelector('a[href*="/edit/"]');
-            if (editBtn) {
-              window.location.href = editBtn.href;
-            }
-            break;
-
-          case 'r':
-            // Ctrl/Cmd+R: Run script (on detail page)
-            event.preventDefault();
-            const runBtn = document.querySelector('form[action*="/execute/"] button[type="submit"]');
-            if (runBtn) {
-              runBtn.click();
-            }
-            break;
-
-          case 'd':
-            // Ctrl/Cmd+D: Duplicate script (on detail page)
-            event.preventDefault();
-            const duplicateBtn = document.querySelector('form[action*="/duplicate/"] button[type="submit"]');
-            if (duplicateBtn) {
-              duplicateBtn.click();
-            }
-            break;
-
-          case 's':
-            // Ctrl/Cmd+S: Save script (on edit page)
-            event.preventDefault();
-            const saveBtn = document.querySelector('form button[type="submit"]');
-            if (saveBtn && saveBtn.textContent.trim().toLowerCase().includes('save')) {
-              saveBtn.click();
-            }
-            break;
-        }
-      });
-
-      // Show keyboard shortcuts hint
-      const shortcuts = [
-        { key: 'Ctrl+N', action: 'Create new script' },
-        { key: 'Ctrl+E', action: 'Edit script' },
-        { key: 'Ctrl+R', action: 'Run script' },
-        { key: 'Ctrl+D', action: 'Duplicate script' },
-        { key: 'Ctrl+S', action: 'Save script' }
-      ];
-
-      // Add shortcuts info to the navbar or create a help button
-      const navbar = document.querySelector('.navbar');
-      if (navbar) {
-        const helpBtn = document.createElement('div');
-        helpBtn.className = 'dropdown dropdown-end';
-        helpBtn.innerHTML = `
-          <label tabindex="0" class="btn btn-ghost btn-circle">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </label>
-          <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-64">
-            <li class="menu-title">Keyboard Shortcuts</li>
-            ${shortcuts.map(s => `<li><a class="justify-between">${s.action}<kbd class="kbd kbd-xs">${s.key}</kbd></a></li>`).join('')}
-          </ul>
-        `;
-        navbar.querySelector('.flex-none').appendChild(helpBtn);
-      }
+        toggle.addEventListener('change', function () {
+            changeTheme(this.checked ? 'dark' : 'light');
+        });
     });
-  </script>
 
-  <!-- Toast Functions -->
-  <script>
+    // 3. Toast Logic
     function showToast(message, type = 'info', duration = 4000) {
       const toastContainer = document.getElementById('toast-container');
       const toast = document.createElement('div');
-      toast.className = `alert alert-${type}`;
+      toast.className = `alert alert-${type} shadow-lg`;
       
       let icon = '';
-      if (type === 'success') {
-        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-      } else if (type === 'error') {
-        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-      } else if (type === 'warning') {
-        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>';
-      } else {
-        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-      }
+      if (type === 'success') icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      else if (type === 'error') icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      else icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
       
-      toast.innerHTML = `
-        ${icon}
-        <span>${message}</span>
-        <div>
-          <button class="btn btn-sm btn-circle btn-ghost" onclick="this.parentElement.parentElement.remove()">
-            ✕
-          </button>
-        </div>
-      `;
-      
+      toast.innerHTML = `${icon}<span>${message}</span>`;
       toastContainer.appendChild(toast);
-      
-      // Auto remove after duration
-      setTimeout(() => {
-        if (toast.parentElement) {
-          toast.remove();
-        }
-      }, duration);
+      setTimeout(() => toast.remove(), duration);
     }
-
-    // Make showToast available globally
     window.showToast = showToast;
 
+    // 4. Confirmation Logic (HTMX Compatible)
     let pendingFormId = null;
 
     function confirmDelete(itemName, formId) {
       pendingFormId = formId;
       document.getElementById('confirm-title').textContent = 'Confirm Delete';
-      document.getElementById('confirm-message').textContent = `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+      document.getElementById('confirm-message').textContent = `Are you sure you want to delete "${itemName}"?`;
       document.getElementById('confirm-modal').showModal();
     }
 
@@ -418,12 +269,42 @@
       if (pendingFormId) {
         const form = document.getElementById(pendingFormId);
         if (form) {
-          form.submit();
+            // CRITICAL: Use requestSubmit() instead of submit()
+            // This allows HTMX to intercept the event if hx-post is present
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                form.submit(); // Fallback for ancient browsers
+            }
         }
       }
       closeConfirmModal();
     }
+
+    // 5. Keyboard Shortcuts
+    document.addEventListener('keydown', function (event) {
+        const activeElement = document.activeElement;
+        const isInput = ['INPUT', 'TEXTAREA'].includes(activeElement.tagName) || activeElement.classList.contains('monaco-editor');
+        if (isInput && !event.ctrlKey && !event.metaKey) return;
+
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmdOrCtrl = (isMac && event.metaKey) || (!isMac && event.ctrlKey);
+        if (!cmdOrCtrl) return;
+
+        const key = event.key.toLowerCase();
+        
+        // Map keys to actions
+        const actions = {
+            'n': () => document.querySelector('[onclick*="create_script_modal"]')?.click(),
+            'r': () => document.querySelector('form[action*="/execute/"] button[type="submit"]')?.click(),
+            's': () => document.querySelector('form button[type="submit"]')?.click(),
+        };
+
+        if (actions[key]) {
+            event.preventDefault();
+            actions[key]();
+        }
+    });
   </script>
 </body>
-
 </html>

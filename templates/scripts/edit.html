@@ -3,313 +3,439 @@
 {% block title %}Edit {{ script.name }}{% endblock %}
 
 {% block extra_head %}
-<!-- Monaco Editor -->
 <style>
-    #editor-container {
-        height: 500px;
-        border: 1px solid #444;
-        border-radius: 4px;
+    .monaco-editor-wrapper {
+        border: 1px solid oklch(var(--b3));
+        border-radius: 0.5rem;
+        overflow: hidden;
+        height: calc(100vh - 280px);
+        min-height: 500px;
     }
+    /* Custom scrollbar for sidebar */
+    .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: oklch(var(--b3)); border-radius: 2px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="mb-6">
-        <div class="breadcrumbs text-sm">
-            <ul>
-                <li><a href="{% url 'scripts_list' %}">Scripts</a></li>
-                <li><a href="{% url 'script_detail' script.id %}">{{ script.name }}</a></li>
-                <li>Edit</li>
-            </ul>
-        </div>
-    </div>
-
-    <h1 class="text-3xl font-bold mb-6">Edit Script</h1>
-
-    <form method="post" action="{% url 'script_edit' script.id %}">
+<div class="container mx-auto px-4 py-6 max-w-[1600px]">
+    
+    <!-- MAIN FORM (Wraps Editor & Sidebar) -->
+    <form id="script-edit-form" method="post" action="{% url 'script_edit' script.id %}">
         {% csrf_token %}
-
-        <div class="form-control w-full mb-4">
-            <label class="label">
-                <span class="label-text font-semibold">Script Name</span>
-            </label>
-            <input type="text" name="name" value="{{ script.name }}" class="input input-bordered w-full" required />
+        
+        <!-- HIDDEN STATE (Synced via JS from Modal) -->
+        <input type="hidden" name="name" id="real-name" value="{{ script.name }}">
+        <textarea name="description" id="real-description" class="hidden">{{ script.description }}</textarea>
+        <input type="checkbox" name="is_public" id="real-is-public" class="hidden" {% if script.is_public %}checked{% endif %}>
+        
+        <!-- Hidden Tag Container (Rebuilt by JS on Modal Save) -->
+        <div id="real-tags-container" class="hidden">
+            {% for tag in script.tags.all %}
+            <input type="checkbox" name="tags" value="{{ tag.name }}" checked>
+            {% endfor %}
         </div>
 
-        <div class="form-control w-full mb-4">
-            <label class="label">
-                <span class="label-text font-semibold">Description</span>
-            </label>
-            <textarea name="description" class="textarea textarea-bordered h-24"
-                placeholder="What does this script do?">{{ script.description }}</textarea>
-        </div>
+        <!-- Hidden Code Input (Synced via Monaco) -->
+        <textarea name="code" id="code-input" class="hidden">{{ script.code }}</textarea>
 
-        <div class="form-control w-full mb-4">
-            <label class="label">
-                <span class="label-text font-semibold">Tags</span>
-                <span class="label-text-alt">
-                    Categorize your script
-                    <a href="{% url 'tags_list' %}" class="link link-primary" target="_blank">(manage tags)</a>
-                </span>
-            </label>
-            {% if user_tags %}
-            <div class="flex flex-wrap gap-2">
-                {% for tag in user_tags %}
-                <label class="cursor-pointer">
-                    {% if tag in script.tags.all %}
-                    <input type="checkbox" name="tags" value="{{ tag.name }}" class="checkbox checkbox-xs mr-1"
-                        checked />
-                    {% else %}
-                    <input type="checkbox" name="tags" value="{{ tag.name }}" class="checkbox checkbox-xs mr-1" />
-                    {% endif %}
-                    <span class="badge badge-sm" data-bg="{{ tag.color }}">{{ tag.name }}</span>
-                </label>
-                {% endfor %}
-            </div>
-
-
-
-            {% else %}
-            <div class="text-sm text-gray-500 mb-2">
-                No tags available. <a href="{% url 'tags_list' %}" class="link link-primary">Create your first tag</a>
-                to organize your scripts.
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="form-control w-full mb-4">
-            <label class="label">
-                <span class="label-text font-semibold">Python Code</span>
-            </label>
-            <div id="editor-container"></div>
-            <textarea name="code" id="code-input" style="display: none;">{{ script.code }}</textarea>
-        </div>
-
-        <div class="form-control w-full mb-4">
-            <label class="label">
-                <span class="label-text font-semibold">Dependencies</span>
-                <span class="label-text-alt">One package per line (e.g., requests==2.28.0)</span>
-            </label>
-            <textarea name="dependencies" class="textarea textarea-bordered h-32 font-mono text-sm" placeholder="requests==2.28.0
-pandas>=1.5.0
-numpy">{{ script.dependencies }}</textarea>
-        </div>
-
-        <div class="form-control w-full mb-6">
-            <label class="label">
-                <span class="label-text font-semibold">Secrets</span>
-                <span class="label-text-alt">Store environment variables scoped to this script (owner-only)</span>
-            </label>
-            <div id="secrets-panel" class="mb-2">
-                <div id="secrets-list" class="space-y-2"></div>
-
-                <div class="mt-3">
-                    <input type="text" id="secret-name" placeholder="NAME" class="input input-bordered mr-2" />
-                    <input type="text" id="secret-value" placeholder="Value" class="input input-bordered mr-2" />
-                    <button id="secret-add" type="button" class="btn btn-sm btn-primary">Add / Update</button>
+        <!-- HEADER SECTION -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-base-200 pb-6">
+            <div class="flex items-start gap-4 w-full">
+                <!-- Icon -->
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/20 text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">Secrets are encrypted at rest and only visible to the script owner.</p>
+
+                <!-- Text Info -->
+                <div class="flex-grow min-w-0">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <h1 class="text-2xl font-bold tracking-tight font-['Space_Grotesk'] truncate" id="display-name">
+                            {{ script.name }}
+                        </h1>
+                        
+                        <!-- Settings Trigger -->
+                        <button type="button" onclick="openSettingsModal()" class="btn btn-circle btn-ghost btn-xs opacity-50 hover:opacity-100 tooltip tooltip-right" data-tip="Edit Metadata & Tags">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </button>
+                    </div>
+
+                    <p class="text-sm opacity-60 max-w-2xl truncate mb-2" id="display-desc">
+                        {{ script.description|default:"No description provided." }}
+                    </p>
+
+                    <!-- BADGE CONTAINER -->
+                    <div id="header-badges" class="flex flex-wrap gap-2">
+                        {% if script.is_public %}
+                        <span class="badge badge-sm badge-primary font-bold">PUBLIC</span>
+                        {% endif %}
+                        {% for tag in script.tags.all %}
+                        <span class="badge badge-sm badge-outline opacity-80" style="border-color: {{ tag.color }}; color: {{ tag.color }};">{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex gap-2 shrink-0">
+                <a href="{% url 'script_detail' script.id %}" class="btn btn-ghost">Cancel</a>
+                <button type="submit" class="btn btn-primary shadow-lg shadow-primary/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Save Script
+                </button>
             </div>
         </div>
 
-        <div class="form-control mb-6">
-            <label class="label cursor-pointer justify-start gap-4">
-                <input type="checkbox" name="is_public" class="checkbox" {% if script.is_public %}checked{% endif %} />
-                <span class="label-text">
-                    <strong>Make Public</strong> - Allow other users to view and run this script
-                </span>
-            </label>
-        </div>
+        <!-- TWO COLUMN LAYOUT -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
+            
+            <!-- LEFT SIDEBAR: Runtime Config (3 cols) -->
+            <div class="xl:col-span-3 space-y-6 flex flex-col h-full overflow-y-auto sidebar-scroll pr-2">
+                
+                <!-- 1. Dependencies -->
+                <div class="card bg-base-100 shadow-sm border border-base-200">
+                    <div class="card-body p-4">
+                        <label class="label pt-0 px-0">
+                            <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                Requirements
+                            </span>
+                        </label>
+                        <textarea name="dependencies" class="textarea textarea-bordered w-full h-48 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
+                            placeholder="requests==2.31.0&#10;pandas">{{ script.dependencies }}</textarea>
+                        <div class="text-[10px] opacity-40 mt-1">Pip packages, one per line.</div>
+                    </div>
+                </div>
 
-        <div class="flex gap-4">
-            <button type="submit" class="btn btn-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
-                Save Changes
-            </button>
-            <a href="{% url 'script_detail' script.id %}" class="btn btn-ghost">Cancel</a>
+                <!-- 2. Secrets (AJAX) -->
+                <div class="card bg-base-100 shadow-sm border border-base-200 flex-grow">
+                    <div class="card-body p-4">
+                        <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Secrets
+                        </span>
+                        
+                        <!-- List -->
+                        <div id="secrets-list" class="space-y-2 mb-4 min-h-[50px]">
+                            <div class="flex justify-center py-2"><span class="loading loading-spinner loading-xs opacity-50"></span></div>
+                        </div>
+
+                        <!-- Add Input -->
+                        <div class="bg-base-200/50 p-2 rounded border border-base-300">
+                            <div class="flex flex-col gap-2">
+                                <input type="text" id="secret-name" placeholder="KEY" class="input input-xs input-bordered font-mono uppercase w-full" />
+                                <div class="join w-full">
+                                    <input type="text" id="secret-value" placeholder="Value" class="input input-xs input-bordered join-item w-full" />
+                                    <button id="secret-add" type="button" class="btn btn-xs btn-primary join-item">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT MAIN: Code Editor (9 cols) -->
+            <div class="xl:col-span-9 flex flex-col h-full">
+                <div class="monaco-editor-wrapper shadow-sm relative group flex-grow">
+                    <div id="editor-container" class="w-full h-full"></div>
+                </div>
+                <div class="flex justify-between items-center px-1 mt-2">
+                    <span class="text-xs opacity-40">Python 3.11 Environment</span>
+                    <span class="text-xs opacity-40">Auto-saves locally</span>
+                </div>
+            </div>
+
         </div>
     </form>
 </div>
 
-<script>
-    // Apply tag background colors set via `data-bg` to avoid editor CSS parsing template tokens
-    (function () {
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('[data-bg]').forEach(function (el) {
-                var bg = el.getAttribute('data-bg');
-                if (bg) {
-                    el.style.backgroundColor = bg;
-                    el.style.color = 'white';
-                }
-            });
-        });
-    })();
-</script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-<script>
-    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+<!-- ================= MODALS ================= -->
 
+<!-- 1. Settings Modal (Metadata + Tags) -->
+<dialog id="settings-modal" class="modal">
+    <div class="modal-box w-11/12 max-w-2xl">
+        <h3 class="font-bold text-lg mb-6 border-b border-base-200 pb-2">Script Settings</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left: Meta -->
+            <div>
+                <div class="form-control w-full mb-4">
+                    <label class="label"><span class="label-text font-semibold">Script Name</span></label>
+                    <input type="text" id="modal-name" class="input input-bordered w-full font-['Space_Grotesk']" />
+                </div>
+
+                <div class="form-control w-full mb-4">
+                    <label class="label"><span class="label-text font-semibold">Description</span></label>
+                    <textarea id="modal-desc" class="textarea textarea-bordered h-32"></textarea>
+                </div>
+
+                <div class="form-control">
+                    <label class="label cursor-pointer justify-start gap-3 bg-base-200 p-3 rounded-lg">
+                        <input type="checkbox" id="modal-public" class="checkbox checkbox-primary" />
+                        <span class="label-text">
+                            <strong>Make Public</strong>
+                            <span class="block text-xs opacity-60">Visible to everyone</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Right: Tags -->
+            <div>
+                <label class="label"><span class="label-text font-semibold">Tags</span></label>
+                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[280px] overflow-y-auto">
+                    {% if user_tags %}
+                    <div class="flex flex-wrap gap-2">
+                        {% for tag in user_tags %}
+                        <label class="cursor-pointer group select-none">
+                            <!-- Dummy Checkbox for Modal Interaction -->
+                            <input type="checkbox" class="modal-tag-checkbox peer hidden" 
+                                   value="{{ tag.name }}" 
+                                   data-color="{{ tag.color }}">
+                            <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
+                                        peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                        group-hover:border-primary/50 transition-all">
+                                {{ tag.name }}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-10 opacity-50">
+                        <p class="text-sm">No tags available.</p>
+                        <a href="{% url 'tags_list' %}" target="_blank" class="link link-primary text-xs">Create Tags</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-action">
+            <button type="button" class="btn" onclick="document.getElementById('settings-modal').close()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveSettingsModal()">Update Info</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- 2. Secret Input Modal -->
+<dialog id="input-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg" id="input-title">Edit Secret</h3>
+        <div class="py-4">
+            <label class="label"><span class="label-text font-mono text-xs uppercase opacity-70" id="input-label">Value</span></label>
+            <input type="text" id="input-value" class="input input-bordered w-full font-mono" />
+        </div>
+        <div class="modal-action">
+            <button type="button" class="btn" onclick="closeInputModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveInputValue()">Save Update</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- 3. Confirmation Modal -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-error" id="confirm-title">Confirm Action</h3>
+        <p class="py-4" id="confirm-message">Are you sure?</p>
+        <div class="modal-action">
+            <button type="button" class="btn" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn btn-error" id="confirm-yes" onclick="executeConfirmedAction()">Confirm</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+<script>
+    // --- 1. Settings & Tags Logic ---
+    function openSettingsModal() {
+        // 1. Sync Text Inputs
+        document.getElementById('modal-name').value = document.getElementById('real-name').value;
+        document.getElementById('modal-desc').value = document.getElementById('real-description').value;
+        document.getElementById('modal-public').checked = document.getElementById('real-is-public').checked;
+        
+        // 2. Sync Tags (Read from Real Hidden Container -> Check Modal Checkboxes)
+        const realContainer = document.getElementById('real-tags-container');
+        const realCheckboxes = realContainer.querySelectorAll('input[type="checkbox"]');
+        const activeTags = Array.from(realCheckboxes).map(cb => cb.value);
+
+        document.querySelectorAll('.modal-tag-checkbox').forEach(cb => {
+            cb.checked = activeTags.includes(cb.value);
+        });
+
+        document.getElementById('settings-modal').showModal();
+    }
+
+    function saveSettingsModal() {
+        // 1. Update Hidden Text Inputs
+        const name = document.getElementById('modal-name').value;
+        const desc = document.getElementById('modal-desc').value;
+        const isPublic = document.getElementById('modal-public').checked;
+
+        document.getElementById('real-name').value = name;
+        document.getElementById('real-description').value = desc;
+        document.getElementById('real-is-public').checked = isPublic;
+
+        // 2. Rebuild Real Hidden Tag Container
+        const realContainer = document.getElementById('real-tags-container');
+        realContainer.innerHTML = ''; // Clear old
+        
+        const modalCheckboxes = document.querySelectorAll('.modal-tag-checkbox:checked');
+        const selectedTags = [];
+
+        modalCheckboxes.forEach(cb => {
+            // Create hidden input for form submission
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = 'tags';
+            input.value = cb.value;
+            input.checked = true;
+            realContainer.appendChild(input);
+
+            // Store for UI update
+            selectedTags.push({ name: cb.value, color: cb.dataset.color || '#666' });
+        });
+
+        // 3. Update Header UI
+        document.getElementById('display-name').textContent = name;
+        document.getElementById('display-desc').textContent = desc || "No description provided.";
+        
+        // Rebuild Badges
+        const badgeContainer = document.getElementById('header-badges');
+        badgeContainer.innerHTML = '';
+
+        if (isPublic) {
+            badgeContainer.innerHTML += `<span class="badge badge-sm badge-primary font-bold">PUBLIC</span>`;
+        }
+
+        selectedTags.forEach(tag => {
+            const span = document.createElement('span');
+            span.className = 'badge badge-sm badge-outline opacity-80';
+            span.style.borderColor = tag.color;
+            span.style.color = tag.color;
+            span.textContent = tag.name;
+            badgeContainer.appendChild(span);
+        });
+
+        document.getElementById('settings-modal').close();
+        showToast('Settings updated (Remember to Save Script)', 'info');
+    }
+
+    // --- 2. Monaco Editor Logic ---
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
     let editorInstance = null;
 
     require(['vs/editor/editor.main'], function () {
-        // Get the initial code from the textarea
         const initialCode = document.getElementById('code-input').value;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-        // Create the Monaco editor
         editorInstance = monaco.editor.create(document.getElementById('editor-container'), {
             value: initialCode,
             language: 'python',
-            theme: 'vs-dark',
+            theme: isDark ? 'vs-dark' : 'vs',
             automaticLayout: true,
             minimap: { enabled: true },
             fontSize: 14,
+            fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
             scrollBeyondLastLine: false,
             wordWrap: 'on',
             tabSize: 4,
+            padding: { top: 16, bottom: 16 }
         });
 
-        // Sync editor content to hidden textarea
         function syncEditorContent() {
             if (editorInstance) {
                 document.getElementById('code-input').value = editorInstance.getValue();
             }
         }
 
-        // Update the hidden textarea when the form is submitted
-        const form = document.querySelector('form');
-        form.addEventListener('submit', function (e) {
-            syncEditorContent();
-        });
-
-        // Also sync on any change with a debounce
+        document.getElementById('script-edit-form').addEventListener('submit', syncEditorContent);
+        
         let debounceTimer;
-        editorInstance.onDidChangeModelContent(function() {
+        editorInstance.onDidChangeModelContent(() => {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(syncEditorContent, 1000);
         });
-
-        // Auto-save every 30 seconds
-        setInterval(syncEditorContent, 30000);
     });
 
-    // Fallback: sync before unload if editor is loaded
-    window.addEventListener('beforeunload', function() {
-        if (editorInstance) {
-            document.getElementById('code-input').value = editorInstance.getValue();
-        }
-    });
-</script>
-<script>
-    // Script secrets AJAX logic
+    // --- 3. Secrets & Modal Helpers (Minified) ---
+    let confirmCallback = null;
+    let inputCallback = null;
+    function showConfirmModal(t, m, c) { document.getElementById('confirm-title').textContent=t; document.getElementById('confirm-message').textContent=m; confirmCallback=c; document.getElementById('confirm-modal').showModal(); }
+    function closeConfirmModal() { document.getElementById('confirm-modal').close(); confirmCallback=null; }
+    function executeConfirmedAction() { if(confirmCallback) confirmCallback(); closeConfirmModal(); }
+    function showInputModal(t, l, v, c) { document.getElementById('input-title').textContent=t; document.getElementById('input-label').textContent=l; document.getElementById('input-value').value=v||''; inputCallback=c; document.getElementById('input-modal').showModal(); }
+    function closeInputModal() { document.getElementById('input-modal').close(); inputCallback=null; }
+    function saveInputValue() { if(inputCallback) inputCallback(document.getElementById('input-value').value); closeInputModal(); }
+
     (function () {
         const scriptId = {{ script.id }};
-
-        function csrf() {
-            return document.querySelector('[name=csrfmiddlewaretoken]').value;
-        }
+        const csrf = '{{ csrf_token }}';
 
         function refreshList() {
-            fetch(`{% url 'script_secrets_list' script.id %}`, { credentials: 'same-origin' })
-                .then(r => r.json())
-                .then(data => {
-                    const container = document.getElementById('secrets-list');
-                    container.innerHTML = '';
-                    if (data.error) {
-                        container.innerText = 'Error: ' + data.error;
-                        return;
-                    }
-                    (data.secrets || []).forEach(name => {
-                        const row = document.createElement('div');
-                        row.className = 'flex items-center gap-2';
-                        const n = document.createElement('div');
-                        n.className = 'font-mono flex-1';
-                        n.innerText = name;
-                        const masked = document.createElement('div');
-                        masked.className = 'text-sm text-gray-500';
-                        masked.innerText = '••••••';
-                        const btnShow = document.createElement('button');
-                        btnShow.className = 'btn btn-xs btn-ghost';
-                        btnShow.innerText = 'Show';
-                        btnShow.addEventListener('click', function () {
-                            fetch(`{% url 'script_secrets_list' script.id %}`)
-                                .then(r => r.json())
-                                .then(() => {
-                                    // Use getsecret management command via view is not exposed; instead call get endpoint
-                                    fetch(`/scripts/${scriptId}/secrets/get/?name=${encodeURIComponent(name)}`, { credentials: 'same-origin' })
-                                        .then(res => res.json())
-                                        .then(d => {
-                                            if (d.error) {
-                                                alert('Error: ' + d.error);
-                                            } else {
-                                                const v = prompt('Secret value for ' + name, d.value || '');
-                                                if (v !== null) {
-                                                    // update value
-                                                    fetch(`{% url 'script_secret_set' script.id %}`, {
-                                                        method: 'POST',
-                                                        credentials: 'same-origin',
-                                                        headers: {
-                                                            'X-CSRFToken': csrf(),
-                                                            'Content-Type': 'application/x-www-form-urlencoded'
-                                                        },
-                                                        body: `name=${encodeURIComponent(name)}&value=${encodeURIComponent(v)}`
-                                                    }).then(r => r.json()).then(j => {
-                                                        if (j.ok) refreshList(); else alert('Error: ' + (j.error||'unknown'));
-                                                    });
-                                                }
-                                            }
-                                        });
-                                });
-                        });
-                        const btnDelete = document.createElement('button');
-                        btnDelete.className = 'btn btn-xs btn-error';
-                        btnDelete.innerText = 'Delete';
-                        btnDelete.addEventListener('click', function () {
-                            if (!confirm('Delete secret ' + name + '?')) return;
-                            fetch(`{% url 'script_secret_delete' script.id %}`, {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: `name=${encodeURIComponent(name)}`
-                            }).then(r => r.json()).then(j => {
-                                if (j.ok) refreshList(); else alert('Error: ' + (j.error||'unknown'));
-                            });
-                        });
-                        row.appendChild(n);
-                        row.appendChild(masked);
-                        row.appendChild(btnShow);
-                        row.appendChild(btnDelete);
-                        container.appendChild(row);
-                    });
-                });
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            refreshList();
-            document.getElementById('secret-add').addEventListener('click', function () {
-                const name = document.getElementById('secret-name').value.trim();
-                const value = document.getElementById('secret-value').value;
-                if (!name) { alert('Name required'); return; }
-                fetch(`{% url 'script_secret_set' script.id %}`, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `name=${encodeURIComponent(name)}&value=${encodeURIComponent(value)}`
-                }).then(r => r.json()).then(j => {
-                    if (j.ok) {
-                        document.getElementById('secret-name').value = '';
-                        document.getElementById('secret-value').value = '';
-                        refreshList();
-                    } else {
-                        alert('Error: ' + (j.error || 'unknown'));
-                    }
+            const container = document.getElementById('secrets-list');
+            fetch(`{% url 'script_secrets_list' script.id %}`).then(r=>r.json()).then(data=>{
+                container.innerHTML = '';
+                if(data.error) { container.innerHTML=`<div class="text-error text-xs">${data.error}</div>`; return; }
+                if(!data.secrets?.length) { container.innerHTML=`<div class="text-center py-2 text-[10px] opacity-40 italic">No secrets</div>`; return; }
+                
+                data.secrets.forEach(name => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between p-2 bg-base-200 rounded group hover:bg-base-300 transition-colors';
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <div class="font-mono text-xs font-bold truncate text-primary" title="${name}">${name}</div>
+                        </div>
+                        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" class="btn btn-xs btn-square btn-ghost btn-edit"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                            <button type="button" class="btn btn-xs btn-square btn-ghost text-error btn-delete"><svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                        </div>`;
+                    row.querySelector('.btn-edit').onclick = () => editSecret(name);
+                    row.querySelector('.btn-delete').onclick = () => deleteSecret(name);
+                    container.appendChild(row);
                 });
             });
-        });
+        }
+
+        function editSecret(name) {
+            fetch(`/scripts/${scriptId}/secrets/get/?name=${encodeURIComponent(name)}`).then(r=>r.json()).then(d=>{
+                if(d.error) showToast(d.error,'error');
+                else showInputModal('Update Secret', name, d.value, (v)=> v!==null && updateSecret(name,v));
+            });
+        }
+        function updateSecret(name, value) {
+            fetch(`{% url 'script_secret_set' script.id %}`, {method:'POST', headers:{'X-CSRFToken':csrf,'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(name)}&value=${encodeURIComponent(value)}`})
+            .then(r=>r.json()).then(j=> { if(j.ok){refreshList();showToast('Saved','success');}else showToast(j.error,'error'); });
+        }
+        function deleteSecret(name) {
+            showConfirmModal('Delete Secret', `Delete ${name}?`, () => {
+                fetch(`{% url 'script_secret_delete' script.id %}`, {method:'POST', headers:{'X-CSRFToken':csrf,'Content-Type':'application/x-www-form-urlencoded'}, body:`name=${encodeURIComponent(name)}`})
+                .then(r=>r.json()).then(j=> { if(j.ok){refreshList();showToast('Deleted','success');}else showToast(j.error,'error'); });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', refreshList);
+        document.getElementById('secret-add').onclick = () => {
+            const n = document.getElementById('secret-name'), v = document.getElementById('secret-value');
+            if(!n.value.trim()) return showToast('Name required','error');
+            updateSecret(n.value.trim().toUpperCase(), v.value);
+            n.value=''; v.value='';
+        };
     })();
 </script>
 {% endblock %}

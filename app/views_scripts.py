@@ -461,6 +461,10 @@ def execution_kill(request, execution_id):
 
     # Check if user has permission
     if execution.script.owner != request.user:
+        if request.headers.get("HX-Request"):
+            return HttpResponse(
+                '<script>showToast("You do not have permission to kill this execution.", "error");</script>'
+            )
         messages.error(request, "You do not have permission to kill this execution.")
         return redirect("scripts_list")
 
@@ -468,8 +472,20 @@ def execution_kill(request, execution_id):
     from app.services.script_runner import kill_execution
 
     if kill_execution(execution_id):
+        if request.headers.get("HX-Request"):
+            return HttpResponse(f"""
+            <script>
+            showToast("Execution #{execution_id} cancelled successfully!", "success");
+            // Update the status after a short delay
+            setTimeout(() => {{ location.reload(); }}, 1000);
+            </script>
+            """)
         messages.success(request, "Execution cancelled successfully!")
     else:
+        if request.headers.get("HX-Request"):
+            return HttpResponse(
+                '<script>showToast("Failed to cancel execution. It may have already completed.", "error");</script>'
+            )
         messages.error(
             request, "Failed to cancel execution. It may have already completed."
         )

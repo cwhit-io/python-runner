@@ -17,9 +17,12 @@
     <h1 class="text-3xl font-bold mb-6 flex items-center gap-4">
         Execution #{{ execution.id }}
         {% if execution.status == 'running' %}
-        <form method="post" action="{% url 'execution_kill' execution.id %}" class="inline">
+        <form method="post" action="{% url 'execution_kill' execution.id %}" class="inline"
+              hx-post="{% url 'execution_kill' execution.id %}"
+              hx-target="#execution-status"
+              hx-swap="innerHTML">
             {% csrf_token %}
-            <button type="submit" class="btn btn-error btn-sm gap-2" onclick="return confirm('Are you sure you want to cancel this execution?');">
+            <button type="button" class="btn btn-error btn-sm gap-2" onclick="confirmKillExecution({{ execution.id }})">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -372,5 +375,58 @@
         };
     })();
     {% endif %}
+</script>
+
+<!-- Confirmation Modal -->
+<div id="confirm-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg" id="confirm-title">Confirm Action</h3>
+    <p class="py-4" id="confirm-message">Are you sure you want to proceed?</p>
+    <div class="modal-action">
+      <button type="button" class="btn" onclick="closeConfirmModal()">Cancel</button>
+      <button type="button" class="btn btn-error" id="confirm-yes" onclick="executeConfirmedAction()">Yes, Kill Execution</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Modal functions for confirmation
+let confirmCallback = null;
+
+function showConfirmModal(title, message, callback) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  confirmCallback = callback;
+  document.getElementById('confirm-modal').classList.add('modal-open');
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('modal-open');
+  confirmCallback = null;
+}
+
+function executeConfirmedAction() {
+  if (confirmCallback) {
+    confirmCallback();
+  }
+  closeConfirmModal();
+}
+
+function confirmKillExecution(executionId) {
+  showConfirmModal('Kill Execution', 'Are you sure you want to kill this execution? This action cannot be undone.', function() {
+    // Submit the form with HTMX
+    const form = document.querySelector(`form[hx-post*="${executionId}"]`);
+    if (form) {
+      htmx.trigger(form, 'submit');
+    }
+  });
+}
+
+// Close modal when clicking outside
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeConfirmModal();
+  }
+});
 </script>
 {% endblock %}

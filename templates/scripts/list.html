@@ -4,232 +4,171 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8 max-w-7xl">
+    
     <!-- Header Section -->
-    <div class="mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div>
-                <h1 class="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    My Scripts
-                </h1>
-                <p class="text-sm opacity-70 mt-1">Manage and execute your automation scripts</p>
-            </div>
-            
-            <div class="flex flex-wrap gap-2">
-                <button class="btn btn-outline gap-2" onclick="import_script_modal.showModal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Import
-                </button>
-                <button class="btn btn-primary gap-2" onclick="create_script_modal.showModal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Script
-                </button>
-            </div>
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-4xl font-bold tracking-tight text-base-content" style="font-family: 'Space Grotesk', sans-serif;">
+                Command Center
+            </h1>
+            <p class="text-base opacity-60 mt-2">Select a terminal to execute your automation.</p>
         </div>
-
-        <!-- Tag Filter Section -->
-        {% if user_tags %}
-        <div class="card bg-base-200/50 shadow-sm">
-            <div class="card-body p-4">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        <span class="text-sm font-semibold">Filter:</span>
-                    </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <a href="{% url 'scripts_list' %}" class="btn btn-xs {% if not current_tag %}btn-primary{% else %}btn-ghost{% endif %}">
-                            All Scripts
-                        </a>
-                        {% for tag in user_tags %}
-                        <a href="?tag={{ tag.name }}" class="btn btn-xs {% if current_tag == tag.name %}btn-primary{% else %}btn-ghost{% endif %}" style="{% if current_tag == tag.name %}background-color: {{ tag.color }}; border-color: {{ tag.color }};{% else %}border-color: {{ tag.color }}; color: {{ tag.color }};{% endif %}">
-                            {{ tag.name }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
+        
+        <div class="flex gap-3">
+            <button class="btn btn-ghost gap-2" onclick="import_script_modal.showModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Import
+            </button>
+            <button class="btn btn-primary gap-2 shadow-lg shadow-primary/20" onclick="create_script_modal.showModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                New Script
+            </button>
         </div>
-        {% endif %}
-
-        <!-- Bulk actions removed -->
     </div>
+
+    <!-- Filter Bar (simplified) -->
+    {% if user_tags %}
+    <div class="flex flex-wrap gap-2 mb-8 items-center">
+        <span class="text-xs font-bold uppercase tracking-wider opacity-50 mr-2">Filters:</span>
+        <a href="{% url 'scripts_list' %}" class="badge badge-lg cursor-pointer hover:scale-105 transition-transform {% if not current_tag %}badge-neutral{% else %}badge-ghost{% endif %}">
+            All
+        </a>
+        {% for tag in user_tags %}
+        <a href="?tag={{ tag.name }}" class="badge badge-lg cursor-pointer hover:scale-105 transition-transform {% if current_tag == tag.name %}badge-neutral{% else %}badge-outline{% endif %}" style="{% if current_tag != tag.name %}color: {{ tag.color }}; border-color: {{ tag.color }};{% endif %}">
+            {{ tag.name }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Scripts Grid -->
     {% if scripts %}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {% for script in scripts %}
-        <div class="card bg-base-100 shadow-lg hover:shadow-xl transition-all duration-200 border border-base-300">
-            <div class="card-body">
-                <div class="flex items-start gap-4">
-                    <!-- (bulk checkbox removed) -->
+        <!-- Card Container -->
+        <!-- Changes: 
+             1. Removed 'overflow-hidden' 
+             2. Added 'hover:z-10' so dropdowns float over neighboring cards 
+        -->
+        <div class="card bg-base-100 shadow-sm hover:shadow-xl transition-all duration-300 border border-base-200 group hover:z-10">
+            
+            <!-- Inner Flex Container (Manually handling corners now) -->
+            <div class="flex flex-row items-stretch h-full rounded-box">
+                
+                <!-- LEFT: The Action Zone (Run Button) -->
+                <!-- Added 'rounded-l-2xl' to maintain card shape -->
+                <div class="relative w-24 flex-shrink-0 flex items-center justify-center border-r border-base-200 bg-base-200/30 group-hover:bg-primary/5 transition-colors rounded-l-2xl">
+                    <form method="post" action="{% url 'script_execute' script.id %}" 
+                          hx-post="{% url 'script_execute' script.id %}"
+                          hx-target="#htmx-response"
+                          hx-swap="innerHTML"
+                          class="w-full h-full flex items-center justify-center">
+                        {% csrf_token %}
+                        
+                        <!-- The "Logo" Button -->
+                        <button type="submit" class="btn btn-square btn-lg border-none shadow-md hover:scale-110 hover:shadow-primary/40 transition-all duration-200" 
+                                style="background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%); width: 60px; height: 60px;">
+                            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
+                                <path d="M25 30 L45 50 L25 70" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.4" class="group-hover:translate-x-1 transition-transform"/>
+                                <path d="M40 30 L60 50 L40 70" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" class="group-hover:translate-x-1 transition-transform delay-75"/>
+                                <rect x="70" y="60" width="12" height="10" fill="#4ade80" class="{% if script.last_status == 'running' %}animate-pulse{% endif %}"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- RIGHT: Content Zone -->
+                <!-- Added 'rounded-r-2xl' to maintain card shape -->
+                <div class="flex-1 p-5 flex flex-col justify-between min-w-0 rounded-r-2xl bg-base-100">
                     
-                    <!-- Content -->
-                    <div class="flex-1 min-w-0">
-                        <!-- Title and Status -->
-                        <div class="flex items-start justify-between gap-2 mb-2">
-                            <h2 class="card-title text-xl flex-1 break-words">
+                    <!-- Top Row: Title & Menu -->
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="min-w-0">
+                            <h2 class="text-xl font-bold truncate hover:text-primary transition-colors cursor-pointer" onclick="window.location='{% url 'script_detail' script.id %}'" style="font-family: 'Space Grotesk', sans-serif;">
                                 {{ script.name }}
                             </h2>
-                            {% if script.last_status == 'running' %}
-                            <div class="badge badge-info gap-1">
-                                <span class="loading loading-spinner loading-xs"></span>
-                                Running
+                            <div class="flex items-center gap-2 mt-1">
+                                <!-- Status Indicator -->
+                                {% if script.last_status == 'running' %}
+                                    <span class="badge badge-xs badge-info animate-pulse"></span> <span class="text-xs font-medium opacity-70">Running...</span>
+                                {% elif script.last_status == 'success' %}
+                                    <span class="badge badge-xs badge-success"></span> <span class="text-xs font-medium opacity-70">Success</span>
+                                {% elif script.last_status == 'failed' %}
+                                    <span class="badge badge-xs badge-error"></span> <span class="text-xs font-medium opacity-70">Failed</span>
+                                {% else %}
+                                    <span class="badge badge-xs badge-ghost"></span> <span class="text-xs font-medium opacity-70">Idle</span>
+                                {% endif %}
+                                
+                                <span class="text-xs opacity-40">•</span>
+                                
+                                <!-- Last Run Time -->
+                                <span class="text-xs opacity-60">
+                                    {% if script.last_run %}
+                                        {{ script.last_run|timesince }} ago
+                                    {% else %}
+                                        New
+                                    {% endif %}
+                                </span>
                             </div>
-                            {% elif script.last_status == 'success' %}
-                            <div class="badge badge-success gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                                Success
-                            </div>
-                            {% elif script.last_status == 'failed' %}
-                            <div class="badge badge-error gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Failed
-                            </div>
-                            {% else %}
-                            <div class="badge badge-ghost">Idle</div>
-                            {% endif %}
                         </div>
 
-                        <!-- Description -->
-                        <p class="text-sm opacity-70 mb-3 line-clamp-2">
-                            {{ script.description|default:"No description provided" }}
-                        </p>
+                        <!-- Context Menu (Three Dots) -->
+                        <div class="dropdown dropdown-end">
+                            <label tabindex="0" class="btn btn-ghost btn-xs btn-circle opacity-50 hover:opacity-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                            </label>
+                            <!-- Added z-[100] to ensure it sits on top of everything -->
+                            <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-52 border border-base-200">
+                                <li><a href="{% url 'script_detail' script.id %}">View Details</a></li>
+                                <li><a href="/scripts/{{ script.id }}/export/">Export JSON</a></li>
+                                <li class="text-error">
+                                    <form method="post" action="{% url 'script_delete' script.id %}" 
+                                          hx-post="{% url 'script_delete' script.id %}"
+                                          hx-target="#htmx-response"
+                                          hx-swap="innerHTML"
+                                          class="w-full">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full text-left">Delete</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
 
-                        <!-- Tags -->
+                    <!-- Middle: Description -->
+                    <p class="text-sm opacity-60 mt-2 line-clamp-1">
+                        {{ script.description|default:"No description provided." }}
+                    </p>
+
+                    <!-- Bottom: Tags -->
+                    <div class="flex items-center gap-2 mt-3 overflow-hidden">
                         {% if script.tags.all %}
-                        <div class="flex flex-wrap gap-1 mb-4">
-                            {% for tag in script.tags.all %}
-                            <span class="badge badge-sm" style="background-color: {{ tag.color }}20; color: {{ tag.color }}; border: 1px solid {{ tag.color }}40;">
+                            {% for tag in script.tags.all|slice:":3" %}
+                            <span class="badge badge-sm border-0 font-medium" style="background-color: {{ tag.color }}15; color: {{ tag.color }};">
                                 {{ tag.name }}
                             </span>
                             {% endfor %}
-                        </div>
+                            {% if script.tags.all|length > 3 %}
+                            <span class="text-xs opacity-50">+{{ script.tags.all|length|add:"-3" }}</span>
+                            {% endif %}
+                        {% else %}
+                             <span class="text-xs opacity-30 italic">No tags</span>
                         {% endif %}
-
-                        <!-- Execution Info -->
-                        <div class="bg-base-200 rounded-lg p-3 mb-4 space-y-1">
-                            <div class="flex items-center gap-2 text-xs">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {% if script.last_run %}
-                                <span class="font-medium">Last run:</span>
-                                {% if script.last_status == 'success' %}
-                                <span class="text-success">{{ script.last_run|date:"M d, Y H:i" }}</span>
-                                {% elif script.last_status == 'failed' %}
-                                <span class="text-error">{{ script.last_run|date:"M d, Y H:i" }}</span>
-                                {% else %}
-                                <span>{{ script.last_run|date:"M d, Y H:i" }}</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="font-medium">Never executed</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="flex items-center gap-2 text-xs">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span class="font-medium">Schedule:</span>
-                                {% if script.next_run %}
-                                <span class="text-info">Next run {{ script.next_run|date:"M d, Y H:i" }}</span>
-                                {% else %}
-                                <span class="text-xs opacity-70">Not scheduled</span>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex flex-wrap gap-2">
-                            <form method="post" action="{% url 'script_execute' script.id %}" class="inline"
-                                  hx-post="{% url 'script_execute' script.id %}"
-                                  hx-target="#htmx-response"
-                                  hx-swap="innerHTML">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm gap-1 text-white font-semibold" style="background: linear-gradient(135deg, #7C3AED 0%, #8B5CF6 100%); border: none; padding: 0.5rem 1rem;">
-                                    <svg viewBox="0 0 180 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="h-5">
-                                      <defs>
-                                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                                          <stop offset="0%" style="stop-color:#7C3AED;stop-opacity:1" />
-                                          <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
-                                        </linearGradient>
-                                      </defs>
-                                      <rect x="10" y="10" width="160" height="80" rx="16" fill="url(#grad1)"/>
-                                      <!-- Terminal Prompt with Motion -->
-                                      <path d="M35 35 L55 50 L35 65" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-                                      <path d="M25 35 L45 50 L25 65" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-                                      <rect x="75" y="58" width="10" height="8" fill="#4ade80"/>
-                                      <!-- Run Text -->
-                                      <text x="95" y="68" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">Run</text>
-                                    </svg>
-                                </button>
-                            </form>
-                            
-                            <a href="{% url 'script_detail' script.id %}" class="btn btn-sm btn-outline gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Details
-                            </a>
-                            
-                            <a href="/scripts/{{ script.id }}/export/" class="btn btn-sm btn-ghost gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Export
-                            </a>
-                            
-                            <form method="post" action="{% url 'script_delete' script.id %}" class="inline ml-auto"
-                                  hx-post="{% url 'script_delete' script.id %}"
-                                  hx-target="#htmx-response"
-                                  hx-swap="innerHTML"
-                                  id="delete-form-{{ script.id }}">
-                                {% csrf_token %}
-                                <button type="button" class="btn btn-sm btn-ghost text-error gap-1" 
-                                        onclick="confirmDelete('{{ script.name }}', 'delete-form-{{ script.id }}')"
-                                        title="Delete script permanently">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
                     </div>
+
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="flex flex-col items-center justify-center py-16 px-4">
-        <div class="text-center max-w-md">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-6 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 class="text-2xl font-bold mb-2">No scripts yet</h3>
-            <p class="text-base opacity-70 mb-6">Create your first Python script to automate your workflows and boost productivity.</p>
-            <button class="btn btn-primary gap-2" onclick="create_script_modal.showModal()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Create Your First Script
-            </button>
-        </div>
-    </div>
     {% endif %}
+
+
+
 </div>
+
+<!-- Modals (Keep your existing modal code here) -->
+<!-- ... -->
 
 <!-- Create Script Modal -->
 <dialog id="create_script_modal" class="modal">
