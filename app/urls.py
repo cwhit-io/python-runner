@@ -129,6 +129,12 @@ urlpatterns = [
     path("tags/<int:tag_id>/edit/", views_scripts.tag_edit, name="tag_edit"),
     path("tags/<int:tag_id>/delete/", views_scripts.tag_delete, name="tag_delete"),
     # Schedules
+    path("schedules/", views_scripts.schedules_list, name="schedules_list"),
+    path(
+        "schedules/create/",
+        views_scripts.schedule_create_from_list,
+        name="schedule_create_from_list",
+    ),
     path(
         "scripts/<int:script_id>/schedules/create/",
         views_scripts.schedule_create,

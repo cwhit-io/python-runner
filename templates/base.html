@@ -52,6 +52,7 @@
           <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
             {% if user.is_authenticated %}
             <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
+            <li><a href="{% url 'schedules_list' %}">Schedules</a></li>
             <li><a href="{% url 'tags_list' %}">Tags</a></li>
             {% endif %}
             <li><a href="/api/docs">API Docs</a></li>
@@ -125,6 +126,7 @@
           <ul tabindex="0" class="mt-3 z-[1] p-2 shadow-lg menu menu-sm dropdown-content bg-base-100 text-base-content rounded-box w-52 border border-base-200">
             <li class="menu-title px-4 py-2">{{ user.username }}</li>
             <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
+            <li><a href="{% url 'schedules_list' %}">Schedules</a></li>
             <li><a href="{% url 'profile' %}">Profile</a></li>
             <li><a href="{% url 'tags_list' %}">Tags</a></li>
             <li><a href="/api/docs">API</a></li>
@@ -178,15 +180,28 @@
   <!-- Footer -->
   <footer class="footer footer-center bg-base-200 text-base-content p-10 mt-10 border-t border-base-300">
     <aside>
-      <div class="w-12 h-12 mb-2 opacity-50 grayscale hover:grayscale-0 transition-all">
-         <!-- Simplified footer logo -->
-         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="10" width="80" height="80" rx="20" fill="currentColor"/>
-            <path d="M35 35 L55 50 L35 65" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-            <rect x="65" y="58" width="10" height="8" fill="white"/>
+      <div class="w-12 h-12 mb-2 hover:scale-110 transition-transform">
+         <!-- Footer logo matching header style -->
+         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-md">
+            <defs>
+              <linearGradient id="footerLogoGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#7C3AED" />
+                <stop offset="1" stop-color="#8B5CF6" />
+              </linearGradient>
+            </defs>
+            <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#footerLogoGrad)" />
+            <g stroke-linecap="round" stroke-linejoin="round">
+              <path d="M28 35 L48 50 L28 65" stroke="white" stroke-width="8" opacity="0.4" />
+              <path d="M40 35 L60 50 L40 65" stroke="white" stroke-width="8" />
+            </g>
+            <rect x="72" y="58" width="10" height="8" fill="#4ADE80">
+              <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite" />
+            </rect>
          </svg>
       </div>
-      <p class="font-bold text-lg">ScriptDash</p>
+      <p class="font-bold text-lg tracking-tight" style="font-family: 'Space Grotesk', sans-serif;">
+        Script<span class="text-primary">Dash</span>
+      </p>
       <p class="text-sm opacity-70">Automate your workflow securely.</p>
       <p class="text-xs opacity-50 mt-2">Copyright © 2026</p>
     </aside>

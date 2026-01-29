@@ -570,6 +570,10 @@ def schedule_toggle(request, schedule_id):
         remove_schedule(schedule)
         messages.success(request, f'Schedule "{schedule.name}" deactivated.')
 
+    # Redirect back to the referring page or script detail
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'schedules' in referer and 'schedules/create' not in referer:
+        return redirect("schedules_list")
     return redirect("script_detail", script_id=schedule.script.id)
 
 
@@ -602,7 +606,120 @@ def schedule_delete(request, schedule_id):
     else:
         # Traditional redirect for non-HTMX requests
         messages.success(request, f'Schedule "{name}" deleted.')
+        # Redirect back to the referring page or script detail
+        referer = request.META.get('HTTP_REFERER', '')
+        if 'schedules' in referer and 'schedules/create' not in referer:
+            return redirect("schedules_list")
         return redirect("script_detail", script_id=script_id)
+
+
+@login_required
+def schedules_list(request):
+    """List all schedules for all user's scripts."""
+    # Get all schedules for scripts owned by the user
+    schedules = ScriptSchedule.objects.filter(
+        script__owner=request.user
+    ).select_related('script', 'created_by').order_by('-created_at')
+    
+    # Get all user's scripts for the create schedule dropdown
+    scripts = Script.objects.filter(owner=request.user).order_by('name')
+    
+    # Compute next_run for schedules that don't have it persisted
+    from app.services.scheduler import compute_next_run
+    
+    for sched in schedules:
+        try:
+            if not getattr(sched, "next_run", None):
+                sched.next_run = compute_next_run(sched)
+        except Exception:
+            sched.next_run = None
+    
+    # Count active schedules
+    active_count = sum(1 for s in schedules if s.is_active)
+    
+    # Find next scheduled run
+    next_schedule = None
+    for sched in sorted(schedules, key=lambda s: s.next_run or timezone.now() + timezone.timedelta(days=365)):
+        if sched.is_active and sched.next_run:
+            next_schedule = sched
+            break
+    
+    return render(
+        request, 
+        "scripts/schedules_list.html", 
+        {
+            "schedules": schedules,
+            "scripts": scripts,
+            "active_count": active_count,
+            "next_schedule": next_schedule,
+        }
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def schedule_create_from_list(request):
+    """Create a new schedule from the schedules list page."""
+    script_id = request.POST.get("script_id", "").strip()
+    
+    if not script_id:
+        messages.error(request, "Script is required.")
+        return redirect("schedules_list")
+    
+    try:
+        script = get_object_or_404(Script, id=script_id, owner=request.user)
+    except (ValueError, Script.DoesNotExist):
+        messages.error(request, "Invalid script selected.")
+        return redirect("schedules_list")
+
+    name = request.POST.get("name", "").strip()
+    timezone = request.POST.get("timezone", "UTC").strip()
+    interval_unit = request.POST.get("interval_unit", "").strip()
+    start_datetime = request.POST.get("start_datetime", "").strip()
+
+    if not name:
+        messages.error(request, "Schedule name is required.")
+        return redirect("schedules_list")
+
+    # Determine schedule type based on whether interval_unit is provided
+    if interval_unit:
+        schedule_type = "interval"
+    else:
+        schedule_type = "single"
+
+    # Validate required fields
+    if not start_datetime:
+        messages.error(request, "Start date/time is required.")
+        return redirect("schedules_list")
+
+    try:
+        # Parse the datetime string
+        from dateutil.parser import parse as parse_dt
+        from django.utils import timezone as django_tz
+
+        dt = parse_dt(start_datetime)
+        if dt.tzinfo is None:
+            dt = django_tz.make_aware(dt, django_tz.get_default_timezone())
+
+        schedule = ScriptSchedule.objects.create(
+            script=script,
+            name=name,
+            timezone=timezone,
+            schedule_type=schedule_type,
+            start_datetime=dt,
+            interval_unit=interval_unit if interval_unit else "",
+            interval_value=1,
+            created_by=request.user,
+        )
+
+        # Add to scheduler
+        schedule_job(schedule)
+
+        messages.success(request, f'Schedule "{name}" created successfully for "{script.name}"!')
+    except Exception as e:
+        messages.error(request, f"Failed to create schedule: {str(e)}")
+
+    return redirect("schedules_list")
 
 
 # Tag Management Views

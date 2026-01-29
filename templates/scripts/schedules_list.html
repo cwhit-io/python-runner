@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}Schedules{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Header Section -->
+    <div class="card bg-gradient-to-br from-base-200 to-base-300 shadow-xl mb-6">
+        <div class="card-body">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold mb-2 flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Script Schedules
+                    </h1>
+                    <p class="text-base opacity-80">Manage and view all scheduled script executions</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-primary gap-2" onclick="create_schedule_modal.showModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Create Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats stats-vertical lg:stats-horizontal shadow-lg w-full mb-6">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <div class="stat-title">Total Schedules</div>
+            <div class="stat-value text-primary">{{ schedules|length }}</div>
+            <div class="stat-desc">Across all scripts</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-success">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div class="stat-title">Active Schedules</div>
+            <div class="stat-value text-success">{{ active_count }}</div>
+            <div class="stat-desc">Currently running</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-info">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div class="stat-title">Next Scheduled</div>
+            <div class="stat-value text-info text-lg">
+                {% if next_schedule %}
+                    {{ next_schedule.next_run|timesince }}
+                {% else %}
+                    None
+                {% endif %}
+            </div>
+            <div class="stat-desc">
+                {% if next_schedule %}
+                    {{ next_schedule.next_run|date:"M d, Y H:i" }}
+                {% else %}
+                    No upcoming runs
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedules Table -->
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">All Schedules</h2>
+
+            {% if schedules %}
+            <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>Schedule Name</th>
+                            <th>Script</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Next Run</th>
+                            <th>Last Run</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for schedule in schedules %}
+                        <tr class="hover">
+                            <td>
+                                <div class="font-semibold">{{ schedule.name }}</div>
+                            </td>
+                            <td>
+                                <a href="{% url 'script_detail' schedule.script.id %}" class="link link-primary hover:link-secondary">
+                                    {{ schedule.script.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if schedule.is_active %}
+                                <div class="badge badge-success gap-1">
+                                    <div class="w-2 h-2 rounded-full bg-white"></div>
+                                    Active
+                                </div>
+                                {% else %}
+                                <div class="badge badge-ghost">Inactive</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if schedule.schedule_type == 'cron' %}
+                                <div class="badge badge-info">Cron</div>
+                                {% elif schedule.schedule_type == 'interval' %}
+                                <div class="badge badge-warning">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    {{ schedule.get_interval_unit_display }}
+                                </div>
+                                {% else %}
+                                <div class="badge badge-outline">Single</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-sm">
+                                {% if schedule.next_run and schedule.is_active %}
+                                <div class="flex flex-col">
+                                    <span class="font-medium">{{ schedule.next_run|date:"M d, Y H:i" }}</span>
+                                    <span class="text-xs opacity-60">{{ schedule.next_run|timesince }} from now</span>
+                                </div>
+                                {% else %}
+                                <span class="opacity-50">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-sm">
+                                {% if schedule.last_run %}
+                                <span class="opacity-70">{{ schedule.last_run|timesince }} ago</span>
+                                {% else %}
+                                <span class="opacity-50">Never</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex gap-2 justify-end">
+                                    <form method="post" action="{% url 'schedule_toggle' schedule.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-xs btn-outline tooltip" data-tip="{% if schedule.is_active %}Pause{% else %}Activate{% endif %}">
+                                            {% if schedule.is_active %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {% else %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    <a href="{% url 'script_detail' schedule.script.id %}" class="btn btn-xs btn-ghost tooltip" data-tip="View Script">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </a>
+                                    <form method="post" action="{% url 'schedule_delete' schedule.id %}" class="inline" 
+                                          hx-post="{% url 'schedule_delete' schedule.id %}"
+                                          hx-target="#htmx-response"
+                                          hx-swap="innerHTML"
+                                          id="delete-schedule-form-{{ schedule.id }}">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn btn-xs btn-ghost text-error tooltip" data-tip="Delete"
+                                                onclick="confirmDelete('{{ schedule.name }}', 'delete-schedule-form-{{ schedule.id }}')">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-16">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <h3 class="text-xl font-semibold mb-2 opacity-70">No Schedules Yet</h3>
+                <p class="text-sm opacity-60 mb-6">Create your first schedule to automate script execution</p>
+                <button class="btn btn-primary gap-2" onclick="create_schedule_modal.showModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create First Schedule
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Schedule Modal -->
+<dialog id="create_schedule_modal" class="modal">
+    <div class="modal-box max-w-2xl">
+        <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        <h3 class="font-bold text-2xl mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Create New Schedule
+        </h3>
+
+        <form method="post" action="{% url 'schedule_create_from_list' %}" class="space-y-4">
+            {% csrf_token %}
+
+            <!-- Script Selection -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Select Script</span>
+                </label>
+                <select name="script_id" class="select select-bordered w-full" required>
+                    <option value="" disabled selected>Choose a script...</option>
+                    {% for script in scripts %}
+                    <option value="{{ script.id }}">{{ script.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if not scripts %}
+                <label class="label">
+                    <span class="label-text-alt text-warning">You need to create a script first</span>
+                </label>
+                {% endif %}
+            </div>
+
+            <!-- Schedule Name -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Schedule Name</span>
+                </label>
+                <input type="text" name="name" placeholder="e.g., Daily Data Sync" class="input input-bordered w-full" required />
+            </div>
+
+            <!-- Start Date/Time -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Start Date & Time</span>
+                </label>
+                <input type="datetime-local" name="start_datetime" class="input input-bordered w-full" required />
+                <label class="label">
+                    <span class="label-text-alt opacity-70">When should the schedule start?</span>
+                </label>
+            </div>
+
+            <!-- Repeat Interval (Optional) -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Repeat Interval (Optional)</span>
+                </label>
+                <select name="interval_unit" class="select select-bordered w-full">
+                    <option value="">One-time execution</option>
+                    <option value="hours">Hourly</option>
+                    <option value="days">Daily</option>
+                    <option value="weeks">Weekly</option>
+                    <option value="months">Monthly</option>
+                </select>
+                <label class="label">
+                    <span class="label-text-alt opacity-70">Leave as "One-time" for single execution</span>
+                </label>
+            </div>
+
+            <!-- Timezone -->
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-semibold">Timezone</span>
+                </label>
+                <select name="timezone" class="select select-bordered w-full">
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="America/Chicago">Central Time</option>
+                    <option value="America/Denver">Mountain Time</option>
+                    <option value="America/Los_Angeles">Pacific Time</option>
+                    <option value="Europe/London">London</option>
+                    <option value="Europe/Paris">Paris</option>
+                    <option value="Asia/Tokyo">Tokyo</option>
+                    <option value="Australia/Sydney">Sydney</option>
+                </select>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="create_schedule_modal.close()">Cancel</button>
+                <button type="submit" class="btn btn-primary" {% if not scripts %}disabled{% endif %}>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Schedule
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- HTMX Response Container -->
+<div id="htmx-response"></div>
+
+<!-- JavaScript -->
+<script>
+    function confirmDelete(name, formId) {
+        if (confirm(`Are you sure you want to delete the schedule "${name}"?`)) {
+            document.getElementById(formId).submit();
+        }
+    }
+
+    function copyApiExecuteUrl() {
+        const input = document.getElementById('api-execute-url');
+        input.select();
+        document.execCommand('copy');
+        showToast('API URL copied to clipboard!', 'success');
+    }
+
+    // Toast notification function (if not already defined in base)
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} shadow-lg fixed bottom-4 right-4 w-auto z-50`;
+        toast.innerHTML = `
+            <div>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+</script>
+{% endblock %}
