@@ -8,8 +8,8 @@
     <div class="mb-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-                <h1 class="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    My Python Scripts
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    My Scripts
                 </h1>
                 <p class="text-sm opacity-70 mt-1">Manage and execute your automation scripts</p>
             </div>
@@ -150,7 +150,10 @@
 
                         <!-- Action Buttons -->
                         <div class="flex flex-wrap gap-2">
-                            <form method="post" action="{% url 'script_execute' script.id %}" class="inline">
+                            <form method="post" action="{% url 'script_execute' script.id %}" class="inline"
+                                  hx-post="{% url 'script_execute' script.id %}"
+                                  hx-target="#htmx-response"
+                                  hx-swap="innerHTML">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-primary gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,9 +179,15 @@
                                 Export
                             </a>
                             
-                            <form method="post" action="{% url 'script_delete' script.id %}" class="inline ml-auto" onsubmit="return confirm('Are you sure you want to delete this script? This action cannot be undone.')">
+                            <form method="post" action="{% url 'script_delete' script.id %}" class="inline ml-auto"
+                                  hx-post="{% url 'script_delete' script.id %}"
+                                  hx-target="#htmx-response"
+                                  hx-swap="innerHTML"
+                                  id="delete-form-{{ script.id }}">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-ghost text-error gap-1">
+                                <button type="button" class="btn btn-sm btn-ghost text-error gap-1" 
+                                        onclick="confirmDelete('{{ script.name }}', 'delete-form-{{ script.id }}')"
+                                        title="Delete script permanently">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>

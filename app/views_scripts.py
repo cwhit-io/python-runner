@@ -164,8 +164,20 @@ def script_delete(request, script_id):
             remove_schedule(schedule)
 
         script.delete()
-        messages.success(request, f'Script "{name}" deleted successfully!')
-        return redirect("scripts_list")
+
+        # Check if this is an HTMX request
+        if request.headers.get("HX-Request"):
+            # Return HTML response with script for HTMX
+            return HttpResponse(f'''
+            <script>
+            showToast("Script \\"{name}\\" deleted successfully!", "success");
+            setTimeout(() => {{ window.location.href = "/scripts/"; }}, 1000);
+            </script>
+            ''')
+        else:
+            # Traditional redirect for non-HTMX requests
+            messages.success(request, f'Script "{name}" deleted successfully!')
+            return redirect("scripts_list")
 
     return redirect("script_detail", script_id=script_id)
 
@@ -226,7 +238,19 @@ def scripts_bulk_delete(request):
         deleted_count += 1
 
     messages.success(request, f"Successfully deleted {deleted_count} script(s).")
-    return redirect("scripts_list")
+
+    # Check if this is an HTMX request
+    if request.headers.get("HX-Request"):
+        # Return HTML response with script for HTMX
+        return HttpResponse(f"""
+        <script>
+        showToast("Successfully deleted {deleted_count} script(s).", "success");
+        setTimeout(() => {{ window.location.reload(); }}, 1000);
+        </script>
+        """)
+    else:
+        # Traditional redirect for non-HTMX requests
+        return redirect("scripts_list")
 
 
 @login_required
@@ -402,8 +426,18 @@ def script_execute(request, script_id):
         timeout_seconds=timeout_seconds,
     )
 
-    messages.success(request, f'Script "{script.name}" execution started!')
-    return redirect("execution_detail", execution_id=execution.id)
+    # Check if this is an HTMX request
+    if request.headers.get("HX-Request"):
+        # Return HTML response with script for HTMX
+        return HttpResponse(f'''
+        <script>
+        showToast("{script.name} execution started!", "success");
+        </script>
+        ''')
+    else:
+        # Traditional redirect for non-HTMX requests
+        messages.success(request, f'Script "{script.name}" execution started!')
+        return redirect("execution_detail", execution_id=execution.id)
 
 
 @login_required
@@ -540,8 +574,19 @@ def schedule_delete(request, schedule_id):
     remove_schedule(schedule)
     schedule.delete()
 
-    messages.success(request, f'Schedule "{name}" deleted.')
-    return redirect("script_detail", script_id=script_id)
+    # Check if this is an HTMX request
+    if request.headers.get("HX-Request"):
+        # Return HTML response with script for HTMX
+        return HttpResponse(f'''
+        <script>
+        showToast("Schedule \\"{name}\\" deleted.", "success");
+        setTimeout(() => {{ window.location.reload(); }}, 500);
+        </script>
+        ''')
+    else:
+        # Traditional redirect for non-HTMX requests
+        messages.success(request, f'Schedule "{name}" deleted.')
+        return redirect("script_detail", script_id=script_id)
 
 
 # Tag Management Views
@@ -634,7 +679,19 @@ def tag_delete(request, tag_id):
     if request.method == "POST":
         name = tag.name
         tag.delete()
-        messages.success(request, f'Tag "{name}" deleted successfully!')
-        return redirect("tags_list")
+
+        # Check if this is an HTMX request
+        if request.headers.get("HX-Request"):
+            # Return HTML response with script for HTMX
+            return HttpResponse(f'''
+            <script>
+            showToast("Tag \\"{name}\\" deleted successfully!", "success");
+            setTimeout(() => {{ window.location.reload(); }}, 500);
+            </script>
+            ''')
+        else:
+            # Traditional redirect for non-HTMX requests
+            messages.success(request, f'Tag "{name}" deleted successfully!')
+            return redirect("tags_list")
 
     return redirect("tags_list")

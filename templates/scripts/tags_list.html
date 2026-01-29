@@ -132,7 +132,10 @@
                 cannot be undone.</p>
             <div class="modal-action">
                 <button type="button" class="btn" onclick="delete_modal.close()">Cancel</button>
-                <form id="delete-form" method="post" style="display: inline;">
+                <form id="delete-form" method="post" style="display: inline;"
+                      hx-post=""
+                      hx-target="#htmx-response"
+                      hx-swap="innerHTML">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-error">Delete Tag</button>
                 </form>
@@ -146,7 +149,7 @@
         const tagId = element.getAttribute('data-tag-id');
         const tagName = element.getAttribute('data-tag-name');
         document.getElementById('delete-tag-name').textContent = tagName;
-        document.getElementById('delete-form').action = `/tags/${tagId}/delete/`;
+        document.getElementById('delete-form').setAttribute('hx-post', `/tags/${tagId}/delete/`);
         delete_modal.showModal();
     }
 </script>

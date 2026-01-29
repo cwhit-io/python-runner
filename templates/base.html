@@ -15,8 +15,13 @@
 
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 
   {% block extra_head %}{% endblock %}
+
+  
 
   <!-- Theme initialization script (must run before body renders) -->
   <script>
@@ -33,20 +38,54 @@
 </head>
 
 <body class="flex flex-col min-h-screen">
-  <!-- Header/Navbar -->
-  <header class="navbar bg-primary text-primary-content shadow-lg sticky top-0 z-50">
-    <div class="container mx-auto">
+ 
+<header class="navbar bg-base-100 text-base-content shadow-sm sticky top-0 z-50 border-b border-base-200">
+  <div class="container mx-auto px-4"> 
+    <div class="navbar-start">
       <div class="flex-1">
-        <a class="btn btn-ghost text-xl font-bold" href="/">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-          </svg>
-          Python Runner
+        <a class="btn btn-ghost normal-case gap-3 px-2 hover:bg-transparent" href="/">
+          
+          <!-- Icon Container -->
+          <div class="w-10 h-10 relative">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-sm">
+              <defs>
+                <linearGradient id="scriptDashGradient" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#7C3AED"/>
+                  <stop offset="1" stop-color="#8B5CF6"/>
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+              </defs>
+              
+              <!-- Background Container -->
+              <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#scriptDashGradient)"/>
+              
+              <!-- Motion Arrows -->
+              <g stroke-linecap="round" stroke-linejoin="round">
+                <path d="M28 35 L48 50 L28 65" stroke="white" stroke-width="8" opacity="0.4"/>
+                <path d="M40 35 L60 50 L40 65" stroke="white" stroke-width="8"/>
+              </g>
+              
+              <!-- The Cursor -->
+              <rect x="72" y="58" width="10" height="8" fill="#4ADE80" filter="url(#glow)">
+                <animate attributeName="opacity" values="1;0;1" dur="1.5s" repeatCount="indefinite"/>
+              </rect>
+            </svg>
+          </div>
+
+          <!-- Brand Name with Space Grotesk -->
+          <span class="hidden sm:inline text-2xl font-bold tracking-tight" style="font-family: 'Space Grotesk', sans-serif;">
+            Script<span class="text-primary">Dash</span>
+          </span>
         </a>
       </div>
-      <div class="flex-none">
-        <ul class="menu menu-horizontal px-1">
+    </div>
+
+    <!-- Right Side Menu (Kept exactly as is) -->
+    <div class="flex-none">
+        <ul class="menu menu-horizontal px-1 font-medium">
           {% if user.is_authenticated %}
           <li><a href="{% url 'scripts_list' %}">My Scripts</a></li>
           <li><a href="{% url 'tags_list' %}">Tags</a></li>
@@ -60,20 +99,17 @@
         </ul>
 
         <!-- Theme Toggle Button -->
-        <label class="swap swap-rotate ml-2">
-          <!-- Hidden checkbox controls the state -->
+        <label class="swap swap-rotate ml-2 btn btn-ghost btn-circle btn-sm">
           <input type="checkbox" id="theme-toggle" class="theme-controller" />
-
-          <!-- Sun icon (for light mode) -->
-          <svg class="swap-off fill-current w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path
-              d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
+          
+          <!-- Sun icon -->
+          <svg class="swap-off fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" />
           </svg>
 
-          <!-- Moon icon (for dark mode) -->
-          <svg class="swap-on fill-current w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path
-              d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" />
+          <!-- Moon icon -->
+          <svg class="swap-on fill-current w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" />
           </svg>
         </label>
 
@@ -88,8 +124,7 @@
               {% endif %}
             </div>
           </label>
-          <ul tabindex="0"
-            class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 text-base-content rounded-box w-52">
+          <ul tabindex="0" class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 text-base-content rounded-box w-52 border border-base-200">
             <li class="menu-title">
               <span>{{ user.username }}</span>
             </li>
@@ -102,33 +137,7 @@
                 <ul class="max-h-60 overflow-y-auto">
                   <li><a onclick="changeTheme('light')">Light</a></li>
                   <li><a onclick="changeTheme('dark')">Dark</a></li>
-                  <li><a onclick="changeTheme('cupcake')">Cupcake</a></li>
-                  <li><a onclick="changeTheme('bumblebee')">Bumblebee</a></li>
-                  <li><a onclick="changeTheme('emerald')">Emerald</a></li>
-                  <li><a onclick="changeTheme('corporate')">Corporate</a></li>
-                  <li><a onclick="changeTheme('synthwave')">Synthwave</a></li>
-                  <li><a onclick="changeTheme('retro')">Retro</a></li>
-                  <li><a onclick="changeTheme('cyberpunk')">Cyberpunk</a></li>
-                  <li><a onclick="changeTheme('valentine')">Valentine</a></li>
-                  <li><a onclick="changeTheme('halloween')">Halloween</a></li>
-                  <li><a onclick="changeTheme('garden')">Garden</a></li>
-                  <li><a onclick="changeTheme('forest')">Forest</a></li>
-                  <li><a onclick="changeTheme('aqua')">Aqua</a></li>
-                  <li><a onclick="changeTheme('lofi')">Lofi</a></li>
-                  <li><a onclick="changeTheme('pastel')">Pastel</a></li>
-                  <li><a onclick="changeTheme('fantasy')">Fantasy</a></li>
-                  <li><a onclick="changeTheme('wireframe')">Wireframe</a></li>
-                  <li><a onclick="changeTheme('black')">Black</a></li>
-                  <li><a onclick="changeTheme('luxury')">Luxury</a></li>
-                  <li><a onclick="changeTheme('dracula')">Dracula</a></li>
-                  <li><a onclick="changeTheme('cmyk')">CMYK</a></li>
-                  <li><a onclick="changeTheme('autumn')">Autumn</a></li>
-                  <li><a onclick="changeTheme('business')">Business</a></li>
-                  <li><a onclick="changeTheme('acid')">Acid</a></li>
-                  <li><a onclick="changeTheme('lemonade')">Lemonade</a></li>
-                  <li><a onclick="changeTheme('night')">Night</a></li>
-                  <li><a onclick="changeTheme('coffee')">Coffee</a></li>
-                  <li><a onclick="changeTheme('winter')">Winter</a></li>
+                  <!-- Add other themes as needed -->
                 </ul>
               </details>
             </li>
@@ -142,21 +151,39 @@
         </div>
         {% else %}
         <a href="{% url 'login' %}" class="btn btn-ghost btn-sm ml-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-          </svg>
           Login
         </a>
-        <a href="{% url 'register' %}" class="btn btn-accent btn-sm ml-2">
+        <a href="{% url 'register' %}" class="btn btn-primary btn-sm ml-2">
           Sign Up
         </a>
         {% endif %}
       </div>
     </div>
-  </header>
-
+  </div>
+  </header> 
+ 
+ 
+ 
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast toast-top toast-end z-[100]"></div>
+  
+  <!-- Confirmation Modal -->
+  <dialog id="confirm-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg" id="confirm-title">Confirm Action</h3>
+      <p class="py-4" id="confirm-message">Are you sure you want to proceed?</p>
+      <div class="modal-action">
+        <button type="button" class="btn" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-error" id="confirm-btn" onclick="proceedWithAction()">Confirm</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
+  
+  <!-- Hidden div for HTMX responses -->
+  <div id="htmx-response" class="hidden"></div>
   <!-- Main Content -->
   <main class="flex-grow">
     {% block content %}{% endblock %}
@@ -330,6 +357,72 @@
         navbar.querySelector('.flex-none').appendChild(helpBtn);
       }
     });
+  </script>
+
+  <!-- Toast Functions -->
+  <script>
+    function showToast(message, type = 'info', duration = 4000) {
+      const toastContainer = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `alert alert-${type}`;
+      
+      let icon = '';
+      if (type === 'success') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      } else if (type === 'error') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      } else if (type === 'warning') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>';
+      } else {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      }
+      
+      toast.innerHTML = `
+        ${icon}
+        <span>${message}</span>
+        <div>
+          <button class="btn btn-sm btn-circle btn-ghost" onclick="this.parentElement.parentElement.remove()">
+            ✕
+          </button>
+        </div>
+      `;
+      
+      toastContainer.appendChild(toast);
+      
+      // Auto remove after duration
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.remove();
+        }
+      }, duration);
+    }
+
+    // Make showToast available globally
+    window.showToast = showToast;
+
+    let pendingFormId = null;
+
+    function confirmDelete(itemName, formId) {
+      pendingFormId = formId;
+      document.getElementById('confirm-title').textContent = 'Confirm Delete';
+      document.getElementById('confirm-message').textContent = `Are you sure you want to delete "${itemName}"? This action cannot be undone.`;
+      document.getElementById('confirm-modal').showModal();
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').close();
+      pendingFormId = null;
+    }
+
+    function proceedWithAction() {
+      if (pendingFormId) {
+        const form = document.getElementById(pendingFormId);
+        if (form) {
+          form.submit();
+        }
+      }
+      closeConfirmModal();
+    }
   </script>
 </body>
 
