@@ -485,8 +485,23 @@ def execution_kill(request, execution_id):
 @login_required
 @require_http_methods(["POST"])
 def schedule_create(request, script_id):
-    """Create a new schedule for a script."""
+    """Create a new schedule for a script or update an existing one."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    schedule_id = request.POST.get("schedule_id", "").strip()
+
+    # Check if this is an update
+    if schedule_id:
+        try:
+            schedule = get_object_or_404(
+                ScriptSchedule, id=schedule_id, script__owner=request.user
+            )
+            is_update = True
+        except (ValueError, ScriptSchedule.DoesNotExist):
+            messages.error(request, "Schedule not found.")
+            return redirect("script_detail", script_id=script_id)
+    else:
+        is_update = False
 
     name = request.POST.get("name", "").strip()
     interval_unit = request.POST.get("interval_unit", "").strip()
@@ -533,21 +548,38 @@ def schedule_create(request, script_id):
         # Convert to UTC for storage
         dt_utc = dt.astimezone(pytz.UTC)
 
-        schedule = ScriptSchedule.objects.create(
-            script=script,
-            name=name,
-            timezone=user_tz_str,  # Store user's timezone for reference
-            schedule_type=schedule_type,
-            start_datetime=dt_utc,
-            interval_unit=interval_unit if interval_unit else "",
-            interval_value=1,
-            created_by=request.user,
-        )
+        if is_update:
+            # Update existing schedule
+            schedule.name = name
+            schedule.timezone = user_tz_str
+            schedule.schedule_type = schedule_type
+            schedule.start_datetime = dt_utc
+            schedule.interval_unit = interval_unit if interval_unit else ""
+            schedule.interval_value = 1
+            schedule.save()
 
-        # Add to scheduler
-        schedule_job(schedule)
+            # Remove old job and add new one
+            remove_schedule(schedule)
+            schedule_job(schedule)
 
-        messages.success(request, f'Schedule "{name}" created successfully!')
+            messages.success(request, f'Schedule "{name}" updated successfully!')
+        else:
+            # Create new schedule
+            schedule = ScriptSchedule.objects.create(
+                script=script,
+                name=name,
+                timezone=user_tz_str,  # Store user's timezone for reference
+                schedule_type=schedule_type,
+                start_datetime=dt_utc,
+                interval_unit=interval_unit if interval_unit else "",
+                interval_value=1,
+                created_by=request.user,
+            )
+
+            # Add to scheduler
+            schedule_job(schedule)
+
+            messages.success(request, f'Schedule "{name}" created successfully!')
     except Exception as e:
         messages.error(request, f"Failed to create schedule: {str(e)}")
 

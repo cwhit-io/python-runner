@@ -309,6 +309,13 @@
                                                 {% endif %}
                                             </button>
                                         </form>
+                                        <button type="button" class="btn btn-xs btn-ghost" 
+                                                onclick="editSchedule({{ schedule.id }}, '{{ schedule.name }}', '{{ schedule.schedule_type }}', '{{ schedule.start_datetime|user_datetime_iso:request.user }}', '{{ schedule.interval_unit }}', '{{ schedule.interval_value }}')"
+                                                title="Edit this schedule">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
                                         <form method="post" action="{% url 'schedule_delete' schedule.id %}" class="inline" 
                                               hx-post="{% url 'schedule_delete' schedule.id %}"
                                               hx-target="#htmx-response"
@@ -493,6 +500,7 @@
         
         <form method="post" action="{% url 'schedule_create' script.id %}">
             {% csrf_token %}
+            <input type="hidden" name="schedule_id" id="schedule-id" value="">
             
             <div class="form-control w-full mb-4">
                 <label class="label">
@@ -597,6 +605,72 @@
             });
         }
     })();
+
+    function editSchedule(scheduleId, name, scheduleType, startDatetime, intervalUnit, intervalValue) {
+        // Update modal title and icons
+        document.getElementById('modal-title').textContent = 'Edit Schedule';
+        document.getElementById('modal-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />';
+        document.getElementById('submit-text').textContent = 'Update Schedule';
+        document.getElementById('submit-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />';
+
+        // Hide script selection for editing and remove required validation
+        const scriptSelection = document.getElementById('script-selection');
+        scriptSelection.style.display = 'none';
+        const scriptSelect = scriptSelection.querySelector('select[name="script_id"]');
+        if (scriptSelect) {
+            scriptSelect.required = false;
+            scriptSelect.name = ''; // Remove from form submission
+        }
+
+        // Set form action for editing
+        document.getElementById('schedule-form').action = '{% url "schedule_create" script.id %}';
+
+        // Populate form fields
+        document.getElementById('schedule-id').value = scheduleId;
+        document.querySelector('input[name="name"]').value = name;
+        document.querySelector('input[name="next_run_dt"]').value = startDatetime;
+        document.querySelector('select[name="interval_unit"]').value = intervalUnit || '';
+
+        // Show modal
+        create_schedule_modal.showModal();
+    }
+
+    // Handle form submission to prevent modal from closing prematurely
+    document.getElementById('schedule-form').addEventListener('submit', function(e) {
+        // Close the modal after a short delay to allow form submission
+        setTimeout(() => {
+            create_schedule_modal.close();
+        }, 100);
+    });
+
+    // Reset modal to create mode when opened normally
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('[onclick*="create_schedule_modal.showModal"]') && !e.target.closest('[onclick*="editSchedule"]')) {
+            resetModalToCreate();
+        }
+    });
+
+    function resetModalToCreate() {
+        document.getElementById('modal-title').textContent = 'Create New Schedule';
+        document.getElementById('modal-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />';
+        document.getElementById('submit-text').textContent = 'Create Schedule';
+        document.getElementById('submit-icon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />';
+        
+        // Show script selection for creating and restore required validation
+        const scriptSelection = document.getElementById('script-selection');
+        scriptSelection.style.display = 'block';
+        const scriptSelect = scriptSelection.querySelector('select[name=""], select[name="script_id"]');
+        if (scriptSelect) {
+            scriptSelect.required = true;
+            scriptSelect.name = 'script_id';
+        }
+        
+        document.getElementById('schedule-form').action = '{% url "schedule_create" script.id %}';
+        document.getElementById('schedule-id').value = '';
+        
+        // Reset form
+        document.getElementById('schedule-form').reset();
+    }
 </script>
 
 <!-- Run Script Modal -->
