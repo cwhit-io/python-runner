@@ -114,6 +114,9 @@
                                     <div class="w-2 h-2 rounded-full bg-white"></div>
                                     Active
                                 </div>
+                                {% if schedule.next_run and schedule.next_run < now %}
+                                <div class="badge badge-error badge-sm mt-1">Overdue</div>
+                                {% endif %}
                                 {% else %}
                                 <div class="badge badge-ghost">Inactive</div>
                                 {% endif %}

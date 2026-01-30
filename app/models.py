@@ -329,6 +329,19 @@ class Script(models.Model):
 
         return min(next_runs) if next_runs else None
 
+    @property
+    def has_overdue_schedules(self):
+        """Check if this script has any schedules that should have run but haven't."""
+        from django.utils import timezone
+
+        now = timezone.now()
+
+        active_schedules = self.schedules.filter(is_active=True)
+        for schedule in active_schedules:
+            if schedule.next_run and schedule.next_run < now:
+                return True
+        return False
+
 
 @receiver(models.signals.post_delete, sender=Script)
 def cleanup_script_venv(sender, instance: Script, **kwargs):

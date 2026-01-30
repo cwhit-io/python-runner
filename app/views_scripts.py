@@ -662,6 +662,7 @@ def schedules_list(request):
             "scripts": scripts,
             "active_count": active_count,
             "next_schedule": next_schedule,
+            "now": timezone.now(),
         },
     )
 
