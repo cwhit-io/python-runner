@@ -78,6 +78,42 @@
           {% endif %}
         </div>
         
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_theme_preference">
+            <span class="label-text">Theme Preference</span>
+          </label>
+          {{ form.theme_preference }}
+          {% if form.theme_preference.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.theme_preference.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_timezone">
+            <span class="label-text">Timezone</span>
+          </label>
+          {{ form.timezone }}
+          {% if form.timezone.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.timezone.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
+        <div class="form-control w-full mb-4">
+          <label class="label" for="id_time_format">
+            <span class="label-text">Time Format</span>
+          </label>
+          {{ form.time_format }}
+          {% if form.time_format.errors %}
+            <label class="label">
+              <span class="label-text-alt text-error">{{ form.time_format.errors|first }}</span>
+            </label>
+          {% endif %}
+        </div>
+        
         <div class="form-control mt-6 flex flex-row gap-2">
           <button type="submit" class="btn btn-primary flex-1">Save Changes</button>
           <a href="{% url 'profile' %}" class="btn btn-outline flex-1">Cancel</a>

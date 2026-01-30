@@ -43,6 +43,33 @@ class UserProfile(models.Model):
         ("winter", "Winter"),
     ]
 
+    TIMEZONE_CHOICES = [
+        ("UTC", "UTC"),
+        ("America/New_York", "Eastern Time (ET)"),
+        ("America/Chicago", "Central Time (CT)"),
+        ("America/Denver", "Mountain Time (MT)"),
+        ("America/Los_Angeles", "Pacific Time (PT)"),
+        ("America/Anchorage", "Alaska Time (AKT)"),
+        ("Pacific/Honolulu", "Hawaii Time (HT)"),
+        ("Europe/London", "London (GMT/BST)"),
+        ("Europe/Paris", "Paris (CET/CEST)"),
+        ("Europe/Berlin", "Berlin (CET/CEST)"),
+        ("Europe/Rome", "Rome (CET/CEST)"),
+        ("Europe/Madrid", "Madrid (CET/CEST)"),
+        ("Asia/Tokyo", "Tokyo (JST)"),
+        ("Asia/Shanghai", "Shanghai (CST)"),
+        ("Asia/Kolkata", "India (IST)"),
+        ("Asia/Dubai", "Dubai (GST)"),
+        ("Australia/Sydney", "Sydney (AEST/AEDT)"),
+        ("Australia/Melbourne", "Melbourne (AEST/AEDT)"),
+        ("Pacific/Auckland", "Auckland (NZST/NZDT)"),
+    ]
+
+    TIME_FORMAT_CHOICES = [
+        ("12", "12-hour (AM/PM)"),
+        ("24", "24-hour"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     bio = models.TextField(max_length=500, blank=True)
@@ -50,6 +77,10 @@ class UserProfile(models.Model):
     email_verification_token = models.CharField(max_length=100, blank=True)
     theme_preference = models.CharField(
         max_length=20, choices=THEME_CHOICES, default="light"
+    )
+    timezone = models.CharField(max_length=50, choices=TIMEZONE_CHOICES, default="UTC")
+    time_format = models.CharField(
+        max_length=2, choices=TIME_FORMAT_CHOICES, default="24"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load custom_filters %}
 
 {% block title %}Schedules{% endblock %}
 
@@ -62,14 +63,14 @@
             <div class="stat-title">Next Scheduled</div>
             <div class="stat-value text-info text-lg">
                 {% if next_schedule %}
-                    {{ next_schedule.next_run|timesince }}
+                    {{ next_schedule.next_run|user_timesince:request.user }}
                 {% else %}
                     None
                 {% endif %}
             </div>
             <div class="stat-desc">
                 {% if next_schedule %}
-                    {{ next_schedule.next_run|date:"M d, Y H:i" }}
+                    {{ next_schedule.next_run|user_datetime:request.user }} - {{ next_schedule.script.name }}
                 {% else %}
                     No upcoming runs
                 {% endif %}
@@ -134,8 +135,8 @@
                             <td class="text-sm">
                                 {% if schedule.next_run and schedule.is_active %}
                                 <div class="flex flex-col">
-                                    <span class="font-medium">{{ schedule.next_run|date:"M d, Y H:i" }}</span>
-                                    <span class="text-xs opacity-60">{{ schedule.next_run|timesince }} from now</span>
+                                    <span class="font-medium">{{ schedule.next_run|user_datetime:request.user }}</span>
+                                    <span class="text-xs opacity-60">{{ schedule.next_run|user_timesince:request.user }} from now</span>
                                 </div>
                                 {% else %}
                                 <span class="opacity-50">—</span>
@@ -143,7 +144,7 @@
                             </td>
                             <td class="text-sm">
                                 {% if schedule.last_run %}
-                                <span class="opacity-70">{{ schedule.last_run|timesince }} ago</span>
+                                <span class="opacity-70">{{ schedule.last_run|user_timesince:request.user }} ago</span>
                                 {% else %}
                                 <span class="opacity-50">Never</span>
                                 {% endif %}

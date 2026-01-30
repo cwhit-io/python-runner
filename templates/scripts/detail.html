@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load custom_filters %}
 
 {% block title %}{{ script.name }}{% endblock %}
 
@@ -157,14 +158,14 @@
             <div class="stat-title">Last Run</div>
             <div class="stat-value text-secondary text-lg">
                 {% if script.last_run %}
-                {{ script.last_run|timesince }} ago
+                {{ script.last_run|user_timesince:request.user }} ago
                 {% else %}
                 Never
                 {% endif %}
             </div>
             <div class="stat-desc">
                 {% if script.last_run %}
-                {{ script.last_run|date:"M d, Y H:i" }}
+                {{ script.last_run|user_datetime:request.user }}
                 {% else %}
                 Not executed yet
                 {% endif %}
@@ -180,14 +181,14 @@
             <div class="stat-title">Last Success</div>
             <div class="stat-value text-success text-lg">
                 {% if script.last_success %}
-                {{ script.last_success|timesince }} ago
+                {{ script.last_success|user_timesince:request.user }} ago
                 {% else %}
                 Never
                 {% endif %}
             </div>
             <div class="stat-desc">
                 {% if script.last_success %}
-                {{ script.last_success|date:"M d, Y H:i" }}
+                {{ script.last_success|user_datetime:request.user }}
                 {% else %}
                 No successful runs
                 {% endif %}
@@ -243,14 +244,14 @@
                                 </td>
                                 <td class="text-sm">
                                     {% if schedule.next_run %}
-                                    <span class="opacity-80">{{ schedule.next_run|date:"M d, Y H:i" }}</span>
+                                    <span class="opacity-80">{{ schedule.next_run|user_datetime:request.user }}</span>
                                     {% else %}
                                     <span class="opacity-50">Not scheduled</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-sm">
                                     {% if schedule.last_run %}
-                                    <span class="opacity-70">{{ schedule.last_run|timesince }} ago</span>
+                                    <span class="opacity-70">{{ schedule.last_run|user_timesince:request.user }} ago</span>
                                     {% else %}
                                     <span class="opacity-50">Never</span>
                                     {% endif %}
@@ -369,7 +370,7 @@
                                 </td>
                                 <td class="text-sm opacity-70">
                                     {% if execution.started_at %}
-                                    {{ execution.started_at|date:"M d, H:i" }}
+                                    {{ execution.started_at|user_datetime:request.user }}
                                     {% else %}
                                     Not started
                                     {% endif %}

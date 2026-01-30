@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load custom_filters %}
 
 {% block title %}API Tokens{% endblock %}
 
@@ -54,8 +55,8 @@
                       </button>
                     </div>
                   </td>
-                  <td>{{ token.created_at|date:"M j, Y" }}</td>
-                  <td>{{ token.last_used|date:"M j, Y, g:i a"|default:"Never" }}</td>
+                  <td>{{ token.created_at|user_datetime:request.user }}</td>
+                  <td>{{ token.last_used|user_datetime:request.user|default:"Never" }}</td>
                   <td>
                     {% if token.is_active %}
                       <span class="badge badge-success">Active</span>
