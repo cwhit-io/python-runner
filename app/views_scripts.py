@@ -52,6 +52,7 @@ def script_create(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         description = request.POST.get("description", "").strip()
+        language = request.POST.get("language", "python")  # Default to python
 
         if not name:
             messages.error(request, "Script name is required.")
@@ -63,7 +64,7 @@ def script_create(request):
             return redirect("scripts_list")
 
         script = Script.objects.create(
-            name=name, description=description, owner=request.user
+            name=name, description=description, owner=request.user, language=language
         )
 
         messages.success(request, f'Script "{name}" created successfully!')

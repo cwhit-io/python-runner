@@ -179,7 +179,7 @@
 <dialog id="create_script_modal" class="modal">
     <div class="modal-box max-w-2xl">
         <h3 class="font-bold text-2xl mb-2">Create New Script</h3>
-        <p class="text-sm opacity-70 mb-6">Set up a new Python automation script</p>
+        <p class="text-sm opacity-70 mb-6">Set up a new automation script (Python or Bash)</p>
         
         <form method="post" action="{% url 'script_create' %}">
             {% csrf_token %}
@@ -190,6 +190,19 @@
                 <input type="text" name="name" placeholder="e.g., Daily Report Generator" class="input input-bordered w-full" required />
                 <label class="label">
                     <span class="label-text-alt opacity-70">Choose a descriptive name for your script</span>
+                </label>
+            </div>
+            
+            <div class="form-control w-full mb-4">
+                <label class="label">
+                    <span class="label-text font-semibold">Script Language *</span>
+                </label>
+                <select name="language" class="select select-bordered w-full" required>
+                    <option value="python" selected>Python</option>
+                    <option value="bash">Bash</option>
+                </select>
+                <label class="label">
+                    <span class="label-text-alt opacity-70">Choose the programming language for your script</span>
                 </label>
             </div>
             
