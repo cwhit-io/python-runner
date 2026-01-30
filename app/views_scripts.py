@@ -454,12 +454,15 @@ def script_execute(request, script_id):
 
     # Check if this is an HTMX request
     if request.headers.get("HX-Request"):
-        # Return HTML response with script for HTMX
-        return HttpResponse(f'''
+        # Return HTML response with HTMX redirect header
+        response = HttpResponse(f'''
         <script>
         showToast("{script.name} execution started!", "success");
         </script>
         ''')
+        # Use HX-Redirect header to navigate after request completes
+        response["HX-Redirect"] = f"/executions/{execution.id}/"
+        return response
     else:
         # Traditional redirect for non-HTMX requests
         messages.success(request, f'Script "{script.name}" execution started!')

@@ -98,43 +98,101 @@
             <!-- LEFT SIDEBAR: Runtime Config (3 cols) -->
             <div class="xl:col-span-3 space-y-6 flex flex-col h-full overflow-y-auto sidebar-scroll pr-2">
                 
-                <!-- 1. Dependencies -->
-                <div class="card bg-base-100 shadow-sm border border-base-200">
-                    <div class="card-body p-4">
-                        <label class="label pt-0 px-0">
-                            <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60 flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                Requirements
+                <!-- PYTHON/BASH SECTIONS (Hidden for HTTP) -->
+                <div id="deps-secrets-container">
+                    <!-- 1. Dependencies -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <label class="label pt-0 px-0">
+                                <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                    Requirements
+                                </span>
+                            </label>
+                            <textarea name="dependencies" class="textarea textarea-bordered w-full h-48 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
+                                placeholder="requests==2.31.0&#10;pandas">{{ script.dependencies }}</textarea>
+                            <div class="text-[10px] opacity-40 mt-1">Pip packages, one per line.</div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Secrets (AJAX) -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200 flex-grow">
+                        <div class="card-body p-4">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Secrets
                             </span>
-                        </label>
-                        <textarea name="dependencies" class="textarea textarea-bordered w-full h-48 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
-                            placeholder="requests==2.31.0&#10;pandas">{{ script.dependencies }}</textarea>
-                        <div class="text-[10px] opacity-40 mt-1">Pip packages, one per line.</div>
+                            
+                            <!-- List -->
+                            <div id="secrets-list" class="space-y-2 mb-4 min-h-[50px]">
+                                <div class="flex justify-center py-2"><span class="loading loading-spinner loading-xs opacity-50"></span></div>
+                            </div>
+
+                            <!-- Add Input -->
+                            <div class="bg-base-200/50 p-2 rounded border border-base-300">
+                                <div class="flex flex-col gap-2">
+                                    <input type="text" id="secret-name" placeholder="KEY" class="input input-xs input-bordered font-mono uppercase w-full" />
+                                    <div class="join w-full">
+                                        <input type="text" id="secret-value" placeholder="Value" class="input input-xs input-bordered join-item w-full" />
+                                        <button id="secret-add" type="button" class="btn btn-xs btn-primary join-item">Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2. Secrets (AJAX) -->
-                <div class="card bg-base-100 shadow-sm border border-base-200 flex-grow">
-                    <div class="card-body p-4">
-                        <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            Secrets
-                        </span>
-                        
-                        <!-- List -->
-                        <div id="secrets-list" class="space-y-2 mb-4 min-h-[50px]">
-                            <div class="flex justify-center py-2"><span class="loading loading-spinner loading-xs opacity-50"></span></div>
+                <!-- HTTP REQUEST BUILDER (Hidden for Python/Bash) -->
+                <div id="http-builder-container" class="hidden">
+                    <!-- HTTP Method -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <label class="label pt-0 px-0">
+                                <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60">Method</span>
+                            </label>
+                            <select id="http-method" class="select select-bordered w-full select-sm">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="PATCH">PATCH</option>
+                                <option value="HEAD">HEAD</option>
+                                <option value="OPTIONS">OPTIONS</option>
+                            </select>
                         </div>
+                    </div>
 
-                        <!-- Add Input -->
-                        <div class="bg-base-200/50 p-2 rounded border border-base-300">
-                            <div class="flex flex-col gap-2">
-                                <input type="text" id="secret-name" placeholder="KEY" class="input input-xs input-bordered font-mono uppercase w-full" />
-                                <div class="join w-full">
-                                    <input type="text" id="secret-value" placeholder="Value" class="input input-xs input-bordered join-item w-full" />
-                                    <button id="secret-add" type="button" class="btn btn-xs btn-primary join-item">Add</button>
-                                </div>
+                    <!-- URL -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <label class="label pt-0 px-0">
+                                <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60">URL</span>
+                            </label>
+                            <input type="text" id="http-url" class="input input-bordered w-full input-sm" placeholder="https://api.example.com/endpoint" />
+                        </div>
+                    </div>
+
+                    <!-- Headers -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block">Headers</span>
+                            <div id="http-headers-list" class="space-y-2 mb-3 min-h-[30px] text-xs"></div>
+                            <div class="bg-base-200/50 p-2 rounded border border-base-300 flex flex-col gap-2">
+                                <input type="text" id="http-header-key" placeholder="Header Key" class="input input-xs input-bordered w-full font-mono" />
+                                <input type="text" id="http-header-value" placeholder="Header Value" class="input input-xs input-bordered w-full font-mono" />
+                                <button type="button" id="http-header-add" class="btn btn-xs btn-primary w-full">Add Header</button>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200 flex-grow">
+                        <div class="card-body p-4">
+                            <label class="label pt-0 px-0">
+                                <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60">Body (JSON)</span>
+                            </label>
+                            <textarea id="http-body" class="textarea textarea-bordered w-full h-32 font-mono text-xs leading-relaxed bg-base-100 resize-y" placeholder='{"key": "value"}'></textarea>
+                            <div class="text-[10px] opacity-40 mt-1">Leave empty for GET requests</div>
                         </div>
                     </div>
                 </div>
@@ -147,7 +205,7 @@
                 </div>
                 <div class="flex justify-between items-center px-1 mt-2">
                     <span class="text-xs opacity-40" id="environment-display">
-                        {% if script.language == 'bash' %}Bash Environment{% else %}Python 3.11 Environment{% endif %}
+                        {% if script.language == 'bash' %}Bash Environment{% elif script.language == 'http' %}HTTP Request Environment{% else %}Python 3.11 Environment{% endif %}
                     </span>
                     <span class="text-xs opacity-40">Auto-saves locally</span>
                 </div>
@@ -182,6 +240,7 @@
                     <select id="modal-language" class="select select-bordered w-full">
                         <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
                         <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
+                        <option value="http" {% if script.language == 'http' %}selected{% endif %}>HTTP Request</option>
                     </select>
                 </div>
 
@@ -323,9 +382,26 @@
         document.getElementById('display-name').textContent = name;
         document.getElementById('display-desc').textContent = desc || "No description provided.";
         
-        // Update environment display
+        // Update environment display and sidebar visibility
         const envDisplay = document.getElementById('environment-display');
-        envDisplay.textContent = language === 'bash' ? 'Bash Environment' : 'Python 3.11 Environment';
+        if (language === 'bash') {
+            envDisplay.textContent = 'Bash Environment';
+        } else if (language === 'http') {
+            envDisplay.textContent = 'HTTP Request Environment';
+        } else {
+            envDisplay.textContent = 'Python 3.11 Environment';
+        }
+        
+        // Show/hide sidebar sections based on language
+        const depsSecretsContainer = document.getElementById('deps-secrets-container');
+        const httpBuilderContainer = document.getElementById('http-builder-container');
+        if (language === 'http') {
+            depsSecretsContainer.classList.add('hidden');
+            httpBuilderContainer.classList.remove('hidden');
+        } else {
+            depsSecretsContainer.classList.remove('hidden');
+            httpBuilderContainer.classList.add('hidden');
+        }
         
         // Rebuild Badges
         const badgeContainer = document.getElementById('header-badges');
@@ -448,6 +524,96 @@
             updateSecret(n.value.trim().toUpperCase(), v.value);
             n.value=''; v.value='';
         };
+    })();
+
+    // --- 4. HTTP Request Builder Logic ---
+    (function () {
+        let httpHeaders = {};
+        
+        function updateHTTPCode() {
+            const method = document.getElementById('http-method').value;
+            const url = document.getElementById('http-url').value;
+            const body = document.getElementById('http-body').value;
+            
+            let code = 'import requests\n\n';
+            code += `url = "${url}"\n`;
+            code += `method = "${method}"\n`;
+            
+            if (Object.keys(httpHeaders).length > 0) {
+                code += 'headers = {\n';
+                for (const [key, value] of Object.entries(httpHeaders)) {
+                    code += `    "${key}": "${value}",\n`;
+                }
+                code += '}\n';
+            }
+            
+            if (body && body.trim()) {
+                code += `\ndata = ${body}\n\n`;
+                code += `response = requests.${method.toLowerCase()}(url, json=data`;
+                if (Object.keys(httpHeaders).length > 0) code += ', headers=headers';
+                code += ')\n';
+            } else {
+                code += `\nresponse = requests.${method.toLowerCase()}(url`;
+                if (Object.keys(httpHeaders).length > 0) code += ', headers=headers';
+                code += ')\n';
+            }
+            
+            code += '\nprint(response.status_code)\nprint(response.text)\n';
+            
+            if (editorInstance) {
+                editorInstance.setValue(code);
+            }
+        }
+        
+        function renderHeaders() {
+            const container = document.getElementById('http-headers-list');
+            container.innerHTML = '';
+            for (const [key, value] of Object.entries(httpHeaders)) {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-2 bg-base-200 rounded group hover:bg-base-300 transition-colors';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden flex-grow">
+                        <div class="font-mono text-xs font-bold truncate text-primary" title="${key}">${key}</div>
+                        <div class="opacity-50">:</div>
+                        <div class="font-mono text-xs truncate opacity-70" title="${value}">${value}</div>
+                    </div>
+                    <button type="button" class="btn btn-xs btn-square btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                `;
+                row.querySelector('button').onclick = () => {
+                    delete httpHeaders[key];
+                    renderHeaders();
+                    updateHTTPCode();
+                };
+                container.appendChild(row);
+            }
+        }
+        
+        document.getElementById('http-method').addEventListener('change', updateHTTPCode);
+        document.getElementById('http-url').addEventListener('change', updateHTTPCode);
+        document.getElementById('http-body').addEventListener('change', updateHTTPCode);
+        
+        document.getElementById('http-header-add').addEventListener('click', () => {
+            const key = document.getElementById('http-header-key').value.trim();
+            const value = document.getElementById('http-header-value').value.trim();
+            if (!key) return showToast('Header key required', 'error');
+            if (!value) return showToast('Header value required', 'error');
+            httpHeaders[key] = value;
+            document.getElementById('http-header-key').value = '';
+            document.getElementById('http-header-value').value = '';
+            renderHeaders();
+            updateHTTPCode();
+        });
+        
+        // Initialize on DOMContentLoaded for HTTP scripts
+        document.addEventListener('DOMContentLoaded', () => {
+            const language = document.getElementById('real-language').value;
+            if (language === 'http') {
+                // Show HTTP builder, hide deps/secrets
+                document.getElementById('deps-secrets-container').classList.add('hidden');
+                document.getElementById('http-builder-container').classList.remove('hidden');
+                updateHTTPCode();
+            }
+        });
     })();
 </script>
 {% endblock %}

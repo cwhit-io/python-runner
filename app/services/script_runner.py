@@ -428,15 +428,30 @@ class ScriptRunner:
         exec_id = getattr(self.execution, "id", None) or "unknown"
         script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}{extension}")
 
-        with open(script_file, "w") as f:
-            f.write(self.script.code)
+        # Normalize line endings for bash scripts to avoid carriage return issues
+        code = self.script.code
+        if self.script.language == "bash":
+            # Convert CRLF to LF for bash scripts
+            code = code.replace("\r\n", "\n").replace("\r", "\n")
+            
+            # Ensure proper shebang if not present
+            if not code.startswith("#!"):
+                code = "#!/bin/bash\n" + code
+            else:
+                # Fix shebang line if it has carriage returns
+                lines = code.split("\n")
+                lines[0] = lines[0].replace("\r", "")
+                code = "\n".join(lines)
+
+        # Write with binary mode to ensure Unix line endings
+        with open(script_file, "wb") as f:
+            f.write(code.encode("utf-8"))
 
         # Make bash scripts executable
         if self.script.language == "bash":
             os.chmod(script_file, 0o755)
 
         return script_file
-        """Send WebSocket update about execution progress."""
         try:
             channel_layer = get_channel_layer()
             if channel_layer and self.execution:
