@@ -604,6 +604,29 @@
             updateHTTPCode();
         });
         
+        // Helper: Parse Python code to extract HTTP config
+        function parseHTTPConfigFromCode(code) {
+            // Very basic regex-based extraction for generated code
+            const methodMatch = code.match(/method\s*=\s*"([A-Z]+)"/);
+            const urlMatch = code.match(/url\s*=\s*"([^"]+)"/);
+            const bodyMatch = code.match(/data\s*=\s*([\s\S]*?)\n\n/);
+            let headers = {};
+            const headersMatch = code.match(/headers\s*=\s*{([\s\S]*?)}\n/);
+            if (headersMatch) {
+                const headerLines = headersMatch[1].split(/,?\n/).map(l => l.trim()).filter(Boolean);
+                headerLines.forEach(line => {
+                    const kv = line.match(/"([^"]+)":\s*"([^"]+)"/);
+                    if (kv) headers[kv[1]] = kv[2];
+                });
+            }
+            return {
+                method: methodMatch ? methodMatch[1] : 'GET',
+                url: urlMatch ? urlMatch[1] : '',
+                body: bodyMatch ? bodyMatch[1].trim() : '',
+                headers
+            };
+        }
+
         // Initialize on DOMContentLoaded for HTTP scripts
         document.addEventListener('DOMContentLoaded', () => {
             const language = document.getElementById('real-language').value;
@@ -611,6 +634,14 @@
                 // Show HTTP builder, hide deps/secrets
                 document.getElementById('deps-secrets-container').classList.add('hidden');
                 document.getElementById('http-builder-container').classList.remove('hidden');
+                // Prepopulate HTTP builder fields from code
+                const code = document.getElementById('code-input').value;
+                const config = parseHTTPConfigFromCode(code);
+                document.getElementById('http-method').value = config.method;
+                document.getElementById('http-url').value = config.url;
+                document.getElementById('http-body').value = config.body;
+                httpHeaders = config.headers || {};
+                renderHeaders();
                 updateHTTPCode();
             }
         });

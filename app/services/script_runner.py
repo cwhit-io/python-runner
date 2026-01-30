@@ -433,7 +433,7 @@ class ScriptRunner:
         if self.script.language == "bash":
             # Convert CRLF to LF for bash scripts
             code = code.replace("\r\n", "\n").replace("\r", "\n")
-            
+
             # Ensure proper shebang if not present
             if not code.startswith("#!"):
                 code = "#!/bin/bash\n" + code
@@ -549,30 +549,6 @@ class ScriptRunner:
             print(f"Error monitoring process: {e}")
 
         return peak_cpu, peak_memory
-
-    def _create_script_file(self, extension):
-        """Create a temporary script file for execution."""
-        # For bash scripts, use system temp directory
-        if self.script.language == "bash":
-            tmp_dir = "/tmp"
-        else:
-            # For Python scripts, use venv tmp directory
-            venv_path = self.script.get_venv_path()
-            tmp_dir = os.path.join(venv_path, "tmp")
-            os.makedirs(tmp_dir, exist_ok=True)
-
-        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-        exec_id = getattr(self.execution, "id", None) or "unknown"
-        script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}{extension}")
-
-        with open(script_file, "w") as f:
-            f.write(self.script.code)
-
-        # Make bash scripts executable
-        if self.script.language == "bash":
-            os.chmod(script_file, 0o755)
-
-        return script_file
 
 
 def execute_script(

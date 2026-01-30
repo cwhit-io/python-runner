@@ -219,6 +219,7 @@ class Script(models.Model):
     LANGUAGE_CHOICES = [
         ("python", "Python"),
         ("bash", "Bash"),
+        ("http", "HTTP Request"),
     ]
 
     STATUS_CHOICES = [
@@ -352,6 +353,39 @@ class Script(models.Model):
             if schedule.next_run and schedule.next_run < now:
                 return True
         return False
+
+    def save(self, *args, **kwargs):
+        # Automatically add requests dependency for HTTP scripts
+        if self.language == "http":
+            deps = self.dependencies.strip() if self.dependencies else ""
+            deps_list = [d.strip() for d in deps.split("\n") if d.strip()]
+
+            # Check if requests is already in dependencies
+            has_requests = any(d.lower().startswith("requests") for d in deps_list)
+
+            if not has_requests:
+                deps_list.append("requests")
+                self.dependencies = "\n".join(deps_list)
+
+        super().save(*args, **kwargs)
+
+        # Create venv in background thread to avoid blocking save operation
+        if self.language in ("python", "http"):
+            import threading
+            from app.services.script_runner import ScriptRunner
+
+            def create_venv():
+                try:
+                    runner = ScriptRunner(self)
+                    runner.ensure_venv()
+                except Exception as e:
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to create venv for script {self.id}: {e}")
+
+            thread = threading.Thread(target=create_venv, daemon=True)
+            thread.start()
 
 
 @receiver(models.signals.post_delete, sender=Script)
