@@ -11,7 +11,7 @@ schedules = ScriptSchedule.objects.all()
 print(f"Total schedules: {schedules.count()}\n")
 
 for s in schedules:
-    print(f"ID: {s.id}")
+    print(f"ID: {s.id}")  # type: ignore
     print(f"  Name: {s.name}")
     print(f"  Type: {s.schedule_type}")
     print(f"  Active: {s.is_active}")
