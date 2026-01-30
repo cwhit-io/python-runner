@@ -39,8 +39,14 @@
                 </svg>
             </div>
             <div class="stat-title">Total Schedules</div>
-            <div class="stat-value text-primary">{{ schedules|length }}</div>
-            <div class="stat-desc">Across all scripts</div>
+            <div class="stat-value text-primary">{{ page_obj.paginator.count }}</div>
+            <div class="stat-desc">
+                {% if search_query or tag_filter %}
+                    Filtered results
+                {% else %}
+                    Across all scripts
+                {% endif %}
+            </div>
         </div>
 
         <div class="stat">
@@ -83,17 +89,111 @@
         <div class="card-body">
             <h2 class="card-title text-2xl mb-4">All Schedules</h2>
 
+            <!-- Filters -->
+            <div class="flex flex-col lg:flex-row gap-4 mb-6">
+                <form method="get" class="flex flex-col sm:flex-row gap-2 flex-1">
+                    <div class="form-control flex-1">
+                        <input type="text" name="q" placeholder="Search schedules or scripts..." 
+                               value="{{ search_query }}" class="input input-bordered" />
+                    </div>
+                    <div class="form-control">
+                        <select name="tag" class="select select-bordered">
+                            <option value="">All Tags</option>
+                            {% for tag in tags %}
+                            <option value="{{ tag.name }}" {% if tag_filter == tag.name %}selected{% endif %}>
+                                {{ tag.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search
+                    </button>
+                    {% if search_query or tag_filter %}
+                    <a href="{% url 'schedules_list' %}" class="btn btn-ghost">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Clear
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+
             {% if schedules %}
             <div class="overflow-x-auto">
                 <table class="table table-zebra">
                     <thead>
                         <tr>
-                            <th>Schedule Name</th>
-                            <th>Script</th>
-                            <th>Status</th>
-                            <th>Type</th>
-                            <th>Next Run</th>
-                            <th>Last Run</th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=name&order={% if sort_by == 'name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Schedule Name
+                                    {% if sort_by == 'name' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=script_name&order={% if sort_by == 'script_name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Script
+                                    {% if sort_by == 'script_name' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=status&order={% if sort_by == 'status' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Status
+                                    {% if sort_by == 'status' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=type&order={% if sort_by == 'type' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Type
+                                    {% if sort_by == 'type' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=next_run&order={% if sort_by == 'next_run' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Next Run
+                                    {% if sort_by == 'next_run' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort=last_run&order={% if sort_by == 'last_run' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                                   class="flex items-center gap-1 hover:text-primary">
+                                    Last Run
+                                    {% if sort_by == 'last_run' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{% if sort_order == 'asc' %}M5 15l7-7 7 7{% else %}M19 9l-7 7-7-7{% endif %}" />
+                                    </svg>
+                                    {% endif %}
+                                </a>
+                            </th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
@@ -195,6 +295,30 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="flex justify-center mt-6">
+                <div class="join">
+                    {% if page_obj.has_previous %}
+                    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort={{ sort_by }}&order={{ sort_order }}&page={{ page_obj.previous_page_number }}" 
+                       class="join-item btn">« Previous</a>
+                    {% else %}
+                    <span class="join-item btn btn-disabled">« Previous</span>
+                    {% endif %}
+
+                    <span class="join-item btn btn-active">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+                    {% if page_obj.has_next %}
+                    <a href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if tag_filter %}tag={{ tag_filter }}&{% endif %}sort={{ sort_by }}&order={{ sort_order }}&page={{ page_obj.next_page_number }}" 
+                       class="join-item btn">Next »</a>
+                    {% else %}
+                    <span class="join-item btn btn-disabled">Next »</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             {% else %}
             <!-- Empty State -->
             <div class="text-center py-16">

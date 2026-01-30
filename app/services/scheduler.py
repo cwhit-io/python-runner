@@ -197,7 +197,17 @@ def _execute_scheduled_script(script_id, schedule_id):
         # Update schedule's last_run time
         schedule = ScriptSchedule.objects.get(id=schedule_id)
         schedule.last_run = timezone.now()
-        schedule.save(update_fields=["last_run"])
+
+        # For single schedules, deactivate after successful execution
+        if schedule.schedule_type == "single":
+            schedule.is_active = False
+            schedule.save(update_fields=["last_run", "is_active"])
+            logger.info(
+                f"Deactivating single schedule {schedule_id} after successful execution"
+            )
+            # Remove from scheduler since it's completed (this also clears next_run)
+            remove_schedule(schedule)
+            return execution  # Return early since we don't need to save again
 
         # For RRULE schedules, schedule the next occurrence
         try:
@@ -216,6 +226,24 @@ def _execute_scheduled_script(script_id, schedule_id):
         logger.error(
             f"Scheduled execution failed: script={script_id}, schedule={schedule_id}, error={e}"
         )
+
+        # For single schedules, deactivate even on failure since they only run once
+        try:
+            schedule = ScriptSchedule.objects.get(id=schedule_id)
+            if schedule.schedule_type == "single":
+                schedule.is_active = False
+                schedule.last_run = timezone.now()
+                schedule.save(update_fields=["is_active", "last_run"])
+                logger.info(
+                    f"Deactivated single schedule {schedule_id} after failed execution"
+                )
+                # Remove from scheduler since it's completed
+                remove_schedule(schedule)
+        except Exception as deactivate_error:
+            logger.error(
+                f"Failed to deactivate single schedule {schedule_id}: {deactivate_error}"
+            )
+
         # Try to create a failed execution record if the script execution failed
         try:
             from app.models import Script

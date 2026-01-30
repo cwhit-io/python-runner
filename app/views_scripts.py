@@ -10,7 +10,8 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from app.models import Script, ScriptExecution, ScriptSchedule
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from app.models import Script, ScriptExecution, ScriptSchedule, Tag
 from app.services.script_runner import ScriptRunner
 from app.services.scheduler import schedule_job, remove_schedule
 from app.services.secret_store import (
@@ -652,16 +653,67 @@ def schedule_delete(request, schedule_id):
 
 @login_required
 def schedules_list(request):
-    """List all schedules for all user's scripts."""
-    # Get all schedules for scripts owned by the user
+    """List all schedules for all user's scripts with filtering, sorting, and pagination."""
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+
+    # Get query parameters
+    search_query = request.GET.get("q", "").strip()
+    tag_filter = request.GET.get("tag", "").strip()
+    sort_by = request.GET.get("sort", "created_at")
+    sort_order = request.GET.get("order", "desc")
+    page_number = request.GET.get("page", 1)
+
+    # Base queryset
     schedules = (
         ScriptSchedule.objects.filter(script__owner=request.user)
         .select_related("script", "created_by")
-        .order_by("-created_at")
+        .prefetch_related("script__tags")
     )
+
+    # Apply filters
+    if search_query:
+        schedules = schedules.filter(
+            Q(name__icontains=search_query) | Q(script__name__icontains=search_query)
+        )
+
+    if tag_filter:
+        schedules = schedules.filter(script__tags__name__iexact=tag_filter)
+
+    # Apply sorting
+    sort_field = sort_by
+    if sort_order == "desc":
+        sort_field = f"-{sort_field}"
+
+    # Handle special sort fields
+    if sort_by == "script_name":
+        sort_field = "script__name" if sort_order == "asc" else "-script__name"
+    elif sort_by == "status":
+        # Sort by is_active first, then by next_run
+        schedules = schedules.order_by(
+            "-is_active" if sort_order == "desc" else "is_active",
+            "-next_run" if sort_order == "desc" else "next_run",
+        )
+        sort_field = None  # Already sorted
+    elif sort_by == "type":
+        sort_field = "schedule_type" if sort_order == "asc" else "-schedule_type"
+    elif sort_by == "next_run":
+        # Handle null values - put nulls at the end
+        schedules = schedules.order_by(f"{'-' if sort_order == 'desc' else ''}next_run")
+        sort_field = None
+    elif sort_by == "last_run":
+        # Handle null values - put nulls at the end
+        schedules = schedules.order_by(f"{'-' if sort_order == 'desc' else ''}last_run")
+        sort_field = None
+
+    if sort_field:
+        schedules = schedules.order_by(sort_field)
 
     # Get all user's scripts for the create schedule dropdown
     scripts = Script.objects.filter(owner=request.user).order_by("name")
+
+    # Get all tags for filter dropdown
+    tags = Tag.objects.filter(scripts__owner=request.user).distinct().order_by("name")
 
     # Compute next_run for schedules that don't have it persisted
     from app.services.scheduler import compute_next_run
@@ -673,28 +725,37 @@ def schedules_list(request):
         except Exception:
             sched.next_run = None
 
-    # Count active schedules
-    active_count = sum(1 for s in schedules if s.is_active)
+    # Pagination
+    paginator = Paginator(schedules, 25)  # 25 items per page
+    try:
+        page_obj = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        page_obj = paginator.page(1)
 
-    # Find next scheduled run
+    # Count active schedules from filtered results
+    active_count = schedules.filter(is_active=True).count()
+
+    # Find next scheduled run from filtered results
     next_schedule = None
-    for sched in sorted(
-        schedules,
-        key=lambda s: s.next_run or timezone.now() + timezone.timedelta(days=365),
-    ):
-        if sched.is_active and sched.next_run:
-            next_schedule = sched
-            break
+    active_schedules = schedules.filter(is_active=True, next_run__isnull=False).order_by('next_run')
+    if active_schedules.exists():
+        next_schedule = active_schedules.first()
 
     return render(
         request,
         "scripts/schedules_list.html",
         {
-            "schedules": schedules,
+            "schedules": page_obj,
             "scripts": scripts,
+            "tags": tags,
             "active_count": active_count,
             "next_schedule": next_schedule,
             "now": timezone.now(),
+            "search_query": search_query,
+            "tag_filter": tag_filter,
+            "sort_by": sort_by,
+            "sort_order": sort_order,
+            "page_obj": page_obj,
         },
     )
 
