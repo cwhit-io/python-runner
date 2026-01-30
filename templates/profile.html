@@ -78,6 +78,21 @@
             </div>
             
             <div>
+              <label class="label font-semibold">Theme</label>
+              <p>{{ user.profile.get_theme_preference_display }}</p>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Timezone</label>
+              <p>{{ user.profile.get_timezone_display }}</p>
+            </div>
+            
+            <div>
+              <label class="label font-semibold">Time Format</label>
+              <p>{{ user.profile.get_time_format_display }}</p>
+            </div>
+            
+            <div>
               <label class="label font-semibold">Member Since</label>
               <p>{{ user.date_joined|user_datetime:request.user }}</p>
             </div>
