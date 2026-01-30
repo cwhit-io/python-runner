@@ -65,7 +65,7 @@
               <li><a class="{% if current_url == 'register' %}active{% endif %}" href="{% url 'register' %}">Sign Up</a></li>
             {% endif %}
             <div class="divider my-1"></div>
-            <li><a href="/api/docs">API Docs</a></li>
+            <li><a href="{% url 'api_docs' %}">API Docs</a></li>
           </ul>
         </div>
 
@@ -101,7 +101,7 @@
             <li><a class="{% if current_url == 'scripts_list' %}active{% endif %}" href="{% url 'scripts_list' %}">My Scripts</a></li>
             <li><a class="{% if current_url == 'schedules_list' %}active{% endif %}" href="{% url 'schedules_list' %}">Schedules</a></li>
             <li><a class="{% if current_url == 'tags_list' %}active{% endif %}" href="{% url 'tags_list' %}">Tags</a></li>
-            <li><a href="/api/docs">API</a></li>
+            <li><a href="{% url 'api_docs' %}">API</a></li>
           </ul>
         {% endif %}
       </div>
@@ -146,7 +146,7 @@
               <li class="menu-title px-4 py-2">{{ user.username }}</li>
               <li><a class="{% if current_url == 'profile' %}active{% endif %}" href="{% url 'profile' %}">Profile</a></li>
               <li><a class="{% if current_url == 'api_tokens' %}active{% endif %}" href="{% url 'api_tokens' %}">API Tokens</a></li>
-              <li><a href="/api/docs">API Docs</a></li>
+              <li><a href="{% url 'api_docs' %}">API Docs</a></li>
               <div class="divider my-1"></div>
               <li>
                 <form method="post" action="{% url 'logout' %}">

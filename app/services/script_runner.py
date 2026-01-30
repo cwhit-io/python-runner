@@ -27,6 +27,23 @@ class ScriptRunner:
         self.script = script
         self.execution = None
 
+    def _send_websocket_update(self, message_type, data):
+        """Send WebSocket update for execution progress."""
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer and self.execution:
+                async_to_sync(channel_layer.group_send)(
+                    f"execution_{self.execution.id}",
+                    {
+                        "type": "execution_update",
+                        "message_type": message_type,
+                        **data,
+                    },
+                )
+        except Exception:
+            # Silently ignore WebSocket errors
+            pass
+
     def _calculate_dependencies_hash(self) -> str:
         """Calculate SHA-256 hash of dependencies string."""
         if not self.script.dependencies:

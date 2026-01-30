@@ -76,7 +76,14 @@ def script_create(request):
 @login_required
 def script_detail(request, script_id):
     """View script details and execution history."""
-    script = get_object_or_404(Script, id=script_id, owner=request.user)
+    script = get_object_or_404(Script, id=script_id)
+
+    # Check permissions: owner can always view, others can only view if public
+    if script.owner != request.user and not script.is_public:
+        from django.http import Http404
+
+        raise Http404("Script not found")
+
     executions = script.executions.all()[:20]  # Last 20 executions
     schedules = list(script.schedules.all())
 
@@ -99,6 +106,30 @@ def script_detail(request, script_id):
             "schedules": schedules,
         },
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+def script_toggle_public(request, script_id):
+    """Toggle the public status of a script via AJAX."""
+    from django.http import JsonResponse
+
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    # Parse JSON data
+    import json
+
+    try:
+        data = json.loads(request.body)
+        is_public = data.get("is_public", False)
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({"success": False, "error": "Invalid data"}, status=400)
+
+    # Update the script
+    script.is_public = is_public
+    script.save()
+
+    return JsonResponse({"success": True})
 
 
 @login_required

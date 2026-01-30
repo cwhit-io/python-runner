@@ -24,10 +24,35 @@
     <div class="card bg-gradient-to-br from-base-200 to-base-300 shadow-xl mb-6">
         <div class="card-body">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                <!-- Title and Description -->
                 <div class="flex-1">
                     <h1 class="text-4xl font-bold mb-2">{{ script.name }}</h1>
                     <p class="text-base opacity-80 mb-4">{{ script.description|default:"No description provided" }}</p>
+                    
+                    <!-- Public Toggle (only for owners) -->
+                    {% if script.owner == request.user %}
+                    <div class="flex items-center gap-3 mb-4">
+                        <label class="label cursor-pointer">
+                            <span class="label-text font-semibold">Public Script</span>
+                            <input type="checkbox" id="public-toggle" class="toggle toggle-primary" {% if script.is_public %}checked{% endif %} onchange="togglePublicStatus()">
+                        </label>
+                        <div class="text-xs opacity-60">
+                            {% if script.is_public %}
+                            <span class="text-success">✓ Public - Anyone can view and trigger via webhook</span>
+                            {% else %}
+                            <span class="text-warning">🔒 Private - Only you can view and execute</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Public/Private Status Badge for non-owners -->
+                    <div class="mb-4">
+                        {% if script.is_public %}
+                        <span class="badge badge-primary badge-lg font-bold">PUBLIC SCRIPT</span>
+                        {% else %}
+                        <span class="badge badge-neutral badge-lg font-bold">PRIVATE SCRIPT</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     
                     <!-- Tags -->
                     {% if script.tags.all %}
@@ -40,7 +65,9 @@
                     </div>
                     {% endif %}
 
-                    <!-- API Endpoint -->
+                    <!-- API/Webhook Section -->
+                    <!-- API Execute Endpoint (always shown for owners) -->
+                    {% if script.owner == request.user %}
                     <div class="mt-4">
                         <label class="label">
                             <span class="label-text font-semibold flex items-center gap-2">
@@ -53,7 +80,7 @@
                         <div class="join w-full">
                             <input id="api-execute-url" class="input input-bordered input-sm join-item flex-1 font-mono text-xs"
                                 readonly
-                                value="{{ request.scheme }}://{{ request.get_host }}/api/scripts/{{ script.id }}/execute" />
+                                value="{{ request.scheme }}://{{ request.get_host }}/api/v1/scripts/{{ script.id }}/execute" />
                             <button type="button" class="btn btn-sm btn-primary join-item gap-1" onclick="copyApiExecuteUrl()">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -65,6 +92,46 @@
                             <span class="label-text-alt opacity-70">Requires: Authorization: Bearer &lt;token&gt;</span>
                         </div>
                     </div>
+                    {% endif %}
+
+                    <!-- Webhook URL (shown for public scripts or owners) -->
+                    {% if script.is_public or script.owner == request.user %}
+                    <div class="mt-4" data-webhook-section>
+                        <label class="label">
+                            <span class="label-text font-semibold flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                Webhook URL
+                                {% if script.is_public %}
+                                <span class="badge badge-success badge-sm">Active</span>
+                                {% else %}
+                                <span class="badge badge-neutral badge-sm">Inactive</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                        <div class="join w-full">
+                            <input id="webhook-url" class="input input-bordered input-sm join-item flex-1 font-mono text-xs {% if not script.is_public %}opacity-50{% endif %}"
+                                readonly
+                                value="{{ request.scheme }}://{{ request.get_host }}/api/v1/scripts/{{ script.id }}/webhook" />
+                            <button type="button" class="btn btn-sm {% if script.is_public %}btn-primary{% else %}btn-neutral{% endif %} join-item gap-1" onclick="copyWebhookUrl()">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                        <div class="label">
+                            <span class="label-text-alt opacity-70">
+                                {% if script.is_public %}
+                                HTTP POST to this URL to trigger script execution (no auth required)
+                                {% else %}
+                                Make script public to enable webhook execution
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Dependency Warning -->
                     {% if script.has_dependency_conflicts %}
@@ -578,6 +645,108 @@
             document.execCommand('copy');
             input.blur();
         }
+    }
+
+    function copyWebhookUrl() {
+        const input = document.getElementById('webhook-url');
+        if (!input) return;
+        const text = input.value;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show success feedback
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            });
+        } else {
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            input.blur();
+        }
+    }
+
+    function togglePublicStatus() {
+        const toggle = document.getElementById('public-toggle');
+        const isPublic = toggle.checked;
+        const scriptId = {{ script.id }};
+        
+        // Show loading state
+        toggle.disabled = true;
+        
+        fetch(`/scripts/${scriptId}/toggle-public/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ is_public: isPublic })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI
+                const statusText = document.querySelector('.text-xs.opacity-60');
+                const webhookSection = document.querySelector('[data-webhook-section]');
+                const webhookInput = document.getElementById('webhook-url');
+                const webhookBtn = document.querySelector('[onclick="copyWebhookUrl()"]');
+                const webhookBadge = document.querySelector('.badge-sm');
+                
+                if (isPublic) {
+                    statusText.innerHTML = '<span class="text-success">✓ Public - Anyone can view and trigger via webhook</span>';
+                    if (webhookInput) webhookInput.classList.remove('opacity-50');
+                    if (webhookBtn) webhookBtn.classList.remove('btn-neutral');
+                    if (webhookBtn) webhookBtn.classList.add('btn-primary');
+                    if (webhookBadge) {
+                        webhookBadge.className = 'badge badge-success badge-sm';
+                        webhookBadge.textContent = 'Active';
+                    }
+                } else {
+                    statusText.innerHTML = '<span class="text-warning">🔒 Private - Only you can view and execute</span>';
+                    if (webhookInput) webhookInput.classList.add('opacity-50');
+                    if (webhookBtn) webhookBtn.classList.remove('btn-primary');
+                    if (webhookBtn) webhookBtn.classList.add('btn-neutral');
+                    if (webhookBadge) {
+                        webhookBadge.className = 'badge badge-neutral badge-sm';
+                        webhookBadge.textContent = 'Inactive';
+                    }
+                }
+                
+                // Show success message
+                showToast('Script visibility updated successfully', 'success');
+            } else {
+                // Revert toggle on error
+                toggle.checked = !isPublic;
+                showToast('Failed to update script visibility', 'error');
+            }
+        })
+        .catch(error => {
+            // Revert toggle on error
+            toggle.checked = !isPublic;
+            showToast('Failed to update script visibility', 'error');
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            toggle.disabled = false;
+        });
+    }
+
+    function showToast(message, type) {
+        // Simple toast implementation
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'error'} shadow-lg fixed top-4 right-4 z-50 max-w-sm`;
+        toast.innerHTML = `
+            <div>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
     }
 
     (function(){

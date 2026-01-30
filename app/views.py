@@ -8,6 +8,7 @@ from django.contrib import messages
 from .services.item_service import items_db
 from .models import UserProfile, APIToken
 from .forms import UserProfileForm
+from .api import api
 
 
 def index(request):
@@ -98,6 +99,27 @@ def api_tokens(request):
     """Manage API tokens."""
     tokens = APIToken.objects.filter(user=request.user).order_by("-created_at")
     return render(request, "api_tokens.html", {"tokens": tokens})
+
+
+def api_docs(request):
+    """API documentation index page with links to different documentation formats."""
+    return render(request, "api_docs.html")
+
+
+def api_docs_swagger(request):
+    """Swagger UI documentation."""
+    from ninja.openapi.docs import Swagger
+
+    swagger = Swagger()
+    return swagger.render_page(request, api)
+
+
+def api_docs_redoc(request):
+    """Redoc documentation."""
+    from ninja.openapi.docs import Redoc
+
+    redoc = Redoc()
+    return redoc.render_page(request, api)
 
 
 @login_required

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}API Documentation - Python Script Runner{% endblock %}
+
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+    body { font-family: 'Space Grotesk', sans-serif; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <div class="hero bg-gradient-to-br from-primary/10 via-base-100 to-secondary/10 min-h-[40vh]">
+        <div class="hero-content text-center">
+            <div class="max-w-4xl">
+                <div class="flex justify-center mb-6">
+                    <div class="badge badge-primary badge-lg gap-2 px-4 py-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        API Documentation
+                    </div>
+                </div>
+                <h1 class="text-5xl font-bold text-base-content mb-4">Explore Our API</h1>
+                <p class="text-xl text-base-content/70 mb-8 max-w-2xl mx-auto">
+                    Choose your preferred documentation format to explore and interact with the Python Script Runner API
+                </p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <div class="stats stats-vertical lg:stats-horizontal shadow-lg bg-base-100/50 backdrop-blur">
+                        <div class="stat">
+                            <div class="stat-figure text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div class="stat-title">Interactive</div>
+                            <div class="stat-value text-primary">Swagger</div>
+                            <div class="stat-desc">Try endpoints live</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-figure text-secondary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                            </div>
+                            <div class="stat-title">Clean & Fast</div>
+                            <div class="stat-value text-secondary">Redoc</div>
+                            <div class="stat-desc">Three-panel layout</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-6xl mx-auto">
+            <!-- Documentation Options -->
+            <div class="grid lg:grid-cols-2 gap-8 mb-12">
+                <!-- Swagger UI Card -->
+                <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-200">
+                    <div class="card-body">
+                        <div class="flex items-start justify-between mb-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title text-2xl mb-1">Swagger UI</h2>
+                                    <div class="badge badge-primary badge-outline">Interactive</div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-base-content/80 mb-6 leading-relaxed">
+                            Full-featured interactive API documentation with built-in testing capabilities. Execute API calls directly from your browser and see responses in real-time.
+                        </p>
+                        <div class="card-actions justify-end">
+                            <a href="{% url 'swagger' %}" class="btn btn-primary btn-lg gap-2" target="_blank">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Launch Swagger UI
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redoc Card -->
+                <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 border border-base-200">
+                    <div class="card-body">
+                        <div class="flex items-start justify-between mb-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="card-title text-2xl mb-1">Redoc</h2>
+                                    <div class="badge badge-secondary badge-outline">Clean</div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-base-content/80 mb-6 leading-relaxed">
+                            Elegant, responsive documentation with a three-panel layout optimized for reading and understanding API structures. Perfect for comprehensive API exploration.
+                        </p>
+                        <div class="card-actions justify-end">
+                            <a href="{% url 'redoc' %}" class="btn btn-secondary btn-lg gap-2" target="_blank">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Launch Redoc
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Information Section -->
+            <div class="grid lg:grid-cols-3 gap-8 mb-12">
+                <!-- API Details -->
+                <div class="lg:col-span-2">
+                    <div class="card bg-base-100 shadow-xl border border-base-200">
+                        <div class="card-body">
+                            <h3 class="card-title text-2xl mb-6 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                API Information
+                            </h3>
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <div>
+                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                            </svg>
+                                            Base URL
+                                        </h4>
+                                        <code class="bg-base-200 px-3 py-2 rounded-lg text-sm font-mono block border">{{ request.scheme }}://{{ request.get_host }}/api/</code>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            OpenAPI Schema
+                                        </h4>
+                                        <a href="{% url 'api-1.0.0:openapi-json' %}" class="link link-primary link-hover inline-flex items-center gap-2" target="_blank">
+                                            View JSON Schema
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            Authentication
+                                        </h4>
+                                        <div class="alert alert-info py-3">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <div class="text-sm">
+                                                <div class="font-medium">API Token Required</div>
+                                                <div class="text-base-content/70">Include <code class="bg-base-300 px-1 py-0.5 rounded text-xs">Authorization: Bearer &lt;token&gt;</code> in headers</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div>
+                    <div class="card bg-gradient-to-br from-primary/5 to-secondary/5 shadow-xl border border-base-200">
+                        <div class="card-body">
+                            <h3 class="card-title text-xl mb-4 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Quick Actions
+                            </h3>
+                            <div class="space-y-3">
+                                <a href="{% url 'swagger' %}" class="btn btn-primary btn-block justify-start gap-3" target="_blank">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Test API Live
+                                </a>
+                                <a href="{% url 'redoc' %}" class="btn btn-secondary btn-block justify-start gap-3" target="_blank">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                    Read Documentation
+                                </a>
+                                <a href="{% url 'api-1.0.0:openapi-json' %}" class="btn btn-outline btn-block justify-start gap-3" target="_blank">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    View Schema
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

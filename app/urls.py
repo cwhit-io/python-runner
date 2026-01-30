@@ -23,6 +23,7 @@ from django.conf.urls.static import static
 from . import views
 from . import views_scripts
 from .api import api
+from ninja.openapi.docs import Swagger, Redoc
 
 urlpatterns = [
     path("", views_scripts.scripts_list, name="index"),
@@ -84,6 +85,11 @@ urlpatterns = [
     path("scripts/", views_scripts.scripts_list, name="scripts_list"),
     path("scripts/create/", views_scripts.script_create, name="script_create"),
     path("scripts/<int:script_id>/", views_scripts.script_detail, name="script_detail"),
+    path(
+        "scripts/<int:script_id>/toggle-public/",
+        views_scripts.script_toggle_public,
+        name="script_toggle_public",
+    ),
     path(
         "scripts/<int:script_id>/edit/", views_scripts.script_edit, name="script_edit"
     ),
@@ -180,6 +186,9 @@ urlpatterns = [
     # API endpoints
     path("api/", api.urls),
     path("admin/", admin.site.urls),
+    path("api/docs/", views.api_docs_swagger, name="swagger"),
+    path("api/redoc/", views.api_docs_redoc, name="redoc"),
+    path("api/docs/index/", views.api_docs, name="api_docs"),
 ]
 
 # Serve media files in development

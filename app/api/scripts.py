@@ -170,13 +170,11 @@ def delete_script(request, script_id: int):
 def execute_script_api(request, script_id: int):
     """Execute a script.
 
-    Behavior:
-    - If a valid Bearer API token is provided, require that the token's user owns the script.
-    - If no/invalid token is provided, allow execution only when `script.is_public` is True.
+    Requires authentication. For public scripts, use the webhook endpoint instead.
     """
     from app.auth import APITokenAuth
 
-    # Optional token auth: inspect Authorization header for a Bearer token
+    # Require token auth: inspect Authorization header for a Bearer token
     auth_backend = APITokenAuth()
     auth_header = None
     try:
@@ -185,37 +183,28 @@ def execute_script_api(request, script_id: int):
     except Exception:
         auth_header = None
 
-    token = None
-    api_token_obj = None
-    if auth_header:
-        parts = auth_header.split()
-        if len(parts) == 2 and parts[0].lower() == "bearer":
-            token = parts[1]
-
-    if token:
-        api_token_obj = auth_backend.authenticate(request, token)
-        if api_token_obj is None:
-            return {"error": "Invalid API token"}, 401
-
-    # Load the script (no owner restriction here; we'll enforce below)
-    script = get_object_or_404(Script, id=script_id)
-
-    # If token present, ensure the token owner matches script owner
-    if api_token_obj:
-        if script.owner_id != api_token_obj.user_id:
-            return {"error": "Permission denied"}, 403
-        # attach auth for downstream logic/consistency
-        request.auth = api_token_obj
-
-    # If no token and script is not public, reject
-    if not api_token_obj and not script.is_public:
+    if not auth_header:
         return {"error": "Authentication required"}, 401
 
-    # Execute the script. For public runs triggered_by is None.
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return {"error": "Invalid authorization header"}, 401
+
+    token = parts[1]
+    api_token_obj = auth_backend.authenticate(request, token)
+    if api_token_obj is None:
+        return {"error": "Invalid API token"}, 401
+
+    # Load the script
+    script = get_object_or_404(Script, id=script_id)
+
+    # Ensure the token owner matches script owner
+    if script.owner_id != api_token_obj.user_id:
+        return {"error": "Permission denied"}, 403
+
+    # Execute the script
     runner = ScriptRunner(script)
-    execution = runner.execute(
-        triggered_by=(api_token_obj.user if api_token_obj else None), trigger_type="api"
-    )
+    execution = runner.execute(triggered_by=api_token_obj.user, trigger_type="api")
 
     return execution
 
@@ -352,5 +341,21 @@ def delete_tag(request, tag_id: int):
     tag = get_object_or_404(Tag, id=tag_id, created_by=request.auth.user)
     tag.delete()
     return {"message": "Tag deleted successfully"}
+
+
+@router.post("/scripts/{script_id}/webhook", include_in_schema=False)
+def execute_script_webhook(request, script_id: int):
+    """Execute a public script via webhook (no authentication required)."""
+    script = get_object_or_404(Script, id=script_id)
+
+    # Only allow webhook execution for public scripts
+    if not script.is_public:
+        return {"error": "Script is not public"}, 403
+
+    # Execute the script
+    runner = ScriptRunner(script)
+    execution = runner.execute(triggered_by=None, trigger_type="webhook")
+
+    return execution
 
     return {"success": True}
