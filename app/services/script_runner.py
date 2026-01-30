@@ -177,7 +177,7 @@ class ScriptRunner:
 
     def execute(self, triggered_by=None, trigger_type="manual", timeout_seconds=None):
         """
-        Execute the script in its virtual environment.
+        Execute the script in its environment (virtual environment for Python, system for bash).
         Returns the ScriptExecution object.
 
         Args:
@@ -185,19 +185,20 @@ class ScriptRunner:
             trigger_type: How the execution was triggered (manual, scheduled, api)
             timeout_seconds: Maximum execution time in seconds (None for no timeout)
         """
-        # Ensure venv is ready
-        try:
-            self.ensure_venv()
-        except Exception as e:
-            # Create failed execution record
-            execution = ScriptExecution.objects.create(
-                script=self.script,
-                triggered_by=triggered_by,
-                trigger_type=trigger_type,
-                status="failed",
-                error_message=f"Failed to create/update virtual environment: {str(e)}",
-            )
-            return execution
+        # Ensure environment is ready (venv for Python, skip for bash)
+        if self.script.language == "python":
+            try:
+                self.ensure_venv()
+            except Exception as e:
+                # Create failed execution record
+                execution = ScriptExecution.objects.create(
+                    script=self.script,
+                    triggered_by=triggered_by,
+                    trigger_type=trigger_type,
+                    status="failed",
+                    error_message=f"Failed to create/update virtual environment: {str(e)}",
+                )
+                return execution
 
         # Create execution record
         self.execution = ScriptExecution.objects.create(
@@ -220,129 +221,28 @@ class ScriptRunner:
 
         return self.execution
 
-    def _send_websocket_update(self, message_type: str, data: dict):
-        """Send WebSocket update about execution progress."""
-        try:
-            channel_layer = get_channel_layer()
-            if channel_layer and self.execution:
-                async_to_sync(channel_layer.group_send)(
-                    f"execution_{self.execution.id}",
-                    {
-                        "type": "execution_update",
-                        "message_type": message_type,
-                        "execution_id": self.execution.id,
-                        **data,
-                    },
-                )
-        except Exception as e:
-            # Don't fail execution if websocket update fails
-            print(f"Failed to send websocket update: {e}")
-
-    def _monitor_process(
-        self, process: psutil.Process, start_time: float
-    ) -> Tuple[float, float]:
-        """
-        Monitor process resource usage.
-        Returns (peak_cpu_percent, peak_memory_mb).
-        """
-        peak_cpu = 0.0
-        peak_memory = 0.0
-        timeout = self.execution.timeout_seconds
-
-        # Initialize CPU monitoring (first call returns 0)
-        try:
-            process.cpu_percent()
-        except:
-            pass
-
-        try:
-            while process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
-                try:
-                    # Get resource usage including children
-                    cpu_percent = process.cpu_percent(interval=0.5)
-
-                    # Get memory including all children
-                    memory_mb = process.memory_info().rss / (1024 * 1024)
-                    try:
-                        for child in process.children(recursive=True):
-                            try:
-                                memory_mb += child.memory_info().rss / (1024 * 1024)
-                            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                                pass
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
-
-                    peak_cpu = max(peak_cpu, cpu_percent)
-                    peak_memory = max(peak_memory, memory_mb)
-
-                    # Check timeout
-                    if timeout and (time.time() - start_time) > timeout:
-                        # Kill the process
-                        process.terminate()
-                        time.sleep(0.5)
-                        if process.is_running():
-                            process.kill()
-
-                        # Mark as timed out
-                        self.execution.timed_out = True
-                        self.execution.error_message = (
-                            f"Execution timed out after {timeout} seconds"
-                        )
-                        self.execution.save(
-                            update_fields=["timed_out", "error_message"]
-                        )
-
-                        self._send_websocket_update(
-                            "timeout",
-                            {
-                                "timeout_seconds": timeout,
-                                "elapsed_seconds": time.time() - start_time,
-                            },
-                        )
-                        break
-
-                    # Send periodic resource updates
-                    self._send_websocket_update(
-                        "resource_update",
-                        {
-                            "cpu_percent": round(cpu_percent, 2),
-                            "memory_mb": round(memory_mb, 2),
-                            "elapsed_seconds": round(time.time() - start_time, 2),
-                        },
-                    )
-
-                    # cpu_percent(interval=0.5) already sleeps, no additional sleep needed
-
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    break
-        except Exception as e:
-            print(f"Error monitoring process: {e}")
-
-        return peak_cpu, peak_memory
-
     def _run_script(self):
-        """Internal method to run the script with resource monitoring (called in thread)."""
-        python_path = self.script.get_python_executable()
-
-        # Create a per-execution script file to avoid collisions during concurrent runs
-        venv_path = self.script.get_venv_path()
-        tmp_dir = os.path.join(venv_path, "tmp")
-        os.makedirs(tmp_dir, exist_ok=True)
-        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
-        exec_id = getattr(self.execution, "id", None) or "unknown"
-        script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}.py")
-
+        """Run the script in a separate thread."""
         try:
-            with open(script_file, "w") as f:
-                f.write(self.script.code)
+            # Determine execution command based on script language
+            if self.script.language == "bash":
+                # For bash scripts, run the executable script directly
+                script_file = self._create_script_file(".sh")
+                cmd = [script_file]
+                env = os.environ.copy()
+            else:
+                # For Python scripts, use virtual environment
+                python_path = self.script.get_python_executable()
+                script_file = self._create_script_file(".py")
+                cmd = [python_path, "-u", script_file]  # -u flag for unbuffered
+                env = os.environ.copy()
+                env["PYTHONUNBUFFERED"] = "1"  # Force Python to use unbuffered output
 
-            # Run the script with unbuffered output
+            # Run the script
             start_time = time.time()
-            env = os.environ.copy()
-            env["PYTHONUNBUFFERED"] = "1"  # Force Python to use unbuffered output
 
             process = subprocess.Popen(
-                [python_path, "-u", script_file],  # -u flag for unbuffered
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -495,6 +395,152 @@ class ScriptRunner:
             # Clean up script file
             if os.path.exists(script_file):
                 os.remove(script_file)
+
+    def _create_script_file(self, extension):
+        """Create a temporary script file for execution."""
+        # For bash scripts, use system temp directory
+        if self.script.language == "bash":
+            tmp_dir = "/tmp"
+        else:
+            # For Python scripts, use venv tmp directory
+            venv_path = self.script.get_venv_path()
+            tmp_dir = os.path.join(venv_path, "tmp")
+            os.makedirs(tmp_dir, exist_ok=True)
+
+        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        exec_id = getattr(self.execution, "id", None) or "unknown"
+        script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}{extension}")
+
+        with open(script_file, "w") as f:
+            f.write(self.script.code)
+
+        # Make bash scripts executable
+        if self.script.language == "bash":
+            os.chmod(script_file, 0o755)
+
+        return script_file
+        """Send WebSocket update about execution progress."""
+        try:
+            channel_layer = get_channel_layer()
+            if channel_layer and self.execution:
+                async_to_sync(channel_layer.group_send)(
+                    f"execution_{self.execution.id}",
+                    {
+                        "type": "execution_update",
+                        "message_type": message_type,
+                        "execution_id": self.execution.id,
+                        **data,
+                    },
+                )
+        except Exception as e:
+            # Don't fail execution if websocket update fails
+            print(f"Failed to send websocket update: {e}")
+
+    def _monitor_process(
+        self, process: psutil.Process, start_time: float
+    ) -> Tuple[float, float]:
+        """
+        Monitor process resource usage.
+        Returns (peak_cpu_percent, peak_memory_mb).
+        """
+        peak_cpu = 0.0
+        peak_memory = 0.0
+        timeout = self.execution.timeout_seconds
+
+        # Initialize CPU monitoring (first call returns 0)
+        try:
+            process.cpu_percent()
+        except:
+            pass
+
+        try:
+            while process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
+                try:
+                    # Get resource usage including children
+                    cpu_percent = process.cpu_percent(interval=0.5)
+
+                    # Get memory including all children
+                    memory_mb = process.memory_info().rss / (1024 * 1024)
+                    try:
+                        for child in process.children(recursive=True):
+                            try:
+                                memory_mb += child.memory_info().rss / (1024 * 1024)
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+
+                    peak_cpu = max(peak_cpu, cpu_percent)
+                    peak_memory = max(peak_memory, memory_mb)
+
+                    # Check timeout
+                    if timeout and (time.time() - start_time) > timeout:
+                        # Kill the process
+                        process.terminate()
+                        time.sleep(0.5)
+                        if process.is_running():
+                            process.kill()
+
+                        # Mark as timed out
+                        self.execution.timed_out = True
+                        self.execution.error_message = (
+                            f"Execution timed out after {timeout} seconds"
+                        )
+                        self.execution.save(
+                            update_fields=["timed_out", "error_message"]
+                        )
+
+                        self._send_websocket_update(
+                            "timeout",
+                            {
+                                "timeout_seconds": timeout,
+                                "elapsed_seconds": time.time() - start_time,
+                            },
+                        )
+                        break
+
+                    # Send periodic resource updates
+                    self._send_websocket_update(
+                        "resource_update",
+                        {
+                            "cpu_percent": round(cpu_percent, 2),
+                            "memory_mb": round(memory_mb, 2),
+                            "elapsed_seconds": round(time.time() - start_time, 2),
+                        },
+                    )
+
+                    # cpu_percent(interval=0.5) already sleeps, no additional sleep needed
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    break
+        except Exception as e:
+            print(f"Error monitoring process: {e}")
+
+        return peak_cpu, peak_memory
+
+    def _create_script_file(self, extension):
+        """Create a temporary script file for execution."""
+        # For bash scripts, use system temp directory
+        if self.script.language == "bash":
+            tmp_dir = "/tmp"
+        else:
+            # For Python scripts, use venv tmp directory
+            venv_path = self.script.get_venv_path()
+            tmp_dir = os.path.join(venv_path, "tmp")
+            os.makedirs(tmp_dir, exist_ok=True)
+
+        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+        exec_id = getattr(self.execution, "id", None) or "unknown"
+        script_file = os.path.join(tmp_dir, f"script_{exec_id}_{ts}{extension}")
+
+        with open(script_file, "w") as f:
+            f.write(self.script.code)
+
+        # Make bash scripts executable
+        if self.script.language == "bash":
+            os.chmod(script_file, 0o755)
+
+        return script_file
 
 
 def execute_script(

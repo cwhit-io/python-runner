@@ -214,7 +214,12 @@ class APILog(models.Model):
 
 
 class Script(models.Model):
-    """Python script model."""
+    """Script model supporting multiple languages."""
+
+    LANGUAGE_CHOICES = [
+        ("python", "Python"),
+        ("bash", "Bash"),
+    ]
 
     STATUS_CHOICES = [
         ("idle", "Idle"),
@@ -225,6 +230,12 @@ class Script(models.Model):
 
     name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True)
+    language = models.CharField(
+        max_length=20,
+        choices=LANGUAGE_CHOICES,
+        default="python",
+        help_text="Script language/runtime",
+    )
     code = models.TextField(
         default='# Write your Python script here\nprint("Hello, World!")'
     )

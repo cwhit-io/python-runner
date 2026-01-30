@@ -108,6 +108,7 @@ def script_edit(request, script_id):
     if request.method == "POST":
         script.name = request.POST.get("name", script.name)
         script.description = request.POST.get("description", script.description)
+        script.language = request.POST.get("language", script.language)
         script.code = request.POST.get("code", script.code)
         script.dependencies = request.POST.get("dependencies", script.dependencies)
         script.is_public = request.POST.get("is_public") == "on"
@@ -192,6 +193,7 @@ def script_duplicate(request, script_id):
     duplicated_script = Script.objects.create(
         name=new_name,
         description=script.description,
+        language=script.language,
         code=script.code,
         dependencies=script.dependencies,
         owner=request.user,
@@ -252,6 +254,7 @@ def script_export(request, script_id):
     export_data = {
         "name": script.name,
         "description": script.description,
+        "language": script.language,
         "code": script.code,
         "dependencies": script.dependencies,
         "is_public": script.is_public,
@@ -371,6 +374,7 @@ def script_import(request):
             script = Script.objects.create(
                 name=name,
                 description=data.get("description", ""),
+                language=data.get("language", "python"),
                 code=data.get("code", ""),
                 dependencies=data.get("dependencies", ""),
                 is_public=data.get("is_public", False),
@@ -737,7 +741,9 @@ def schedules_list(request):
 
     # Find next scheduled run from filtered results
     next_schedule = None
-    active_schedules = schedules.filter(is_active=True, next_run__isnull=False).order_by('next_run')
+    active_schedules = schedules.filter(
+        is_active=True, next_run__isnull=False
+    ).order_by("next_run")
     if active_schedules.exists():
         next_schedule = active_schedules.first()
 
@@ -986,3 +992,66 @@ def tag_delete(request, tag_id):
             return redirect("tags_list")
 
     return redirect("tags_list")
+
+
+@login_required
+def script_edit(request, script_id):
+    """Edit a script."""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    if request.method == "POST":
+        # Update script
+        name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
+        language = request.POST.get("language", "python")
+        code = request.POST.get("code", "")
+        dependencies = request.POST.get("dependencies", "")
+        is_public = request.POST.get("is_public") == "on"
+
+        # Get tags
+        tags = request.POST.getlist("tags")
+
+        # Validate
+        if not name:
+            messages.error(request, "Script name is required.")
+            return redirect("script_edit", script_id=script.id)
+
+        # Check name uniqueness
+        if (
+            Script.objects.filter(owner=request.user, name=name)
+            .exclude(id=script.id)
+            .exists()
+        ):
+            messages.error(request, "A script with this name already exists.")
+            return redirect("script_edit", script_id=script.id)
+
+        # Update script
+        script.name = name
+        script.description = description
+        script.language = language
+        script.code = code
+        script.dependencies = dependencies
+        script.is_public = is_public
+        script.save()
+
+        # Update tags
+        from app.models import Tag
+
+        script.tags.set(Tag.objects.filter(name__in=tags, created_by=request.user))
+
+        messages.success(request, f'Script "{name}" updated successfully!')
+        return redirect("script_detail", script_id=script.id)
+
+    # GET request - render edit form
+    from app.models import Tag
+
+    user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
+
+    return render(
+        request,
+        "scripts/edit.html",
+        {
+            "script": script,
+            "user_tags": user_tags,
+        },
+    )

@@ -28,6 +28,7 @@
         <!-- HIDDEN STATE (Synced via JS from Modal) -->
         <input type="hidden" name="name" id="real-name" value="{{ script.name }}">
         <textarea name="description" id="real-description" class="hidden">{{ script.description }}</textarea>
+        <input type="hidden" name="language" id="real-language" value="{{ script.language }}">
         <input type="checkbox" name="is_public" id="real-is-public" class="hidden" {% if script.is_public %}checked{% endif %}>
         
         <!-- Hidden Tag Container (Rebuilt by JS on Modal Save) -->
@@ -145,7 +146,9 @@
                     <div id="editor-container" class="w-full h-full"></div>
                 </div>
                 <div class="flex justify-between items-center px-1 mt-2">
-                    <span class="text-xs opacity-40">Python 3.11 Environment</span>
+                    <span class="text-xs opacity-40" id="environment-display">
+                        {% if script.language == 'bash' %}Bash Environment{% else %}Python 3.11 Environment{% endif %}
+                    </span>
                     <span class="text-xs opacity-40">Auto-saves locally</span>
                 </div>
             </div>
@@ -172,6 +175,14 @@
                 <div class="form-control w-full mb-4">
                     <label class="label"><span class="label-text font-semibold">Description</span></label>
                     <textarea id="modal-desc" class="textarea textarea-bordered h-32"></textarea>
+                </div>
+
+                <div class="form-control w-full mb-4">
+                    <label class="label"><span class="label-text font-semibold">Language</span></label>
+                    <select id="modal-language" class="select select-bordered w-full">
+                        <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
+                        <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
+                    </select>
                 </div>
 
                 <div class="form-control">
@@ -261,6 +272,7 @@
         // 1. Sync Text Inputs
         document.getElementById('modal-name').value = document.getElementById('real-name').value;
         document.getElementById('modal-desc').value = document.getElementById('real-description').value;
+        document.getElementById('modal-language').value = document.getElementById('real-language').value;
         document.getElementById('modal-public').checked = document.getElementById('real-is-public').checked;
         
         // 2. Sync Tags (Read from Real Hidden Container -> Check Modal Checkboxes)
@@ -279,10 +291,12 @@
         // 1. Update Hidden Text Inputs
         const name = document.getElementById('modal-name').value;
         const desc = document.getElementById('modal-desc').value;
+        const language = document.getElementById('modal-language').value;
         const isPublic = document.getElementById('modal-public').checked;
 
         document.getElementById('real-name').value = name;
         document.getElementById('real-description').value = desc;
+        document.getElementById('real-language').value = language;
         document.getElementById('real-is-public').checked = isPublic;
 
         // 2. Rebuild Real Hidden Tag Container
@@ -308,6 +322,10 @@
         // 3. Update Header UI
         document.getElementById('display-name').textContent = name;
         document.getElementById('display-desc').textContent = desc || "No description provided.";
+        
+        // Update environment display
+        const envDisplay = document.getElementById('environment-display');
+        envDisplay.textContent = language === 'bash' ? 'Bash Environment' : 'Python 3.11 Environment';
         
         // Rebuild Badges
         const badgeContainer = document.getElementById('header-badges');
