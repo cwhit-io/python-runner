@@ -314,6 +314,21 @@ class Script(models.Model):
         except (json.JSONDecodeError, TypeError):
             return []
 
+    @property
+    def next_run(self):
+        """Get the next scheduled run time for this script."""
+        active_schedules = self.schedules.filter(is_active=True)
+        if not active_schedules.exists():
+            return None
+
+        # Get the earliest next_run from active schedules
+        next_runs = []
+        for schedule in active_schedules:
+            if schedule.next_run:
+                next_runs.append(schedule.next_run)
+
+        return min(next_runs) if next_runs else None
+
 
 @receiver(models.signals.post_delete, sender=Script)
 def cleanup_script_venv(sender, instance: Script, **kwargs):

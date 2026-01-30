@@ -11,6 +11,7 @@ from app.services.script_runner import execute_script
 import logging
 from django.utils import timezone
 from dateutil.parser import parse as parse_dt
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +65,18 @@ def schedule_job(schedule: ScriptSchedule):
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
                 max_instances=1,  # Prevent overlapping executions
+                misfire_grace_time=300,  # Allow 5 minutes grace period for missed jobs
             )
             # persist the next_run time to the schedule record
             try:
                 job = scheduler.get_job(job_id)
                 if job and getattr(job, "next_run_time", None):
-                    schedule.next_run = job.next_run_time
+                    # Convert to UTC for database storage
+                    schedule.next_run = (
+                        job.next_run_time.astimezone(pytz.UTC)
+                        if job.next_run_time.tzinfo
+                        else job.next_run_time
+                    )
                     schedule.save(update_fields=["next_run"])
             except Exception:
                 logger.exception("Failed to persist next_run for cron job %s", job_id)
@@ -89,11 +96,17 @@ def schedule_job(schedule: ScriptSchedule):
                 id=job_id,
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
+                misfire_grace_time=300,  # Allow 5 minutes grace period for missed jobs
             )
             try:
                 job = scheduler.get_job(job_id)
                 if job and getattr(job, "next_run_time", None):
-                    schedule.next_run = job.next_run_time
+                    # Convert to UTC for database storage
+                    schedule.next_run = (
+                        job.next_run_time.astimezone(pytz.UTC)
+                        if job.next_run_time.tzinfo
+                        else job.next_run_time
+                    )
                     schedule.save(update_fields=["next_run"])
             except Exception:
                 logger.exception("Failed to persist next_run for single job %s", job_id)
@@ -129,11 +142,17 @@ def schedule_job(schedule: ScriptSchedule):
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
                 max_instances=1,
+                misfire_grace_time=300,  # Allow 5 minutes grace period for missed jobs
             )
             try:
                 job = scheduler.get_job(job_id)
                 if job and getattr(job, "next_run_time", None):
-                    schedule.next_run = job.next_run_time
+                    # Convert to UTC for database storage
+                    schedule.next_run = (
+                        job.next_run_time.astimezone(pytz.UTC)
+                        if job.next_run_time.tzinfo
+                        else job.next_run_time
+                    )
                     schedule.save(update_fields=["next_run"])
             except Exception:
                 logger.exception(
@@ -165,6 +184,10 @@ def _execute_scheduled_script(script_id, schedule_id):
     """Internal function to execute a script via schedule."""
     from django.utils import timezone
 
+    logger.info(
+        f"Starting scheduled execution: script={script_id}, schedule={schedule_id}"
+    )
+
     try:
         # Execute the script
         execution = execute_script(
@@ -185,11 +208,33 @@ def _execute_scheduled_script(script_id, schedule_id):
             logger.exception("Failed to reschedule RRULE")
 
         logger.info(
-            f"Scheduled execution completed: script={script_id}, execution={execution.id}"
+            f"Scheduled execution completed successfully: script={script_id}, execution={execution.id}, status={execution.status}"
         )
+        return execution
 
     except Exception as e:
-        logger.error(f"Scheduled execution failed: script={script_id}, error={e}")
+        logger.error(
+            f"Scheduled execution failed: script={script_id}, schedule={schedule_id}, error={e}"
+        )
+        # Try to create a failed execution record if the script execution failed
+        try:
+            from app.models import Script
+
+            script = Script.objects.get(id=script_id)
+            from app.models import ScriptExecution
+
+            failed_execution = ScriptExecution.objects.create(
+                script=script,
+                triggered_by=None,
+                trigger_type="scheduled",
+                status="failed",
+                error_message=f"Scheduled execution failed: {str(e)}",
+                started_at=timezone.now(),
+            )
+            logger.info(f"Created failed execution record: {failed_execution.id}")
+        except Exception as record_error:
+            logger.error(f"Failed to create execution record: {record_error}")
+        raise
 
 
 def reload_all_schedules():
@@ -197,18 +242,59 @@ def reload_all_schedules():
     from app.models import ScriptSchedule
 
     scheduler = get_scheduler()
+    logger.info("Reloading all schedules...")
 
     # Remove all existing script schedule jobs
+    removed_count = 0
     for job in scheduler.get_jobs():
         if job.id.startswith("script_schedule_"):
             scheduler.remove_job(job.id)
+            removed_count += 1
+
+    logger.info(f"Removed {removed_count} existing schedule jobs")
 
     # Add all active schedules
     active_schedules = ScriptSchedule.objects.filter(is_active=True).select_related(
         "script"
     )
+    added_count = 0
+
     for schedule in active_schedules:
-        schedule_job(schedule)
+        try:
+            schedule_job(schedule)
+            added_count += 1
+            logger.info(
+                f"Added schedule job: {schedule.id} ({schedule.script.name} - {schedule.name})"
+            )
+        except Exception as e:
+            logger.error(f"Failed to add schedule job {schedule.id}: {e}")
+
+    logger.info(f"Successfully loaded {added_count} active schedules")
+
+
+def execute_missed_schedule(schedule_id):
+    """Manually execute a schedule that was missed. Useful for debugging."""
+    from app.models import ScriptSchedule
+
+    try:
+        schedule = ScriptSchedule.objects.get(id=schedule_id, is_active=True)
+        logger.info(
+            f"Manually executing missed schedule: {schedule.id} ({schedule.script.name} - {schedule.name})"
+        )
+
+        execution = _execute_scheduled_script(schedule.script.id, schedule.id)
+
+        logger.info(
+            f"Manual execution completed: execution={execution.id}, status={execution.status}"
+        )
+        return execution
+
+    except ScriptSchedule.DoesNotExist:
+        logger.error(f"Schedule {schedule_id} not found or not active")
+        return None
+    except Exception as e:
+        logger.error(f"Manual execution failed for schedule {schedule_id}: {e}")
+        return None
 
     logger.info(f"Reloaded {active_schedules.count()} active schedules")
 
@@ -240,7 +326,12 @@ def compute_next_run(schedule: ScriptSchedule):
                     schedule.cron_expression, timezone=schedule.timezone
                 )
                 next_dt = trigger.get_next_fire_time(None, now)
-                return next_dt
+                # Convert to UTC for consistency
+                return (
+                    next_dt.astimezone(pytz.UTC)
+                    if next_dt and next_dt.tzinfo
+                    else next_dt
+                )
             except Exception:
                 logger.exception(
                     "Failed computing next_run for cron schedule %s", schedule.id

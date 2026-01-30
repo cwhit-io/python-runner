@@ -84,7 +84,6 @@ class ScheduleSchema(Schema):
 class ScheduleCreateSchema(Schema):
     name: str
     cron_expression: str
-    timezone: Optional[str] = "UTC"
 
 
 # Endpoints
@@ -270,7 +269,9 @@ def create_schedule(request, script_id: int, payload: ScheduleCreateSchema):
         script=script,
         name=payload.name,
         cron_expression=payload.cron_expression,
-        timezone=payload.timezone,
+        timezone=getattr(request.auth.user.profile, "timezone", "UTC")
+        if hasattr(request.auth.user, "profile")
+        else "UTC",
         created_by=request.auth.user,
     )
 

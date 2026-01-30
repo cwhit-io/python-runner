@@ -194,6 +194,30 @@
                 {% endif %}
             </div>
         </div>
+
+        <div class="stat">
+            <div class="stat-figure text-info">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0l3-3m-3 3l-3-3" />
+                </svg>
+            </div>
+            <div class="stat-title">Next Run</div>
+            <div class="stat-value text-info text-lg">
+                {% if script.next_run %}
+                {{ script.next_run|user_timesince:request.user }}
+                {% else %}
+                Not scheduled
+                {% endif %}
+            </div>
+            <div class="stat-desc">
+                {% if script.next_run %}
+                {{ script.next_run|user_datetime:request.user }}
+                {% else %}
+                No active schedules
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <!-- Main Content Grid -->
@@ -473,7 +497,7 @@
                 </label>
                 <input type="datetime-local" name="next_run_dt" id="next_run_dt" class="input input-bordered w-full" required />
                 <label class="label">
-                    <span class="label-text-alt opacity-70">Select when this schedule should first run (local timezone)</span>
+                    <span class="label-text-alt opacity-70">Select when this schedule should first run (in your timezone: {{ request.user.profile.get_timezone_display }})</span>
                 </label>
             </div>
 
@@ -496,16 +520,6 @@
             <!-- Hidden field for start_datetime -->
             <input type="hidden" name="start_datetime" id="start_datetime_hidden" />
 
-            <div class="form-control w-full mb-6">
-                <label class="label">
-                    <span class="label-text font-semibold">Timezone</span>
-                </label>
-                <input type="text" name="timezone" value="UTC" class="input input-bordered w-full" required />
-                <label class="label">
-                    <span class="label-text-alt opacity-70">Timezone for schedule execution (default: UTC)</span>
-                </label>
-            </div>
-
             <div class="divider"></div>
 
             <div class="modal-action">
@@ -519,9 +533,7 @@
             </div>
         </form>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop" onclick="create_schedule_modal.close()"></div>
 </dialog>
 
 <script>
@@ -564,6 +576,11 @@
 
                 // Set start_datetime to the selected value
                 startDatetimeHidden.value = dtVal;
+                
+                // Close modal after form submission
+                setTimeout(() => {
+                    create_schedule_modal.close();
+                }, 100);
             });
         }
     })();
@@ -604,8 +621,6 @@
             </div>
         </form>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop" onclick="run_script_modal.close()"></div>
 </dialog>
 {% endblock %}

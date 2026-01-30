@@ -3,12 +3,13 @@ from .items import router as items_router, protected_router as protected_items_r
 from .scripts import router as scripts_router
 from .schemas import MessageSchema
 from datetime import datetime
+from django.utils import timezone
 
 # Create main API instance
 api = NinjaAPI(
     title="Python Script Runner API",
     version="1.0.0",
-    description="Centralized Python script manager with web UI, scheduling, and isolated venvs"
+    description="Centralized Python script manager with web UI, scheduling, and isolated venvs",
 )
 
 
@@ -17,8 +18,15 @@ def api_root(request):
     """API root endpoint - health check."""
     return {
         "message": "Python Script Runner API is running!",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
+
+
+@api.get("/server-time/", tags=["Debug"])
+def server_time(request):
+    """Get current server time in UTC."""
+    now = timezone.now()
+    return {"server_time": now.strftime("%Y-%m-%d %H:%M:%S"), "timezone": "UTC"}
 
 
 # Register routers

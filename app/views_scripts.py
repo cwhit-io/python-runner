@@ -37,18 +37,7 @@ def scripts_list(request):
 
     user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
 
-    # Attach next_run to each script if any active schedule has a next_run
-    for s in scripts:
-        try:
-            next_sched = (
-                s.schedules.filter(is_active=True, next_run__isnull=False)
-                .order_by("next_run")
-                .first()
-            )
-            s.next_run = next_sched.next_run if next_sched else None
-        except Exception:
-            s.next_run = None
-
+    # Scripts are already annotated with next_run property
     return render(
         request,
         "scripts/list.html",
@@ -500,7 +489,6 @@ def schedule_create(request, script_id):
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     name = request.POST.get("name", "").strip()
-    timezone = request.POST.get("timezone", "UTC").strip()
     interval_unit = request.POST.get("interval_unit", "").strip()
     start_datetime = request.POST.get("start_datetime", "").strip()
 
@@ -520,20 +508,37 @@ def schedule_create(request, script_id):
         return redirect("script_detail", script_id=script_id)
 
     try:
-        # Parse the datetime string
+        # Parse the datetime string (user's local time)
         from dateutil.parser import parse as parse_dt
         from django.utils import timezone as django_tz
+        import pytz
 
+        # Get user's timezone preference
+        user_tz_str = (
+            getattr(request.user.profile, "timezone", "UTC")
+            if hasattr(request.user, "profile")
+            else "UTC"
+        )
+        try:
+            user_tz = pytz.timezone(user_tz_str)
+        except pytz.exceptions.UnknownTimeZoneError:
+            user_tz = pytz.UTC
+
+        # Parse the datetime as if it's in user's timezone
         dt = parse_dt(start_datetime)
         if dt.tzinfo is None:
-            dt = django_tz.make_aware(dt, django_tz.get_default_timezone())
+            # Assume the input is in user's timezone
+            dt = user_tz.localize(dt)
+
+        # Convert to UTC for storage
+        dt_utc = dt.astimezone(pytz.UTC)
 
         schedule = ScriptSchedule.objects.create(
             script=script,
             name=name,
-            timezone=timezone,
+            timezone=user_tz_str,  # Store user's timezone for reference
             schedule_type=schedule_type,
-            start_datetime=dt,
+            start_datetime=dt_utc,
             interval_unit=interval_unit if interval_unit else "",
             interval_value=1,
             created_by=request.user,
@@ -571,8 +576,8 @@ def schedule_toggle(request, schedule_id):
         messages.success(request, f'Schedule "{schedule.name}" deactivated.')
 
     # Redirect back to the referring page or script detail
-    referer = request.META.get('HTTP_REFERER', '')
-    if 'schedules' in referer and 'schedules/create' not in referer:
+    referer = request.META.get("HTTP_REFERER", "")
+    if "schedules" in referer and "schedules/create" not in referer:
         return redirect("schedules_list")
     return redirect("script_detail", script_id=schedule.script.id)
 
@@ -607,8 +612,8 @@ def schedule_delete(request, schedule_id):
         # Traditional redirect for non-HTMX requests
         messages.success(request, f'Schedule "{name}" deleted.')
         # Redirect back to the referring page or script detail
-        referer = request.META.get('HTTP_REFERER', '')
-        if 'schedules' in referer and 'schedules/create' not in referer:
+        referer = request.META.get("HTTP_REFERER", "")
+        if "schedules" in referer and "schedules/create" not in referer:
             return redirect("schedules_list")
         return redirect("script_detail", script_id=script_id)
 
@@ -617,63 +622,80 @@ def schedule_delete(request, schedule_id):
 def schedules_list(request):
     """List all schedules for all user's scripts."""
     # Get all schedules for scripts owned by the user
-    schedules = ScriptSchedule.objects.filter(
-        script__owner=request.user
-    ).select_related('script', 'created_by').order_by('-created_at')
-    
+    schedules = (
+        ScriptSchedule.objects.filter(script__owner=request.user)
+        .select_related("script", "created_by")
+        .order_by("-created_at")
+    )
+
     # Get all user's scripts for the create schedule dropdown
-    scripts = Script.objects.filter(owner=request.user).order_by('name')
-    
+    scripts = Script.objects.filter(owner=request.user).order_by("name")
+
     # Compute next_run for schedules that don't have it persisted
     from app.services.scheduler import compute_next_run
-    
+
     for sched in schedules:
         try:
             if not getattr(sched, "next_run", None):
                 sched.next_run = compute_next_run(sched)
         except Exception:
             sched.next_run = None
-    
+
     # Count active schedules
     active_count = sum(1 for s in schedules if s.is_active)
-    
+
     # Find next scheduled run
     next_schedule = None
-    for sched in sorted(schedules, key=lambda s: s.next_run or timezone.now() + timezone.timedelta(days=365)):
+    for sched in sorted(
+        schedules,
+        key=lambda s: s.next_run or timezone.now() + timezone.timedelta(days=365),
+    ):
         if sched.is_active and sched.next_run:
             next_schedule = sched
             break
-    
+
     return render(
-        request, 
-        "scripts/schedules_list.html", 
+        request,
+        "scripts/schedules_list.html",
         {
             "schedules": schedules,
             "scripts": scripts,
             "active_count": active_count,
             "next_schedule": next_schedule,
-        }
+        },
     )
 
 
 @login_required
 @require_http_methods(["POST"])
 def schedule_create_from_list(request):
-    """Create a new schedule from the schedules list page."""
+    """Create a new schedule or update an existing one from the schedules list page."""
     script_id = request.POST.get("script_id", "").strip()
-    
-    if not script_id:
-        messages.error(request, "Script is required.")
-        return redirect("schedules_list")
-    
-    try:
-        script = get_object_or_404(Script, id=script_id, owner=request.user)
-    except (ValueError, Script.DoesNotExist):
-        messages.error(request, "Invalid script selected.")
-        return redirect("schedules_list")
+    schedule_id = request.POST.get("schedule_id", "").strip()
+
+    # Check if this is an update
+    if schedule_id:
+        try:
+            schedule = get_object_or_404(
+                ScriptSchedule, id=schedule_id, script__owner=request.user
+            )
+            is_update = True
+        except (ValueError, ScriptSchedule.DoesNotExist):
+            messages.error(request, "Schedule not found.")
+            return redirect("schedules_list")
+    else:
+        is_update = False
+        if not script_id:
+            messages.error(request, "Script is required.")
+            return redirect("schedules_list")
+
+        try:
+            script = get_object_or_404(Script, id=script_id, owner=request.user)
+        except (ValueError, Script.DoesNotExist):
+            messages.error(request, "Invalid script selected.")
+            return redirect("schedules_list")
 
     name = request.POST.get("name", "").strip()
-    timezone = request.POST.get("timezone", "UTC").strip()
     interval_unit = request.POST.get("interval_unit", "").strip()
     start_datetime = request.POST.get("start_datetime", "").strip()
 
@@ -693,31 +715,73 @@ def schedule_create_from_list(request):
         return redirect("schedules_list")
 
     try:
-        # Parse the datetime string
+        # Parse the datetime string (user's local time)
         from dateutil.parser import parse as parse_dt
         from django.utils import timezone as django_tz
+        import pytz
 
+        # Get user's timezone preference
+        user_tz_str = (
+            getattr(request.user.profile, "timezone", "UTC")
+            if hasattr(request.user, "profile")
+            else "UTC"
+        )
+        try:
+            user_tz = pytz.timezone(user_tz_str)
+        except pytz.exceptions.UnknownTimeZoneError:
+            user_tz = pytz.UTC
+
+        # Parse the datetime as if it's in user's timezone
         dt = parse_dt(start_datetime)
         if dt.tzinfo is None:
-            dt = django_tz.make_aware(dt, django_tz.get_default_timezone())
+            # Assume the input is in user's timezone
+            dt = user_tz.localize(dt)
 
-        schedule = ScriptSchedule.objects.create(
-            script=script,
-            name=name,
-            timezone=timezone,
-            schedule_type=schedule_type,
-            start_datetime=dt,
-            interval_unit=interval_unit if interval_unit else "",
-            interval_value=1,
-            created_by=request.user,
-        )
+        # Convert to UTC for storage
+        dt_utc = dt.astimezone(pytz.UTC)
 
-        # Add to scheduler
-        schedule_job(schedule)
+        if is_update:
+            # Update existing schedule
+            schedule.name = name
+            schedule.schedule_type = schedule_type
+            schedule.start_datetime = dt_utc
+            schedule.interval_unit = interval_unit if interval_unit else ""
+            schedule.interval_value = 1
+            schedule.save()
 
-        messages.success(request, f'Schedule "{name}" created successfully for "{script.name}"!')
+            # Remove and re-add to scheduler to update the job
+            from app.services.scheduler import remove_schedule, schedule_job
+
+            remove_schedule(schedule)
+            schedule_job(schedule)
+
+            messages.success(request, f'Schedule "{name}" updated successfully!')
+        else:
+            # Create new schedule
+            schedule = ScriptSchedule.objects.create(
+                script=script,
+                name=name,
+                timezone=user_tz_str,  # Store user's timezone for reference
+                schedule_type=schedule_type,
+                start_datetime=dt_utc,
+                interval_unit=interval_unit if interval_unit else "",
+                interval_value=1,
+                created_by=request.user,
+            )
+
+            # Add to scheduler
+            from app.services.scheduler import schedule_job
+
+            schedule_job(schedule)
+
+            messages.success(
+                request, f'Schedule "{name}" created successfully for "{script.name}"!'
+            )
     except Exception as e:
-        messages.error(request, f"Failed to create schedule: {str(e)}")
+        messages.error(
+            request,
+            f"Failed to {'update' if is_update else 'create'} schedule: {str(e)}",
+        )
 
     return redirect("schedules_list")
 

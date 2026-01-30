@@ -220,9 +220,7 @@
             <button type="button" class="btn btn-primary" onclick="saveSettingsModal()">Update Info</button>
         </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop" onclick="settings-modal.close()"></div>
 </dialog>
 
 <!-- 2. Secret Input Modal -->
@@ -238,9 +236,7 @@
             <button type="button" class="btn btn-primary" onclick="saveInputValue()">Save Update</button>
         </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop" onclick="input-modal.close()"></div>
 </dialog>
 
 <!-- 3. Confirmation Modal -->
@@ -253,9 +249,7 @@
             <button type="button" class="btn btn-error" id="confirm-yes" onclick="executeConfirmedAction()">Confirm</button>
         </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop" onclick="confirm-modal.close()"></div>
 </dialog>
 
 <!-- SCRIPTS -->

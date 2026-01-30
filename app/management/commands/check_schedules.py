@@ -5,6 +5,7 @@ Management command to check scheduler status and compute next_run for all schedu
 from django.core.management.base import BaseCommand
 from app.models import ScriptSchedule
 from app.services.scheduler import get_scheduler, compute_next_run, schedule_job
+import pytz
 
 
 class Command(BaseCommand):
@@ -40,8 +41,12 @@ class Command(BaseCommand):
 
             if schedule.schedule_type == "cron":
                 self.stdout.write(f"  Cron: {schedule.cron_expression}")
-            else:
-                self.stdout.write(f"  Calendar: {schedule.calendar_expression[:100]}")
+            elif schedule.schedule_type == "single":
+                self.stdout.write(f"  Start: {schedule.start_datetime}")
+            elif schedule.schedule_type == "interval":
+                self.stdout.write(
+                    f"  Interval: {schedule.interval_value} {schedule.interval_unit}"
+                )
 
             # Check if job exists in scheduler
             job_id = f"script_schedule_{schedule.id}"
@@ -64,7 +69,11 @@ class Command(BaseCommand):
                                 )
                             )
                             # Update DB
-                            schedule.next_run = job.next_run_time
+                            schedule.next_run = (
+                                job.next_run_time.astimezone(pytz.UTC)
+                                if job.next_run_time.tzinfo
+                                else job.next_run_time
+                            )
                             schedule.save(update_fields=["next_run"])
                         else:
                             self.stdout.write(
