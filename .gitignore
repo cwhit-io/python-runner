@@ -5,6 +5,7 @@ db.sqlite3
 
 # Secrets
 app/secrets.enc
+docker/.env
 
 # collectstatic destination
 staticfiles/

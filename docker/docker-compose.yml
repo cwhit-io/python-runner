@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build:
@@ -10,8 +8,6 @@ services:
       - ..:/app
     ports:
       - "8003:8000"
-    environment:
-      - DEBUG=1
-      - SECRET_KEY=django_3yox@eft6cd_@&fg&its#g36!@ublj5qrsns6mc9@+2asvycvd
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+    env_file:
+      - .env
 
