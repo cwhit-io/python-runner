@@ -9,7 +9,7 @@ services:
     volumes:
       - ..:/app
     ports:
-      - "8000:8000"
+      - "8003:8000"
     environment:
       - DEBUG=1
       - SECRET_KEY=django_3yox@eft6cd_@&fg&its#g36!@ublj5qrsns6mc9@+2asvycvd

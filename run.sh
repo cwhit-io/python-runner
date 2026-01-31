@@ -6,8 +6,6 @@
 
 set -euo pipefail
 
-# Activate virtual environment first
-source .venv/bin/activate
 
 export DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-app.settings}
 
