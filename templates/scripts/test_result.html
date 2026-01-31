@@ -224,10 +224,8 @@
         };
 
         ws.onclose = function() {
-            // Reload the modal content when execution finishes
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            // For test modal, don't reload - just update status if needed
+            // The execution is complete, modal stays open
         };
     })();
     {% endif %}
