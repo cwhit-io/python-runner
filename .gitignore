@@ -3,6 +3,9 @@
 __pycache__/
 db.sqlite3
 
+# Secrets
+app/secrets.enc
+
 # collectstatic destination
 staticfiles/
 
