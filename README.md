@@ -76,13 +76,13 @@ Perfect for:
 ![Script List](docs/screenshots/screenshot-1769819883529.png)
 
 ### Script Editor
-![Script Editor](docs/screenshots/screenshot-1769819916892.png)
+![Script Editor](docs/screenshots/screenshot-1769819973463.png)
 
 ### Execution Details
 ![Execution Details](docs/screenshots/screenshot-1769819956597.png)
 
 ### Schedule Management
-![Schedule Management](docs/screenshots/screenshot-1769819973463.png)
+![Schedule Management](docs/screenshots/screenshot-1769819916892.png)
 
 </div>
 
