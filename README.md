@@ -8,7 +8,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Django 4.2+](https://img.shields.io/badge/django-4.2+-green.svg)](https://www.djangoproject.com/)
 
-[Live Demo](#) • [Documentation](docs/) • [API Reference](docs/API_REFERENCE.md) • [Report Bug](https://github.com/cwhit-io/python-runner/issues)
+[Documentation](docs/) • [API Reference](docs/API_REFERENCE.md) • [Report Bug](https://github.com/cwhit-io/python-runner/issues)
 
 </div>
 
