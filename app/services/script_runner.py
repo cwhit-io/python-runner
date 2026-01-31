@@ -255,6 +255,17 @@ class ScriptRunner:
                 env = os.environ.copy()
                 env["PYTHONUNBUFFERED"] = "1"  # Force Python to use unbuffered output
 
+            # Load script-specific secrets into the environment
+            from app.services.secret_store import list_script_secrets, get_script_secret
+            try:
+                for name in list_script_secrets(self.script.id):
+                    value = get_script_secret(self.script.id, name)
+                    if value is not None:
+                        env[name] = value
+            except Exception:
+                # Silently ignore if secrets can't be loaded (e.g., key issues)
+                pass
+
             # Run the script
             start_time = time.time()
 
