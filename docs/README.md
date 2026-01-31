@@ -1,6 +1,6 @@
 # Documentation
 
-Complete documentation for Python Runner.
+Complete documentation for ScriptDash.
 
 ## 📚 Documentation Index
 
@@ -8,7 +8,7 @@ Complete documentation for Python Runner.
 
 1. **[README](../README.md)** - Project overview and quick start
 2. **[Installation Guide](INSTALLATION.md)** - Detailed setup instructions
-3. **[User Guide](USER_GUIDE.md)** - How to use Python Runner
+3. **[User Guide](USER_GUIDE.md)** - How to use ScriptDash
 
 ### Reference
 
@@ -30,7 +30,7 @@ Complete documentation for Python Runner.
 ## 🚀 Quick Links
 
 ### For Users
-- New to Python Runner? Start with the [README](../README.md)
+- New to ScriptDash? Start with the [README](../README.md)
 - Setting up? Follow the [Installation Guide](INSTALLATION.md)
 - Learning to use it? Read the [User Guide](USER_GUIDE.md)
 - Using the API? Check the [API Reference](API_REFERENCE.md)

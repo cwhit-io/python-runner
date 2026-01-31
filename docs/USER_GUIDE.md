@@ -1,6 +1,6 @@
 # User Guide
 
-Complete guide for using Python Runner.
+Complete guide for using ScriptDash.
 
 ## Table of Contents
 

@@ -1,6 +1,6 @@
 # Architecture & Technical Details
 
-Technical documentation for developers working with Python Runner.
+Technical documentation for developers working with ScriptDash.
 
 ## Technology Stack
 

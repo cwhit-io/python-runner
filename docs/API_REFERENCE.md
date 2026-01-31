@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for Python Runner REST API.
+Complete reference for ScriptDash REST API.
 
 ## Authentication
 

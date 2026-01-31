@@ -1,4 +1,4 @@
-# 🚀 Python Runner
+# 🚀 ScriptDash
 
 <div align="center">
 
@@ -14,9 +14,9 @@
 
 ---
 
-## ✨ Why Python Runner?
+## ✨ Why ScriptDash?
 
-Stop juggling cron jobs, virtual environments, and scattered scripts. **Python Runner** gives you a centralized platform to manage all your automation scripts with a beautiful, modern interface.
+Stop juggling cron jobs, virtual environments, and scattered scripts. **ScriptDash** gives you a centralized platform to manage all your automation scripts with a beautiful, modern interface.
 
 Perfect for:
 - 🔄 **DevOps Engineers** - Automate deployments and infrastructure tasks
@@ -121,7 +121,7 @@ Visit **http://localhost:8000** and start creating scripts! 🎉
 | Document | Description |
 |----------|-------------|
 | [Installation Guide](docs/INSTALLATION.md) | Detailed setup instructions |
-| [User Guide](docs/USER_GUIDE.md) | How to use Python Runner |
+| [User Guide](docs/USER_GUIDE.md) | How to use ScriptDash |
 | [API Reference](docs/API_REFERENCE.md) | Complete API documentation |
 | [Architecture](docs/ARCHITECTURE.md) | Technical details for developers |
 | [Docker Guide](docs/DOCKER.md) | Docker deployment |
