@@ -210,7 +210,6 @@ Built with amazing open-source tools:
 
 ## 📮 Support
 
-- 📧 Email: [your-email@example.com](mailto:your-email@example.com)
 - 💬 GitHub Issues: [Report a bug](https://github.com/cwhit-io/python-runner/issues)
 - 📖 Documentation: [Read the docs](docs/)
 
