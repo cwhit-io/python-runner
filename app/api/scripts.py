@@ -356,6 +356,4 @@ def execute_script_webhook(request, script_id: int):
     runner = ScriptRunner(script)
     execution = runner.execute(triggered_by=None, trigger_type="webhook")
 
-    return execution
-
-    return {"success": True}
+    return {"ok": True, "execution_id": execution.id}

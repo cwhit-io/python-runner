@@ -152,6 +152,9 @@ USE_I18N = True
 
 USE_TZ = True
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.bhm.li",
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
@@ -174,7 +177,7 @@ STATICFILES_DIRS = [
 # CORS settings (for API access from same-origin Django templates)
 # Since we're using Django templates on the same server, CORS is not strictly needed
 # But keeping it configured for potential future external access
-CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development testing
+CORS_ALLOW_ALL_ORIGINS = True  # Set to True only for development testing
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
