@@ -72,14 +72,17 @@ Perfect for:
 
 <div align="center">
 
-### Script Editor
-![Script Editor](https://via.placeholder.com/800x450/6366f1/ffffff?text=Monaco+Editor+with+Syntax+Highlighting)
+### Script List
+![Script List](docs/screenshots/screenshot-1769819883529.png)
 
-### Execution Dashboard
-![Dashboard](https://via.placeholder.com/800x450/10b981/ffffff?text=Real-time+Execution+Status)
+### Script Editor
+![Script Editor](docs/screenshots/screenshot-1769819916892.png)
+
+### Execution Details
+![Execution Details](docs/screenshots/screenshot-1769819956597.png)
 
 ### Schedule Management
-![Schedules](https://via.placeholder.com/800x450/f59e0b/ffffff?text=Flexible+Scheduling+Options)
+![Schedule Management](docs/screenshots/screenshot-1769819973463.png)
 
 </div>
 
