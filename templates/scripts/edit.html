@@ -83,6 +83,17 @@
             <!-- Actions -->
             <div class="flex gap-2 shrink-0">
                 <a href="{% url 'script_detail' script.id %}" class="btn btn-ghost">Cancel</a>
+                <button type="button" class="btn btn-outline btn-secondary"
+                    hx-post="{% url 'script_test' script.id %}"
+                    hx-include="[name='code'], [name='dependencies'], [name='language']"
+                    hx-target="#test-modal-content"
+                    hx-swap="innerHTML"
+                    onclick="openTestModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3 7.5A9.5 9.5 0 1121.5 12 9.5 9.5 0 0112 2.5z" />
+                    </svg>
+                    Test Script
+                </button>
                 <button type="submit" class="btn btn-primary shadow-lg shadow-primary/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -664,4 +675,53 @@
         });
     })();
 </script>
+
+<!-- Test Modal -->
+<div id="test-modal" class="modal">
+    <div class="modal-box max-w-4xl">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary to-blue-600 flex items-center justify-center text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3 7.5A9.5 9.5 0 1121.5 12 9.5 9.5 0 0112 2.5z" />
+                </svg>
+            </div>
+            <h3 class="font-bold text-lg">Test Script Execution</h3>
+        </div>
+        <div id="test-modal-content" class="max-h-96 overflow-y-auto">
+            <div class="flex justify-center py-8">
+                <div class="text-center">
+                    <span class="loading loading-spinner loading-lg text-secondary"></span>
+                    <p class="mt-4 text-sm opacity-70">Running test execution...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTestModal() {
+        document.getElementById('test-modal').classList.add('modal-open');
+    }
+
+    function closeTestModal() {
+        document.getElementById('test-modal').classList.remove('modal-open');
+        // Clear content
+        document.getElementById('test-modal-content').innerHTML = `
+            <div class="flex justify-center py-8">
+                <div class="text-center">
+                    <span class="loading loading-spinner loading-lg text-secondary"></span>
+                    <p class="mt-4 text-sm opacity-70">Running test execution...</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('test-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeTestModal();
+        }
+    });
+</script>
+
 {% endblock %}

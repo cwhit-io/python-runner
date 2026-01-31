@@ -1,0 +1,234 @@
+{% if execution.status == 'running' %}
+<!-- Real-time monitoring for running test -->
+<div class="card bg-base-200 shadow-xl mb-4">
+    <div class="card-body">
+        <h3 class="card-title">Live Resource Monitoring</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="stat bg-base-300 rounded-lg">
+                <div class="stat-title">CPU Usage</div>
+                <div class="stat-value text-primary" id="cpu-usage">-</div>
+                <div class="stat-desc">Current usage</div>
+            </div>
+            <div class="stat bg-base-300 rounded-lg">
+                <div class="stat-title">Memory Usage</div>
+                <div class="stat-value text-secondary" id="memory-usage">-</div>
+                <div class="stat-desc">Current usage</div>
+            </div>
+            <div class="stat bg-base-300 rounded-lg">
+                <div class="stat-title">Elapsed Time</div>
+                <div class="stat-value text-accent" id="elapsed-time">-</div>
+                <div class="stat-desc">Seconds</div>
+            </div>
+        </div>
+        <div class="mt-2 text-sm opacity-70">
+            <span class="loading loading-dots loading-sm"></span>
+            Monitoring in real-time...
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="card bg-base-200">
+        <div class="card-body">
+            <h3 class="card-title">Test Execution Info</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between">
+                    <span class="font-semibold">Status:</span>
+                    <span id="status-badge">
+                        {% if execution.status == 'running' %}
+                        <div class="badge badge-info">Running</div>
+                        {% elif execution.status == 'success' %}
+                        <div class="badge badge-success">Success</div>
+                        {% elif execution.status == 'failed' %}
+                        <div class="badge badge-error">Failed</div>
+                        {% elif execution.status == 'cancelled' %}
+                        <div class="badge badge-warning">Cancelled</div>
+                        {% else %}
+                        <div class="badge badge-ghost">{{ execution.status }}</div>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-semibold">Started:</span>
+                    <span id="started-at">{{ execution.started_at|date:"M j, Y g:i A" }}</span>
+                </div>
+                {% if execution.completed_at %}
+                <div class="flex justify-between">
+                    <span class="font-semibold">Completed:</span>
+                    <span id="completed-at">{{ execution.completed_at|date:"M j, Y g:i A" }}</span>
+                </div>
+                {% endif %}
+                <div class="flex justify-between">
+                    <span class="font-semibold">Duration:</span>
+                    <span id="duration">
+                        {% if execution.duration_seconds %}
+                        {{ execution.duration_seconds|floatformat:3 }}s
+                        {% else %}
+                        -
+                        {% endif %}
+                    </span>
+                </div>
+                {% if execution.peak_cpu_percent %}
+                <div class="flex justify-between">
+                    <span class="font-semibold">Peak CPU:</span>
+                    <span>{{ execution.peak_cpu_percent|floatformat:2 }}%</span>
+                </div>
+                {% endif %}
+                {% if execution.peak_memory_mb %}
+                <div class="flex justify-between">
+                    <span class="font-semibold">Peak Memory:</span>
+                    <span>{{ execution.peak_memory_mb|floatformat:2 }} MB</span>
+                </div>
+                {% endif %}
+                {% if execution.exit_code is not None %}
+                <div class="flex justify-between">
+                    <span class="font-semibold">Exit Code:</span>
+                    <span>{{ execution.exit_code }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if execution.error_message %}
+<div class="alert alert-error mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div>
+        <h4 class="font-bold">Error</h4>
+        <pre class="text-xs mt-2">{{ execution.error_message }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 gap-4">
+    <!-- Standard Output -->
+    <div class="card bg-base-200">
+        <div class="card-body">
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="font-bold">Standard Output (stdout)</h4>
+                {% if execution.stdout %}
+                <button class="btn btn-xs btn-ghost"
+                    onclick="copyToClipboard('{{ execution.stdout|escapejs }}', 'stdout')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                </button>
+                {% endif %}
+            </div>
+            {% if execution.stdout %}
+            <div class="mockup-code max-h-48 overflow-y-auto">
+                <pre><code class="text-xs">{{ execution.stdout }}</code></pre>
+            </div>
+            {% else %}
+            <p class="text-xs opacity-70">No output</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Standard Error -->
+    {% if execution.stderr %}
+    <div class="card bg-base-200">
+        <div class="card-body">
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="font-bold">Standard Error (stderr)</h4>
+                <button class="btn btn-xs btn-ghost"
+                    onclick="copyToClipboard('{{ execution.stderr|escapejs }}', 'stderr')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <div class="mockup-code max-h-48 overflow-y-auto">
+                <pre><code class="text-xs">{{ execution.stderr }}</code></pre>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-action mt-4">
+    <a href="{% url 'execution_detail' execution.id %}" class="btn btn-sm btn-ghost" target="_blank">
+        View Full Details
+    </a>
+    <button type="button" class="btn btn-sm" onclick="closeTestModal()">Close</button>
+</div>
+
+<script>
+    function copyToClipboard(text, type) {
+        navigator.clipboard.writeText(text).then(function () {
+            showToast('Copied ' + type + ' to clipboard!', 'success');
+        }).catch(function (err) {
+            console.error('Failed to copy: ', err);
+            // Fallback
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast('Copied ' + type + ' to clipboard!', 'success');
+        });
+    }
+
+    // WebSocket for real-time updates if running
+    {% if execution.status == 'running' %}
+    (function() {
+        const executionId = {{ execution.id }};
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = protocol + '//' + window.location.host + '/ws/executions/' + executionId + '/';
+        const ws = new WebSocket(wsUrl);
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.message_type === 'execution_update') {
+                if (data.message_type === 'execution_update') {
+                    // Update status
+                    if (data.status) {
+                        const statusBadge = document.getElementById('status-badge');
+                        let badgeClass = 'badge badge-ghost';
+                        if (data.status === 'success') badgeClass = 'badge badge-success';
+                        else if (data.status === 'failed') badgeClass = 'badge badge-error';
+                        else if (data.status === 'running') badgeClass = 'badge badge-info';
+                        statusBadge.innerHTML = `<div class="${badgeClass}">${data.status}</div>`;
+                    }
+
+                    // Update output
+                    if (data.line && data.stream) {
+                        const outputContainer = document.getElementById('live-output');
+                        if (outputContainer) {
+                            outputContainer.textContent += data.line + '\n';
+                            outputContainer.scrollTop = outputContainer.scrollHeight;
+                        }
+                    }
+
+                    // Update completed time and duration
+                    if (data.completed_at) {
+                        document.getElementById('completed-at').textContent = new Date(data.completed_at).toLocaleString();
+                    }
+                    if (data.duration_seconds) {
+                        document.getElementById('duration').textContent = data.duration_seconds.toFixed(3) + 's';
+                    }
+                }
+            }
+        };
+
+        ws.onclose = function() {
+            // Reload the modal content when execution finishes
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        };
+    })();
+    {% endif %}
+</script>

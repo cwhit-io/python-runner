@@ -1090,3 +1090,40 @@ def script_edit(request, script_id):
             "user_tags": user_tags,
         },
     )
+
+
+@login_required
+def script_test(request, script_id):
+    """Test run the script with current form data."""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    if request.method == "POST":
+        # Get current form data
+        code = request.POST.get("code", script.code)
+        dependencies = request.POST.get("dependencies", script.dependencies)
+        language = request.POST.get("language", script.language)
+
+        # Temporarily update script for testing
+        original_code = script.code
+        original_dependencies = script.dependencies
+        original_language = script.language
+
+        script.code = code
+        script.dependencies = dependencies
+        script.language = language
+
+        try:
+            # Run the script
+            runner = ScriptRunner(script)
+            execution = runner.execute(triggered_by=request.user, trigger_type="test")
+        finally:
+            # Always restore original values
+            script.code = original_code
+            script.dependencies = original_dependencies
+            script.language = original_language
+            script.save(update_fields=["code", "dependencies", "language"])
+
+        # Return HTML for modal
+        return render(request, "scripts/test_result.html", {"execution": execution})
+
+    return HttpResponse("Method not allowed", status=405)

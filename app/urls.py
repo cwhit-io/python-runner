@@ -94,6 +94,9 @@ urlpatterns = [
         "scripts/<int:script_id>/edit/", views_scripts.script_edit, name="script_edit"
     ),
     path(
+        "scripts/<int:script_id>/test/", views_scripts.script_test, name="script_test"
+    ),
+    path(
         "scripts/<int:script_id>/duplicate/",
         views_scripts.script_duplicate,
         name="script_duplicate",
