@@ -1075,6 +1075,13 @@ def script_edit(request, script_id):
         script.tags.set(Tag.objects.filter(name__in=tags, created_by=request.user))
 
         messages.success(request, f'Script "{name}" updated successfully!')
+        
+        # If AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({'status': 'success', 'message': f'Script "{name}" updated successfully!'})
+        
+        # Regular request - redirect to detail page
         return redirect("script_detail", script_id=script.id)
 
     # GET request - render edit form
@@ -1094,36 +1101,55 @@ def script_edit(request, script_id):
 
 @login_required
 def script_test(request, script_id):
-    """Test run the script with current form data."""
+    """Test run the script - save it first, then redirect to edit page."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     if request.method == "POST":
-        # Get current form data
+        # Save the script with current form data
+        name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
+        language = request.POST.get("language", script.language)
         code = request.POST.get("code", script.code)
         dependencies = request.POST.get("dependencies", script.dependencies)
-        language = request.POST.get("language", script.language)
+        is_public = request.POST.get("is_public") == "on"
+        tags = request.POST.getlist("tags")
 
-        # Temporarily update script for testing
-        original_code = script.code
-        original_dependencies = script.dependencies
-        original_language = script.language
+        # Validate
+        if not name:
+            messages.error(request, "Script name is required.")
+            return redirect("script_edit", script_id=script.id)
 
+        # Check name uniqueness
+        if (
+            Script.objects.filter(owner=request.user, name=name)
+            .exclude(id=script.id)
+            .exists()
+        ):
+            messages.error(request, "A script with this name already exists.")
+            return redirect("script_edit", script_id=script.id)
+
+        # Update script
+        script.name = name
+        script.description = description
+        script.language = language
         script.code = code
         script.dependencies = dependencies
-        script.language = language
+        script.is_public = is_public
+        script.save()
 
+        # Update tags
+        from app.models import Tag
+        script.tags.set(Tag.objects.filter(name__in=tags, created_by=request.user))
+
+        # Run the test
         try:
-            # Run the script
             runner = ScriptRunner(script)
             execution = runner.execute(triggered_by=request.user, trigger_type="test")
-        finally:
-            # Always restore original values
-            script.code = original_code
-            script.dependencies = original_dependencies
-            script.language = original_language
-            script.save(update_fields=["code", "dependencies", "language"])
+            messages.success(request, f'Script saved and test execution started (ID: {execution.id})')
+        except Exception as e:
+            messages.error(request, f'Script saved but test execution failed: {str(e)}')
 
-        # Return HTML for modal
-        return render(request, "scripts/test_result.html", {"execution": execution})
+        # Redirect back to edit page
+        return redirect("script_edit", script_id=script.id)
 
     return HttpResponse("Method not allowed", status=405)
