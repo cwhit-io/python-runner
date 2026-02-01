@@ -344,60 +344,7 @@
         }
     });
 
-    // 6. Server Time Display (loads once on page load)
-    {% if user.is_authenticated %}
-    document.addEventListener('DOMContentLoaded', function() {
-        const serverTimeElement = document.getElementById('server-time');
-        const userTimeElement = document.getElementById('user-time');
-        
-        if (serverTimeElement && userTimeElement) {
-            // Get server time via AJAX
-            fetch('/api/server-time/')
-                .then(response => response.json())
-                .then(data => {
-                    // Display server time
-                    serverTimeElement.textContent = data.server_time + ' (UTC)';
-                    
-                    // Convert to user time
-                    {% if user.profile.timezone %}
-                    const userTimezone = '{{ user.profile.timezone }}';
-                    try {
-                        // Parse server time (format: "2026-01-30 03:01:45")
-                        const serverDateTime = new Date(data.server_time + ' UTC');
-                        
-                        // Format in user's timezone
-                        const options = {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            {% if user.profile.time_format == '12' %}
-                            hour12: true
-                            {% else %}
-                            hour12: false
-                            {% endif %}
-                        };
-                        
-                        const userTimeString = serverDateTime.toLocaleString('en-US', { ...options, timeZone: userTimezone });
-                        userTimeElement.textContent = userTimeString + ' (' + userTimezone + ')';
-                    } catch (e) {
-                        console.error('Error converting to user time:', e);
-                        userTimeElement.textContent = 'Conversion error';
-                    }
-                    {% else %}
-                    userTimeElement.textContent = 'No timezone set';
-                    {% endif %}
-                })
-                .catch(error => {
-                    console.error('Error fetching server time:', error);
-                    serverTimeElement.textContent = 'Server time unavailable';
-                    userTimeElement.textContent = 'User time unavailable';
-                });
-        }
-    });
-    {% endif %}
+
   </script>
 </body>
 </html>
