@@ -44,6 +44,34 @@ class ScriptRunner:
             # Silently ignore WebSocket errors
             pass
 
+    def _clear_overdue_schedules(self):
+        """Update next_run for overdue schedules after a successful execution."""
+        try:
+            from app.services.scheduler import schedule_job
+            from app.models import ScriptSchedule
+
+            now = timezone.now()
+            # Get all active schedules for this script that are overdue
+            overdue_schedules = self.script.schedules.filter(
+                is_active=True, next_run__lt=now
+            )
+
+            for schedule in overdue_schedules:
+                # Re-schedule the job to recalculate next_run
+                try:
+                    schedule_job(schedule)
+                except Exception as e:
+                    # Log but don't fail the execution if we can't reschedule
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Failed to reschedule overdue schedule {schedule.id}: {e}"
+                    )
+        except Exception:
+            # Silently ignore errors in clearing overdue schedules
+            pass
+
     def _calculate_dependencies_hash(self) -> str:
         """Calculate SHA-256 hash of dependencies string."""
         if not self.script.dependencies:
@@ -405,6 +433,10 @@ class ScriptRunner:
                     "last_success",
                 ]
             )
+
+            # Clear overdue schedules on successful run
+            if process.returncode == 0 and not self.execution.timed_out:
+                self._clear_overdue_schedules()
 
         except Exception as e:
             # Handle execution errors
