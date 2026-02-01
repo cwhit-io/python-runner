@@ -1146,10 +1146,17 @@ def script_test(request, script_id):
             runner = ScriptRunner(script)
             execution = runner.execute(triggered_by=request.user, trigger_type="test")
             messages.success(request, f'Script saved and test execution started (ID: {execution.id})')
+            success = True
         except Exception as e:
             messages.error(request, f'Script saved but test execution failed: {str(e)}')
+            success = False
 
-        # Redirect back to edit page
-        return redirect("script_edit", script_id=script.id)
+        # If AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({'status': 'success' if success else 'error'})
+        
+        # Regular request - redirect to detail page
+        return redirect("script_detail", script_id=script.id)
 
     return HttpResponse("Method not allowed", status=405)

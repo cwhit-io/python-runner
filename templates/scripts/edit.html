@@ -706,12 +706,42 @@
         }
     }
     
-    // Test script - save and redirect to edit page
-    function testScript(event) {
-        event.preventDefault();
+    // Test script - save and redirect to details page
+    async function testScript(event) {
         const form = document.getElementById('script-edit-form');
-        form.action = '{% url "script_test" script.id %}';
-        form.submit();
+        const formData = new FormData(form);
+        
+        const button = event.currentTarget;
+        const originalContent = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Saving & Testing...';
+        
+        try {
+            const response = await fetch('{% url "script_test" script.id %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                // Show success toast
+                showToast('Script saved successfully!', 'success');
+                // Wait a moment for toast to show, then redirect
+                setTimeout(() => {
+                    window.location.href = '{% url "script_detail" script.id %}';
+                }, 500);
+            } else {
+                showToast('Error saving script', 'error');
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            }
+        } catch (error) {
+            showToast('Network error occurred', 'error');
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
     }
 </script>
 
