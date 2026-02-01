@@ -11,13 +11,16 @@ import hashlib
 import json
 import psutil
 import signal
+import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from django.conf import settings
 from django.utils import timezone
-from app.models import Script, ScriptExecution
+from app.models import Script, ScriptExecution, ScriptSchedule
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+
+logger = logging.getLogger(__name__)
 
 
 class ScriptRunner:
@@ -42,6 +45,31 @@ class ScriptRunner:
                 )
         except Exception:
             # Silently ignore WebSocket errors
+            pass
+
+    def _clear_overdue_schedules(self):
+        """Update next_run for overdue schedules after a successful execution."""
+        try:
+            # Import here to avoid circular import (scheduler imports script_runner)
+            from app.services.scheduler import schedule_job
+
+            now = timezone.now()
+            # Get all active schedules for this script that are overdue
+            overdue_schedules = self.script.schedules.filter(
+                is_active=True, next_run__lt=now
+            )
+
+            for schedule in overdue_schedules:
+                # Re-schedule the job to recalculate next_run
+                try:
+                    schedule_job(schedule)
+                except Exception as e:
+                    # Log but don't fail the execution if we can't reschedule
+                    logger.warning(
+                        f"Failed to reschedule overdue schedule {schedule.id}: {e}"
+                    )
+        except Exception:
+            # Silently ignore errors in clearing overdue schedules
             pass
 
     def _calculate_dependencies_hash(self) -> str:
@@ -405,6 +433,10 @@ class ScriptRunner:
                     "last_success",
                 ]
             )
+
+            # Clear overdue schedules on successful run
+            if process.returncode == 0 and not self.execution.timed_out:
+                self._clear_overdue_schedules()
 
         except Exception as e:
             # Handle execution errors
