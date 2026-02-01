@@ -11,13 +11,16 @@ import hashlib
 import json
 import psutil
 import signal
+import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from django.conf import settings
 from django.utils import timezone
-from app.models import Script, ScriptExecution
+from app.models import Script, ScriptExecution, ScriptSchedule
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+
+logger = logging.getLogger(__name__)
 
 
 class ScriptRunner:
@@ -47,8 +50,8 @@ class ScriptRunner:
     def _clear_overdue_schedules(self):
         """Update next_run for overdue schedules after a successful execution."""
         try:
+            # Import here to avoid circular import (scheduler imports script_runner)
             from app.services.scheduler import schedule_job
-            from app.models import ScriptSchedule
 
             now = timezone.now()
             # Get all active schedules for this script that are overdue
@@ -62,9 +65,6 @@ class ScriptRunner:
                     schedule_job(schedule)
                 except Exception as e:
                     # Log but don't fail the execution if we can't reschedule
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Failed to reschedule overdue schedule {schedule.id}: {e}"
                     )
