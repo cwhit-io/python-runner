@@ -16,13 +16,15 @@ class AppConfig(AppConfig):
         if 'migrate' not in sys.argv and 'makemigrations' not in sys.argv:
             # Import here to avoid AppRegistryNotReady error
             import os
-            
-            # Only start scheduler in main process (after reload)
-            if os.environ.get('RUN_MAIN') == 'true':
-                try:
-                    from app.services.scheduler import reload_all_schedules
-                    reload_all_schedules()
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Failed to load schedules on startup: {e}")
+
+            # If using runserver's autoreloader, only start in the reloaded process.
+            if 'runserver' in sys.argv and os.environ.get('RUN_MAIN') != 'true':
+                return
+
+            try:
+                from app.services.scheduler import reload_all_schedules
+                reload_all_schedules()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to load schedules on startup: {e}")

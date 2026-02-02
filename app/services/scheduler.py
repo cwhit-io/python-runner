@@ -3,6 +3,11 @@ Scheduler service using APScheduler for running scripts on schedule.
 """
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import (
+    EVENT_JOB_EXECUTED,
+    EVENT_JOB_ERROR,
+    EVENT_JOB_MISSED,
+)
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from django.conf import settings
@@ -17,14 +22,24 @@ logger = logging.getLogger(__name__)
 
 # Global scheduler instance
 _scheduler = None
+_listener_added = False
 
 
 def get_scheduler():
     """Get or create the global scheduler instance."""
     global _scheduler
+    global _listener_added
     if _scheduler is None:
         _scheduler = BackgroundScheduler(timezone=settings.TIME_ZONE)
         _scheduler.start()
+
+    if _scheduler and not _listener_added:
+        # Log job lifecycle events to aid debugging.
+        _scheduler.add_listener(
+            _job_event_listener,
+            EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED,
+        )
+        _listener_added = True
     return _scheduler
 
 
@@ -65,7 +80,7 @@ def schedule_job(schedule: ScriptSchedule):
                 args=[schedule.script.id, schedule.id],
                 replace_existing=True,
                 max_instances=1,  # Prevent overlapping executions
-                misfire_grace_time=300,  # Allow 5 minutes grace period for missed jobs
+                misfire_grace_time=600,  # Allow 5 minutes grace period for missed jobs
             )
             # persist the next_run time to the schedule record
             try:
@@ -165,6 +180,26 @@ def schedule_job(schedule: ScriptSchedule):
         logger.error(f"Failed to schedule job {job_id}: {e}")
 
 
+def _persist_next_run(schedule_id: int):
+    """Persist the scheduler's next_run_time back to the DB for visibility."""
+    try:
+        scheduler = get_scheduler()
+        job_id = f"script_schedule_{schedule_id}"
+        job = scheduler.get_job(job_id)
+        if not job or not getattr(job, "next_run_time", None):
+            return
+
+        schedule = ScriptSchedule.objects.filter(id=schedule_id).first()
+        if not schedule:
+            return
+
+        next_dt = job.next_run_time
+        schedule.next_run = next_dt.astimezone(pytz.UTC) if next_dt.tzinfo else next_dt
+        schedule.save(update_fields=["next_run"])
+    except Exception:
+        logger.exception("Failed to persist next_run for schedule %s", schedule_id)
+
+
 def remove_schedule(schedule: ScriptSchedule):
     """Remove a scheduled job from the scheduler."""
     scheduler = get_scheduler()
@@ -220,6 +255,7 @@ def _execute_scheduled_script(script_id, schedule_id):
         logger.info(
             f"Scheduled execution completed successfully: script={script_id}, execution={execution.id}, status={execution.status}"
         )
+        _persist_next_run(schedule_id)
         return execution
 
     except Exception as e:
@@ -333,6 +369,8 @@ def shutdown_scheduler():
     if _scheduler is not None:
         _scheduler.shutdown()
         _scheduler = None
+    global _listener_added
+    _listener_added = False
 
 
 def compute_next_run(schedule: ScriptSchedule):
@@ -429,3 +467,17 @@ def compute_next_run(schedule: ScriptSchedule):
             getattr(schedule, "id", "?"),
         )
         return None
+
+
+def _job_event_listener(event):
+    """Log scheduler events to help diagnose missed runs."""
+    try:
+        job_id = getattr(event, "job_id", "?")
+        if event.code == EVENT_JOB_EXECUTED:
+            logger.info("Job %s executed", job_id)
+        elif event.code == EVENT_JOB_ERROR:
+            logger.error("Job %s errored: %s", job_id, getattr(event, "exception", ""))
+        elif event.code == EVENT_JOB_MISSED:
+            logger.warning("Job %s missed its run time", job_id)
+    except Exception:
+        logger.exception("Scheduler event listener failed")
