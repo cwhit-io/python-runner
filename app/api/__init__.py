@@ -1,6 +1,7 @@
 from ninja import NinjaAPI
 from .items import router as items_router, protected_router as protected_items_router
 from .scripts import router as scripts_router
+from .mcp import router as mcp_router
 from .schemas import MessageSchema
 from datetime import datetime
 from django.utils import timezone
@@ -33,3 +34,4 @@ def server_time(request):
 api.add_router("/items", items_router)
 api.add_router("/protected/items", protected_items_router)
 api.add_router("/v1", scripts_router)
+api.add_router("/v1/mcp", mcp_router)
