@@ -75,6 +75,18 @@ class MCPExecuteResponseSchema(Schema):
     started_at: Optional[datetime]
 
 
+class MCPResourceSchema(Schema):
+    id: str
+    name: str
+    description: str
+    manifest_url: str
+    tool_type: str
+
+
+class MCPDiscoverySchema(Schema):
+    resources: List[MCPResourceSchema]
+
+
 class ExecutionSchema(Schema):
     id: int
     script_id: int
@@ -413,6 +425,28 @@ def list_mcp_manifests(request):
     """List MCP-compatible tool manifests for a user's scripts."""
     scripts = Script.objects.filter(owner=request.auth.user).order_by("-updated_at")
     return [_build_mcp_manifest(script) for script in scripts]
+
+
+@router.get("/mcp/discovery", response=MCPDiscoverySchema, auth=None)
+def discover_mcp_resources(request):
+    """Discover available MCP script resources."""
+    scripts = Script.objects.filter(is_public=True).order_by("-updated_at")
+
+    resources = []
+    for script in scripts:
+        resources.append(
+            {
+                "id": f"scriptdash-script-{script.id}",
+                "name": script.name,
+                "description": script.description or "Public ScriptDash script",
+                "manifest_url": request.build_absolute_uri(
+                    f"/api/v1/mcp/scripts/{script.id}/manifest"
+                ),
+                "tool_type": "script",
+            }
+        )
+
+    return {"resources": resources}
 
 
 @router.get("/mcp/scripts/{script_id}/manifest", response=MCPToolManifestSchema, auth=None)

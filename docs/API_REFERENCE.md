@@ -259,6 +259,28 @@ POST /tags
 
 This application now exposes support for MCP-compatible tool manifests and script invocation.
 
+#### Discover MCP script resources
+
+```http
+GET /mcp/discovery
+```
+
+**Response:**
+
+```json
+{
+  "resources": [
+    {
+      "id": "scriptdash-script-1",
+      "name": "My Script",
+      "description": "Public ScriptDash script",
+      "manifest_url": "https://example.com/api/v1/mcp/scripts/1/manifest",
+      "tool_type": "script"
+    }
+  ]
+}
+```
+
 #### List MCP script tools
 
 ```http
