@@ -35,17 +35,24 @@ _django_app = ProtocolTypeRouter(
     }
 )
 
-# ── Top-level ASGI router ────────────────────────────────────────────────
-# FastMCP exposes the streamable_http_app (a Starlette instance) which
-# already handles its own route at /mcp. We call it directly for http
-# requests whose path starts with /mcp.  Everything else goes to Django.
+# ── Top-level ASGI router ───────────────────────────────────────────────
+# FastMCP's streamable_http_app() is a Starlette instance with routes:
+#   /mcp                                  – MCP Streamable HTTP
+#   /.well-known/oauth-protected-resource – OAuth metadata (RFC 9728)
+#
+# ChatGPT hits /mcp first (gets 401), then fetches the well-known metadata.
+# Resource metadata URL is {resource_server_url}/.well-known/oauth-protected-resource.
+# We route /mcp and /.well-known/oauth-protected-resource to FastMCP.
 from starlette.types import Scope, Receive, Send
 
 
 async def application(scope: Scope, receive: Receive, send: Send) -> None:
-    """Route /mcp/* to FastMCP, everything else to Django + WebSockets."""
+    """Route /mcp and OAuth protected-resource paths to FastMCP, rest to Django."""
     path = scope.get("path", "")
-    if scope["type"] == "http" and path.startswith("/mcp"):
+    if scope["type"] == "http" and (
+        path.startswith("/mcp")
+        or path.startswith("/.well-known/oauth-protected-resource")
+    ):
         await mcp_asgi_app(scope, receive, send)
     else:
         await _django_app(scope, receive, send)

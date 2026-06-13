@@ -189,6 +189,18 @@ urlpatterns = [
     # OAuth2 endpoints (for ChatGPT MCP integration)
     path("oauth/authorize/", views.oauth_authorize, name="oauth_authorize"),
     path("oauth/token/", views.oauth_token, name="oauth_token"),
+    # OAuth2 Authorization Server Metadata (RFC 8414)
+    path(
+        ".well-known/oauth-authorization-server",
+        views.oauth_authorization_server_metadata,
+        name="oauth_metadata",
+    ),
+    path(
+        ".well-known/openid-configuration",
+        views.oauth_openid_configuration,
+        name="openid_configuration",
+    ),
+    path("oauth/register/", views.oauth_register_client, name="oauth_register"),
     # API endpoints
     path("api/", api.urls),
     path("admin/", admin.site.urls),

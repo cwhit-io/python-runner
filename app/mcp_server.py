@@ -1,16 +1,18 @@
 """
 ScriptDash MCP Server – OpenAI / ChatGPT compatible.
 
-Speaks the Model Context Protocol over Streamable HTTP transport.
+Speaks the Model Context Protocol (MCP) over Streamable HTTP transport.
 Exposes tools for discovering, reading, and executing scripts.
-Supports OAuth2 bearer-token authentication (APIToken model).
+Supports OAuth2 bearer-token authentication via the APIToken model.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ── Bootstrap Django before importing models ─────────────────────────────
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
@@ -19,83 +21,104 @@ import django
 django.setup()
 
 # ── Imports ──────────────────────────────────────────────────────────────
-from typing import Any, Sequence
+from typing import Any
 
 from django.contrib.auth import get_user_model
 from mcp.server.fastmcp import FastMCP, Context
-from mcp.types import TextContent, EmbeddedResource
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
+from mcp.server.auth.provider import AccessToken, TokenVerifier
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
+from mcp.server.fastmcp.server import TransportSecuritySettings
+from mcp.types import TextContent
 
-from app.models import APIToken, Script, ScriptExecution
+from app.models import APIToken, Script
 from app.services.script_runner import ScriptRunner
 
 User = get_user_model()
 
-# ── FastMCP Server ───────────────────────────────────────────────────────
-
-mcp = FastMCP(
-    name="ScriptDash",
-    instructions=(
-        "ScriptDash MCP server – manage and execute Python/bash scripts. "
-        "Search for scripts, inspect recent executions, or invoke a script by ID. "
-        "Before running a script, call list_executions or search to validate the script ID."
-    ),
-)
-
-# ── Auth Middleware ───────────────────────────────────────────────────────
+# ── OAuth Token Verifier ─────────────────────────────────────────────────
 
 
-class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
-    """Extract APIToken from Authorization header and store it in request.state."""
+class ScriptDashTokenVerifier(TokenVerifier):
+    """Validates APIToken model entries as OAuth Bearer tokens."""
 
-    async def dispatch(self, request: Request, call_next):
-        auth = request.headers.get("authorization") or request.headers.get("Authorization", "")
-        token_str = ""
-        if auth.startswith("Bearer "):
-            token_str = auth[7:]
+    async def verify_token(self, token: str) -> AccessToken | None:
+        """Return an AccessToken if the APIToken is valid."""
+        from asgiref.sync import sync_to_async
 
-        if token_str:
+        logger.info("ScriptDashTokenVerifier: verifying token prefix=%s...", token[:12])
+
+        @sync_to_async
+        def _lookup():
             try:
-                token = await _async_get_token(token_str)
-                request.state.api_token = token
-                request.state.user = token.user if token else None
-            except Exception:
-                request.state.api_token = None
-                request.state.user = None
-        else:
-            request.state.api_token = None
-            request.state.user = None
+                return APIToken.objects.select_related("user").get(
+                    token=token, is_active=True
+                )
+            except APIToken.DoesNotExist:
+                return None
 
-        return await call_next(request)
-
-
-async def _async_get_token(token_str: str) -> APIToken | None:
-    """Synchronously look up a token – safe in async context via sync_to_async."""
-    from asgiref.sync import sync_to_async
-
-    @sync_to_async
-    def _lookup():
-        try:
-            return APIToken.objects.select_related("user").get(
-                token=token_str, is_active=True
-            )
-        except APIToken.DoesNotExist:
+        api_token = await _lookup()
+        if api_token is None:
+            logger.warning("ScriptDashTokenVerifier: token not found or inactive")
             return None
 
-    return await _lookup()
+        logger.info("ScriptDashTokenVerifier: token valid for user %s", api_token.user.username)
+
+        # Touch last_used
+        @sync_to_async
+        def _touch():
+            APIToken.objects.filter(pk=api_token.pk).update(
+                last_used=django.utils.timezone.now()
+            )
+
+        await _touch()
+
+        return AccessToken(
+            token=api_token.token,
+            client_id=f"user_{api_token.user_id}",
+            scopes=["script:read", "script:write", "script:execute"],
+            subject=str(api_token.user_id),
+        )
 
 
-def get_authenticated_user(context: Context) -> User | None:
-    """Extract the authenticated user from the Context's request state."""
+# ── Helper: resolve user from a verified token ──────────────────────────
+
+
+def _get_user_from_context(context: Context) -> User | None:
+    """Extract the authenticated Django user from the MCP Context.
+
+    FastMCP stores auth info on the ASGI scope after OAuth verification.
+    The scope is accessible through the request object on the context.
+    ``scope["user"]`` is an ``AuthenticatedUser`` with an ``access_token``
+    property whose ``subject`` field holds the user PK.
+    """
     rc = context.request_context
     if rc is None or rc.request is None:
         return None
-    return getattr(rc.request.state, "user", None)
+
+    scope = getattr(rc.request, "scope", None)
+    if scope is None:
+        return None
+
+    auth_user = scope.get("user")
+    if auth_user is None:
+        return None
+
+    token = getattr(auth_user, "access_token", None)
+    if token is None:
+        return None
+
+    subject = getattr(token, "subject", None)
+    if subject is None:
+        return None
+
+    try:
+        uid = int(subject)
+        return User.objects.get(pk=uid)
+    except (ValueError, User.DoesNotExist):
+        return None
 
 
-def _error(msg: str, status: int = 400) -> dict:
+def _error(msg: str) -> dict:
     return {
         "content": [TextContent(type="text", text=msg)],
         "isError": True,
@@ -120,6 +143,46 @@ def _script_to_dict(s: Script) -> dict:
     }
 
 
+# ── Base server URL (injected via env or settings) ───────────────────────
+_SERVER_BASE = os.environ.get(
+    "MCP_SERVER_URL",
+    os.environ.get("SCRIPTDASH_URL", "http://localhost:8003"),
+)
+
+# ── FastMCP Server with OAuth ────────────────────────────────────────────
+
+mcp = FastMCP(
+    name="ScriptDash",
+    instructions=(
+        "ScriptDash MCP server – manage and execute Python/bash scripts. "
+        "Search for scripts, inspect recent executions, or invoke a script by ID. "
+        "Before running a script, call list_executions or search to validate the script ID."
+    ),
+    # ── OAuth configuration ──────────────────────────────────────────────
+    # Tells ChatGPT which OAuth authorization server to use.
+    auth=AuthSettings(
+        issuer_url=f"{_SERVER_BASE}",
+        resource_server_url=f"{_SERVER_BASE}",  # NOT /mcp – metadata is at root
+        required_scopes=["script:read", "script:write", "script:execute"],
+        # Allow ChatGPT to register itself as an OAuth client automatically
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            default_scopes=["script:read", "script:write", "script:execute"],
+        ),
+    ),
+    token_verifier=ScriptDashTokenVerifier(),
+    # Use stateless HTTP to avoid TaskGroup lifecycle requirement when
+    # mounted inside Daphne (which doesn't support Starlette lifespan).
+    stateless_http=True,
+    # Allow the public domain for Host-header validation
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=["scriptdash.bhm.li", "*.bhm.li"],
+        allowed_origins=["*"],
+    ),
+)
+
+
 # ── Tools ────────────────────────────────────────────────────────────────
 
 
@@ -130,15 +193,14 @@ def _script_to_dict(s: Script) -> dict:
 )
 def search_scripts(query: str, context: Context) -> dict:
     """Search scripts matching the query. Returns matching script summaries."""
-    user = get_authenticated_user(context)
+    user = _get_user_from_context(context)
     if user is None:
-        return _error("Authentication required", 401)
+        return _error("Authentication required")
 
     scripts = list(
         Script.objects.filter(owner=user)
-        .filter(name__icontains=query) | Script.objects.filter(owner=user).filter(
-            description__icontains=query
-        )
+        .filter(name__icontains=query)
+        | Script.objects.filter(owner=user).filter(description__icontains=query)
         .order_by("-updated_at")[:20]
     )
 
@@ -147,9 +209,7 @@ def search_scripts(query: str, context: Context) -> dict:
 
     return {
         "structuredContent": structured,
-        "content": [
-            TextContent(type="text", text=json.dumps(structured)),
-        ],
+        "content": [TextContent(type="text", text=json.dumps(structured))],
         "_meta": {"total": len(results)},
     }
 
@@ -161,20 +221,20 @@ def search_scripts(query: str, context: Context) -> dict:
 )
 def fetch_script(script_id: int, context: Context) -> dict:
     """Retrieve the full details, code, and dependencies of a script."""
-    user = get_authenticated_user(context)
+    user = _get_user_from_context(context)
     if user is None:
-        return _error("Authentication required", 401)
+        return _error("Authentication required")
 
     try:
         script = Script.objects.get(id=script_id, owner=user)
     except Script.DoesNotExist:
-        return _error(f"Script {script_id} not found", 404)
+        return _error(f"Script {script_id} not found")
 
     structured = {
         "id": script.id,
         "title": script.name,
         "text": script.code,
-        "url": "",  # no canonical external URL
+        "url": "",
         "metadata": {
             "language": script.language,
             "description": script.description or "",
@@ -186,9 +246,7 @@ def fetch_script(script_id: int, context: Context) -> dict:
 
     return {
         "structuredContent": structured,
-        "content": [
-            TextContent(type="text", text=json.dumps(structured)),
-        ],
+        "content": [TextContent(type="text", text=json.dumps(structured))],
         "_meta": {"script_id": script.id},
     }
 
@@ -200,9 +258,9 @@ def fetch_script(script_id: int, context: Context) -> dict:
 )
 def list_scripts(context: Context) -> dict:
     """Return a list of all scripts owned by the authenticated user."""
-    user = get_authenticated_user(context)
+    user = _get_user_from_context(context)
     if user is None:
-        return _error("Authentication required", 401)
+        return _error("Authentication required")
 
     scripts = list(Script.objects.filter(owner=user).order_by("-updated_at"))
     results = [_script_to_dict(s) for s in scripts]
@@ -210,9 +268,7 @@ def list_scripts(context: Context) -> dict:
 
     return {
         "structuredContent": structured,
-        "content": [
-            TextContent(type="text", text=json.dumps(structured)),
-        ],
+        "content": [TextContent(type="text", text=json.dumps(structured))],
         "_meta": {"total": len(results)},
     }
 
@@ -224,14 +280,14 @@ def list_scripts(context: Context) -> dict:
 )
 def list_executions(script_id: int, context: Context) -> dict:
     """Return the 20 most recent executions for a given script."""
-    user = get_authenticated_user(context)
+    user = _get_user_from_context(context)
     if user is None:
-        return _error("Authentication required", 401)
+        return _error("Authentication required")
 
     try:
         script = Script.objects.get(id=script_id, owner=user)
     except Script.DoesNotExist:
-        return _error(f"Script {script_id} not found", 404)
+        return _error(f"Script {script_id} not found")
 
     executions = list(script.executions.order_by("-created_at")[:20])  # type: ignore[attr-defined]
     execs = []
@@ -251,9 +307,7 @@ def list_executions(script_id: int, context: Context) -> dict:
     structured = {"script_id": script_id, "executions": execs}
     return {
         "structuredContent": structured,
-        "content": [
-            TextContent(type="text", text=json.dumps(structured)),
-        ],
+        "content": [TextContent(type="text", text=json.dumps(structured))],
         "_meta": {"total": len(execs)},
     }
 
@@ -280,14 +334,14 @@ def run_script(
         input_text: Optional text to feed to the script via stdin.
         timeout_seconds: Max execution time in seconds (default 60).
     """
-    user = get_authenticated_user(context)
+    user = _get_user_from_context(context)
     if user is None:
-        return _error("Authentication required", 401)
+        return _error("Authentication required")
 
     try:
         script = Script.objects.get(id=script_id, owner=user)
     except Script.DoesNotExist:
-        return _error(f"Script {script_id} not found", 404)
+        return _error(f"Script {script_id} not found")
 
     runner = ScriptRunner(script)
     execution = runner.execute(
@@ -331,7 +385,9 @@ def run_script(
         "content": [
             TextContent(
                 type="text",
-                text="\n\n".join(text_parts) if text_parts else f"Script finished with status: {execution.status}",
+                text="\n\n".join(text_parts)
+                if text_parts
+                else f"Script finished with status: {execution.status}",
             ),
         ],
         "_meta": {
@@ -346,15 +402,38 @@ def run_script(
 
 
 def create_mcp_asgi_app() -> "Starlette":
-    """Wrap the FastMCP streamable_http_app with auth middleware."""
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
+    """Return the FastMCP streamable_http_app as a Starlette ASGI app.
 
-    inner = mcp.streamable_http_app()
-    routes = [
-        Mount(
-            path="",
-            app=BearerTokenAuthMiddleware(inner),
-        ),
-    ]
-    return Starlette(routes=routes)
+    ``stateless_http=True`` avoids persistent sessions, but the SDK still
+    needs ``_task_group`` initialised — the stateless handler calls
+    ``_task_group.start()``.  We run ``session_manager.run()`` in a
+    persistent background task via ``anyio``.
+    """
+    import anyio
+    import asyncio
+
+    app = mcp.streamable_http_app()
+    sm = mcp.session_manager
+
+    if sm._task_group is None:
+        async def _enter_run():
+            # Enter the session manager's run() context and keep it alive
+            async with sm.run():
+                # Sleep forever so the task group stays active
+                await anyio.sleep_forever()
+
+        # Kick off the background task in the default event loop (Daphne's loop)
+        # This must run in the same event loop Daphne uses.
+        _original_app = app
+
+        async def _lazy_init(scope, receive, send):
+            if sm._task_group is None or not hasattr(sm._task_group, 'start'):
+                # First request – initialise the task group
+                tg = anyio.create_task_group()
+                await tg.__aenter__()
+                sm._task_group = tg
+            await _original_app(scope, receive, send)
+
+        return _lazy_init  # type: ignore[return-value]
+
+    return app

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
@@ -260,8 +261,77 @@ def oauth_authorize(request):
     return oauth_authorize_view(request)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
 def oauth_token(request):
     """OAuth2 token endpoint – delegates to app.oauth.token."""
     from app.oauth import token as oauth_token_view
 
     return oauth_token_view(request)
+
+
+def _get_base_url(request):
+    """Return the public-facing base URL for OAuth endpoints.
+
+    Uses MCP_SERVER_URL env var first (set in docker-compose.yml),
+    falls back to request host.
+    """
+    import os
+
+    base = os.environ.get("MCP_SERVER_URL", os.environ.get("SCRIPTDASH_URL", ""))
+    if base:
+        return base.rstrip("/")
+    return f"{request.scheme}://{request.get_host()}"
+
+
+def oauth_authorization_server_metadata(request):
+    """OAuth2 Authorization Server Metadata (RFC 8414).
+
+    ChatGPT uses this to discover the authorize and token endpoints.
+    """
+    from django.http import JsonResponse
+
+    base = _get_base_url(request)
+    return JsonResponse(
+        {
+            "issuer": base,
+            "authorization_endpoint": f"{base}/oauth/authorize/",
+            "token_endpoint": f"{base}/oauth/token/",
+            "registration_endpoint": f"{base}/oauth/register/",
+            "response_types_supported": ["code"],
+            "grant_types_supported": ["authorization_code"],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "scopes_supported": ["script:read", "script:write", "script:execute"],
+        }
+    )
+
+
+def oauth_openid_configuration(request):
+    """OpenID Connect Discovery — same metadata plus OIDC-specific fields."""
+    from django.http import JsonResponse
+
+    base = _get_base_url(request)
+    return JsonResponse(
+        {
+            "issuer": base,
+            "authorization_endpoint": f"{base}/oauth/authorize/",
+            "token_endpoint": f"{base}/oauth/token/",
+            "registration_endpoint": f"{base}/oauth/register/",
+            "response_types_supported": ["code"],
+            "grant_types_supported": ["authorization_code"],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "scopes_supported": ["script:read", "script:write", "script:execute"],
+            # OIDC-specific
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["none"],
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def oauth_register_client(request):
+    """Dynamic client registration endpoint – delegates to app.oauth.register_client."""
+    from app.oauth import register_client
+
+    return register_client(request)

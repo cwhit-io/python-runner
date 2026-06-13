@@ -11,6 +11,7 @@ import json
 import time
 from urllib.parse import urlencode, urlparse, parse_qs
 
+import json
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib.auth import authenticate, login
@@ -59,21 +60,28 @@ def authorize(request):
     (Django session).  They see a consent page and click "Allow".
 
     Query parameters (from ChatGPT):
-        client_id      – app identifier (ignored; we verify ownership below)
+        client_id      – OAuth client identifier from registration
         redirect_uri   – where ChatGPT expects us to send the auth code
         response_type  – must be "code"
         state          – CSRF token from ChatGPT (echoed back)
     """
+    client_id = request.GET.get("client_id", "") or request.POST.get("client_id", "")
+    redirect_uri = request.GET.get("redirect_uri", "") or request.POST.get("redirect_uri", "")
+
     if request.method == "GET":
+        # Validate client_id if provided
+        if client_id:
+            client_data = cache.get(f"oauth_client:{client_id}")
+            if client_data is None:
+                return HttpResponseBadRequest("Invalid client_id")
         return _render_consent(request)
 
     # POST → user clicked "Allow"
     if request.POST.get("action") != "allow":
-        return redirect(request.GET.get("redirect_uri", "/") + "?error=access_denied")
+        sep = "&" if "?" in redirect_uri else "?"
+        return redirect(f"{redirect_uri}{sep}error=access_denied")
 
     state = request.POST.get("state") or request.GET.get("state", "")
-    redirect_uri = request.POST.get("redirect_uri") or request.GET.get("redirect_uri", "")
-    client_id = request.POST.get("client_id") or request.GET.get("client_id", "")
 
     if not redirect_uri:
         return HttpResponseBadRequest("Missing redirect_uri")
@@ -120,10 +128,27 @@ def token(request):
     """
     body = request.POST.dict()
 
+    # Support client_secret_basic auth (Authorization: Basic base64(client_id:client_secret))
+    client_id = body.get("client_id", "")
+    client_secret = body.get("client_secret", "")
+    import base64 as _b64
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = _b64.b64decode(auth_header[6:]).decode("utf-8")
+            cid, csec = decoded.split(":", 1)
+            if not client_id:
+                client_id = cid
+            if not client_secret:
+                client_secret = csec
+        except Exception:
+            pass
+
     grant_type = body.get("grant_type", "authorization_code")
 
     if grant_type == "authorization_code":
         code = body.get("code", "")
+
         data = _consume_auth_code(code)
         if data is None:
             return JsonResponse(
@@ -131,7 +156,21 @@ def token(request):
                 status=400,
             )
 
-        # Create or reuse an API token for this user
+        # Validate client credentials if a client_id was used
+        if client_id:
+            client_data = cache.get(f"oauth_client:{client_id}")
+            if client_data is None:
+                return JsonResponse(
+                    {"error": "invalid_client", "error_description": "Unknown client"},
+                    status=401,
+                )
+            if client_secret != client_data["client_secret"]:
+                return JsonResponse(
+                    {"error": "invalid_client", "error_description": "Invalid client secret"},
+                    status=401,
+                )
+
+        # Create an API token for this user
         from django.contrib.auth import get_user_model
         User = get_user_model()
         user = User.objects.get(id=data["user_id"])
@@ -181,3 +220,54 @@ def token(request):
         return JsonResponse({"error": "unsupported_grant_type"}, status=400)
 
     return JsonResponse({"error": "unsupported_grant_type"}, status=400)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def register_client(request):
+    """Dynamic OAuth client registration endpoint.
+
+    ChatGPT POSTs its client metadata here to obtain a client_id and client_secret.
+    """
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        body = request.POST.dict()
+
+    client_name = body.get("client_name", "ChatGPT MCP Client")
+    redirect_uris = body.get("redirect_uris", [])
+    grant_types = body.get("grant_types", ["authorization_code"])
+
+    # Generate a client_id and client_secret
+    import secrets
+    client_id = secrets.token_urlsafe(24)
+    client_secret = secrets.token_urlsafe(48)
+
+    # Store in cache (persist across requests; for production use the DB)
+    cache.set(
+        f"oauth_client:{client_id}",
+        {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "client_name": client_name,
+            "redirect_uris": redirect_uris,
+            "grant_types": grant_types,
+        },
+        timeout=None,  # no expiry
+    )
+
+    now_ts = int(time.time())
+    return JsonResponse(
+        {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "client_id_issued_at": now_ts,
+            "client_secret_expires_at": 0,  # never expires
+            "client_name": client_name,
+            "redirect_uris": redirect_uris,
+            "grant_types": grant_types,
+            "token_endpoint_auth_method": "client_secret_basic",
+            "scopes": ["script:read", "script:write", "script:execute"],
+        },
+        status=201,
+    )
