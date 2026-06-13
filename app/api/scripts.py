@@ -18,6 +18,7 @@ from .schemas import (
     ScheduleCreateSchema,
     TagSchema,
 )
+from .security import authenticate_bearer_token
 
 router = Router(tags=["Scripts"])
 
@@ -108,28 +109,9 @@ def execute_script_api(request, script_id: int):
 
     Requires authentication. For public scripts, use the webhook endpoint instead.
     """
-    from app.auth import APITokenAuth
-
-    # Require token auth: inspect Authorization header for a Bearer token
-    auth_backend = APITokenAuth()
-    auth_header = None
-    try:
-        # Ninja exposes headers on request.headers
-        auth_header = request.headers.get("authorization")
-    except Exception:
-        auth_header = None
-
-    if not auth_header:
-        return {"error": "Authentication required"}, 401
-
-    parts = auth_header.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        return {"error": "Invalid authorization header"}, 401
-
-    token = parts[1]
-    api_token_obj = auth_backend.authenticate(request, token)
+    api_token_obj = authenticate_bearer_token(request)
     if api_token_obj is None:
-        return {"error": "Invalid API token"}, 401
+        return {"error": "Authentication required"}, 401
 
     # Load the script
     script = get_object_or_404(Script, id=script_id)

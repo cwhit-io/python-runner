@@ -1,7 +1,6 @@
 from ninja import Router
-from typing import List, Optional
+from typing import List
 from django.shortcuts import get_object_or_404
-from app.auth import APITokenAuth
 from app.models import Script
 from app.services.script_runner import ScriptRunner
 from .mcp_schemas import (
@@ -10,6 +9,7 @@ from .mcp_schemas import (
     MCPInvokeResponseSchema,
     MCPToolManifestSchema,
 )
+from .security import authenticate_bearer_token
 
 router = Router(tags=["MCP"])
 
