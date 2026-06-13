@@ -248,3 +248,20 @@ def delete_item_htmx(request, item_id):
 
     # Return empty response - htmx will swap out the element
     return HttpResponse("")
+
+
+# ── OAuth2 Views (ChatGPT MCP integration) ──────────────────────────────
+
+
+def oauth_authorize(request):
+    """OAuth2 authorization endpoint – delegates to app.oauth.authorize."""
+    from app.oauth import authorize as oauth_authorize_view
+
+    return oauth_authorize_view(request)
+
+
+def oauth_token(request):
+    """OAuth2 token endpoint – delegates to app.oauth.token."""
+    from app.oauth import token as oauth_token_view
+
+    return oauth_token_view(request)

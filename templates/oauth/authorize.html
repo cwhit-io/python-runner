@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authorize MCP Access - ScriptDash</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #8b5cf6;
+      --primary-hover: #7c3aed;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,.5);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .logo svg { width: 32px; height: 32px; }
+    .logo h1 { font-size: 22px; font-weight: 700; }
+    .app-badge {
+      display: inline-block;
+      background: rgba(139,92,246,.15);
+      color: var(--primary);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    h2 { font-size: 18px; margin-bottom: 8px; }
+    p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+    .scope-list { list-style: none; margin-bottom: 28px; }
+    .scope-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .scope-list li:last-child { border-bottom: 1px solid var(--border); }
+    .scope-list .check {
+      width: 20px; height: 20px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .scope-list .check svg { width: 12px; height: 12px; stroke: #fff; stroke-width: 3; }
+    .scope-list .desc { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    .actions { display: flex; gap: 12px; }
+    .actions form { flex: 1; }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: rgba(255,255,255,.05); }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: rgba(255,255,255,.03);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .user-info .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+        <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+      </svg>
+      <h1>ScriptDash</h1>
+    </div>
+
+    <div class="app-badge">{{ app_name }}</div>
+
+    <h2>Authorize MCP Access</h2>
+    <p>This application wants to access your ScriptDash account. Granting access allows it to discover, read, and execute your scripts.</p>
+
+    <div class="user-info">
+      <div class="avatar">{{ request.user.username|first|upper }}</div>
+      <div>
+        <div>{{ request.user.username }}</div>
+        <div style="color:var(--text-muted)">{{ request.user.email }}</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:15px;margin-bottom:12px;">Permissions requested</h2>
+    <ul class="scope-list">
+      {% for scope_id, scope_desc in scopes %}
+      <li>
+        <div class="check">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <div>{{ scope_id }}</div>
+          <div class="desc">{{ scope_desc }}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <div class="actions">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="deny">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <button type="submit" class="btn btn-secondary">Deny</button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="allow">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <button type="submit" class="btn btn-primary">Allow</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -186,6 +186,9 @@ urlpatterns = [
     path(
         "items/<int:item_id>/delete/", views.delete_item_htmx, name="delete-item-htmx"
     ),
+    # OAuth2 endpoints (for ChatGPT MCP integration)
+    path("oauth/authorize/", views.oauth_authorize, name="oauth_authorize"),
+    path("oauth/token/", views.oauth_token, name="oauth_token"),
     # API endpoints
     path("api/", api.urls),
     path("admin/", admin.site.urls),

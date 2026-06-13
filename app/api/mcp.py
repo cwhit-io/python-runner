@@ -1,6 +1,7 @@
 from ninja import Router
 from typing import List
 from django.shortcuts import get_object_or_404
+from app.auth import APITokenAuth
 from app.models import Script
 from app.services.script_runner import ScriptRunner
 from .mcp_schemas import (
