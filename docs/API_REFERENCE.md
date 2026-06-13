@@ -38,6 +38,7 @@ GET /scripts
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -66,6 +67,7 @@ POST /scripts
 ```
 
 **Request Body:**
+
 ```json
 {
   "name": "My Script",
@@ -97,6 +99,7 @@ POST /scripts/{id}/execute
 ```
 
 **Response:**
+
 ```json
 {
   "execution_id": 123,
@@ -121,6 +124,7 @@ Content-Type: multipart/form-data
 ```
 
 **Form Data:**
+
 - `json_file`: Script JSON file
 
 ### Executions
@@ -132,6 +136,7 @@ GET /executions
 ```
 
 **Query Parameters:**
+
 - `script_id`: Filter by script
 - `status`: Filter by status (running, success, failed)
 
@@ -142,6 +147,7 @@ GET /executions/{id}
 ```
 
 **Response:**
+
 ```json
 {
   "id": 123,
@@ -167,6 +173,7 @@ GET /schedules
 ```
 
 **Query Parameters:**
+
 - `script_id`: Filter by script
 
 #### Create Schedule
@@ -176,6 +183,7 @@ POST /schedules
 ```
 
 **Request Body:**
+
 ```json
 {
   "script_id": 1,
@@ -218,6 +226,7 @@ GET /tags
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -237,6 +246,100 @@ POST /tags
 ```
 
 **Request Body:**
+
+```json
+{
+  "name": "Production",
+  "color": "#ef4444",
+  "description": "Production scripts"
+}
+```
+
+### MCP Translator
+
+This application now exposes support for MCP-compatible tool manifests and script invocation.
+
+#### List MCP script tools
+
+```http
+GET /mcp/scripts
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+**Response:**
+
+```json
+[
+  {
+    "script_id": 1,
+    "name": "My Script",
+    "description": "A script that processes input.",
+    "language": "python",
+    "tool_name": "run_script_1",
+    "tool_description": "Execute script 'My Script' (python). A script that processes input.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "input_text": {
+          "type": "string",
+          "description": "Optional text input provided to the script via stdin."
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "description": "Maximum execution time in seconds."
+        }
+      },
+      "required": []
+    }
+  }
+]
+```
+
+#### Get a single script manifest
+
+```http
+GET /mcp/scripts/{id}/manifest
+```
+
+For private scripts, include `Authorization: Bearer YOUR_TOKEN_HERE`.
+
+#### Invoke a script via MCP
+
+```http
+POST /mcp/scripts/{id}/invoke
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "input_text": "Hello from Claude!",
+  "timeout_seconds": 60
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 123,
+  "script_id": 1,
+  "status": "running",
+  "trigger_type": "mcp",
+  "started_at": "2026-01-30T10:00:00Z"
+}
+```
+
+### Error Responses
+
+```http
+POST /tags
+```
+
+**Request Body:**
+
 ```json
 {
   "name": "Production",
@@ -311,10 +414,12 @@ Currently no rate limiting is implemented. For production use, consider implemen
 List endpoints support pagination:
 
 **Query Parameters:**
+
 - `page`: Page number (default: 1)
 - `page_size`: Items per page (default: 20, max: 100)
 
 **Response Format:**
+
 ```json
 {
   "count": 100,
@@ -327,6 +432,7 @@ List endpoints support pagination:
 ## Interactive Documentation
 
 Visit http://localhost:8000/api/docs for:
+
 - Interactive API explorer
 - Try API calls in browser
 - Full request/response examples
@@ -370,31 +476,31 @@ execution = response.json()
 ### JavaScript
 
 ```javascript
-const API_TOKEN = 'your_token_here';
-const BASE_URL = 'http://localhost:8000/api/v1';
+const API_TOKEN = "your_token_here";
+const BASE_URL = "http://localhost:8000/api/v1";
 
 const headers = {
-  'Authorization': `Bearer ${API_TOKEN}`,
-  'Content-Type': 'application/json'
+  Authorization: `Bearer ${API_TOKEN}`,
+  "Content-Type": "application/json",
 };
 
 // Create script
 const response = await fetch(`${BASE_URL}/scripts`, {
-  method: 'POST',
+  method: "POST",
   headers: headers,
   body: JSON.stringify({
-    name: 'My Script',
+    name: "My Script",
     code: 'print("Hello")',
-    language: 'python'
-  })
+    language: "python",
+  }),
 });
 const script = await response.json();
 
 // Execute script
-const execResponse = await fetch(
-  `${BASE_URL}/scripts/${script.id}/execute`,
-  { method: 'POST', headers: headers }
-);
+const execResponse = await fetch(`${BASE_URL}/scripts/${script.id}/execute`, {
+  method: "POST",
+  headers: headers,
+});
 const execution = await execResponse.json();
 ```
 
@@ -427,22 +533,22 @@ For real-time features (requires WebSocket support):
 ### Notifications
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/notifications/');
+const ws = new WebSocket("ws://localhost:8000/ws/notifications/");
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  console.log('Notification:', data);
+  console.log("Notification:", data);
 };
 ```
 
 ### Live Execution Logs
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/execution/123/');
+const ws = new WebSocket("ws://localhost:8000/ws/execution/123/");
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  console.log('Log:', data.line);
+  console.log("Log:", data.line);
 };
 ```
 

@@ -220,7 +220,13 @@ class ScriptRunner:
         self.script.venv_updated_at = timezone.now()
         self.script.save(update_fields=["venv_updated_at"])
 
-    def execute(self, triggered_by=None, trigger_type="manual", timeout_seconds=None):
+    def execute(
+        self,
+        triggered_by=None,
+        trigger_type="manual",
+        timeout_seconds=None,
+        input_text: Optional[str] = None,
+    ):
         """
         Execute the script in its environment (virtual environment for Python, system for bash).
         Returns the ScriptExecution object.
@@ -229,7 +235,10 @@ class ScriptRunner:
             triggered_by: User who triggered the execution
             trigger_type: How the execution was triggered (manual, scheduled, api)
             timeout_seconds: Maximum execution time in seconds (None for no timeout)
+            input_text: Optional text to send to the script via stdin
         """
+        self.input_text = input_text
+
         # Ensure environment is ready (venv for Python, skip for bash)
         if self.script.language == "python":
             try:
@@ -295,10 +304,10 @@ class ScriptRunner:
                 pass
 
             # Run the script
-            start_time = time.time()
-
+            stdin_pipe = subprocess.PIPE if getattr(self, "input_text", None) is not None else None
             process = subprocess.Popen(
                 cmd,
+                stdin=stdin_pipe,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -306,6 +315,14 @@ class ScriptRunner:
                 universal_newlines=True,
                 env=env,
             )
+
+            # Feed input to the process if provided
+            if getattr(self, "input_text", None) is not None and process.stdin:
+                try:
+                    process.stdin.write(self.input_text)
+                    process.stdin.close()
+                except Exception:
+                    pass
 
             # Store process ID
             self.execution.process_id = process.pid

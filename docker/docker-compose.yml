@@ -1,5 +1,5 @@
 services:
-  web:
+  runner-web:
     build:
       context: ..
       dockerfile: docker/Dockerfile

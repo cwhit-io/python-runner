@@ -3,7 +3,7 @@ API endpoints for script management.
 """
 
 from ninja import Router, Schema
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 from django.shortcuts import get_object_or_404
 from app.auth import APITokenAuth
@@ -50,6 +50,29 @@ class ScriptUpdateSchema(Schema):
     dependencies: Optional[str] = None
     is_public: Optional[bool] = None
     tags: Optional[List[str]] = None
+
+
+class MCPToolManifestSchema(Schema):
+    script_id: int
+    name: str
+    description: str
+    language: str
+    tool_name: str
+    tool_description: str
+    parameters: Dict[str, Any]
+
+
+class MCPExecuteRequestSchema(Schema):
+    input_text: Optional[str] = None
+    timeout_seconds: Optional[int] = None
+
+
+class MCPExecuteResponseSchema(Schema):
+    id: int
+    script_id: int
+    status: str
+    trigger_type: str
+    started_at: Optional[datetime]
 
 
 class ExecutionSchema(Schema):
@@ -341,6 +364,96 @@ def delete_tag(request, tag_id: int):
     tag = get_object_or_404(Tag, id=tag_id, created_by=request.auth.user)
     tag.delete()
     return {"message": "Tag deleted successfully"}
+
+
+def _authenticate_api_token(request):
+    """Authenticate bearer token if present."""
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header:
+        return None
+
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+
+    return APITokenAuth().authenticate(request, parts[1])
+
+
+def _build_mcp_manifest(script: Script) -> dict:
+    tool_name = f"run_script_{script.id}"
+    return {
+        "script_id": script.id,
+        "name": script.name,
+        "description": script.description or "Run this script through the MCP tool interface.",
+        "language": script.language,
+        "tool_name": tool_name,
+        "tool_description": (
+            f"Execute script '{script.name}' ({script.language}). "
+            + (script.description or "No description available.")
+        ).strip(),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "input_text": {
+                    "type": "string",
+                    "description": "Optional text input provided to the script via stdin.",
+                },
+                "timeout_seconds": {
+                    "type": "number",
+                    "description": "Maximum execution time in seconds.",
+                },
+            },
+            "required": [],
+        },
+    }
+
+
+@router.get("/mcp/scripts", response=List[MCPToolManifestSchema], auth=APITokenAuth())
+def list_mcp_manifests(request):
+    """List MCP-compatible tool manifests for a user's scripts."""
+    scripts = Script.objects.filter(owner=request.auth.user).order_by("-updated_at")
+    return [_build_mcp_manifest(script) for script in scripts]
+
+
+@router.get("/mcp/scripts/{script_id}/manifest", response=MCPToolManifestSchema, auth=None)
+def get_mcp_manifest(request, script_id: int):
+    """Get the MCP-compatible tool manifest for a script."""
+    script = get_object_or_404(Script, id=script_id)
+    api_token = _authenticate_api_token(request)
+
+    if script.is_public:
+        return _build_mcp_manifest(script)
+
+    if api_token is None:
+        return {"error": "Authentication required"}, 401
+
+    if script.owner_id != api_token.user_id:
+        return {"error": "Permission denied"}, 403
+
+    return _build_mcp_manifest(script)
+
+
+@router.post("/mcp/scripts/{script_id}/invoke", response=MCPExecuteResponseSchema, auth=None)
+def invoke_script_mcp(request, script_id: int, payload: MCPExecuteRequestSchema):
+    """Invoke a script through the MCP-compatible execution interface."""
+    script = get_object_or_404(Script, id=script_id)
+    api_token = _authenticate_api_token(request)
+
+    if not script.is_public:
+        if api_token is None:
+            return {"error": "Authentication required"}, 401
+        if script.owner_id != api_token.user_id:
+            return {"error": "Permission denied"}, 403
+
+    runner = ScriptRunner(script)
+    execution = runner.execute(
+        triggered_by=api_token.user if api_token else None,
+        trigger_type="mcp",
+        timeout_seconds=payload.timeout_seconds,
+        input_text=payload.input_text,
+    )
+
+    return execution
 
 
 @router.post("/scripts/{script_id}/webhook", include_in_schema=False)
