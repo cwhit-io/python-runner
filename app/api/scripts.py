@@ -3,6 +3,7 @@ API endpoints for script management.
 """
 
 from ninja import Router
+from typing import List
 from django.shortcuts import get_object_or_404
 from app.auth import APITokenAuth
 from app.models import Script, ScriptExecution, ScriptSchedule
