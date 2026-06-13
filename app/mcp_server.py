@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 # ── Bootstrap Django before importing models ─────────────────────────────
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")
+# Allow sync ORM calls from thread-pool context (FastMCP runs sync tools in
+# threads, but Django's async-safe detection trips on the async outer scope).
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 import django
 
 django.setup()

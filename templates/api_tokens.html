@@ -131,17 +131,17 @@
   <div class="modal-backdrop" onclick="create_token_modal.close()"></div>
 </dialog>
 
-<!-- Confirmation Modal -->
-<div id="confirm-modal" class="modal">
+<!-- Confirmation Modal (dialog element) -->
+<dialog id="confirm-modal" class="modal">
   <div class="modal-box">
     <h3 class="font-bold text-lg" id="confirm-title">Confirm Action</h3>
     <p class="py-4" id="confirm-message">Are you sure you want to proceed?</p>
     <div class="modal-action">
-      <button type="button" class="btn" onclick="closeConfirmModal()">Cancel</button>
-      <button type="button" class="btn btn-error" id="confirm-yes" onclick="executeConfirmedAction()">Yes, Delete</button>
+      <button type="button" class="btn" onclick="document.getElementById('confirm-modal').close()">Cancel</button>
+      <button type="button" class="btn btn-error" onclick="executeConfirmedAction()">Yes, Delete</button>
     </div>
   </div>
-</div>
+</dialog>
 
 <script>
 function copyToken(token) {
@@ -154,37 +154,29 @@ function copyToken(token) {
 
 // Modal functions for confirmation
 let confirmCallback = null;
-let isConfirmModalOpen = false;
 
 function showConfirmModal(title, message, callback) {
-  if (isConfirmModalOpen) return; // Prevent multiple modals
   document.getElementById('confirm-title').textContent = title;
   document.getElementById('confirm-message').textContent = message;
   confirmCallback = callback;
-  document.getElementById('confirm-modal').classList.add('modal-open');
-  isConfirmModalOpen = true;
-}
-
-function closeConfirmModal() {
-  document.getElementById('confirm-modal').classList.remove('modal-open');
-  confirmCallback = null;
-  isConfirmModalOpen = false;
+  document.getElementById('confirm-modal').showModal();
 }
 
 function executeConfirmedAction() {
   if (confirmCallback) {
     confirmCallback();
   }
-  closeConfirmModal();
+  document.getElementById('confirm-modal').close();
+  confirmCallback = null;
 }
 
 function confirmDeleteToken(event, tokenName, tokenId) {
-  if (isConfirmModalOpen) return; // Prevent multiple clicks
   event.preventDefault();
   event.stopPropagation();
   showConfirmModal('Delete API Token', `Are you sure you want to delete the token "${tokenName}"? This action cannot be undone.`, function() {
-    // Submit the form
-    const form = document.querySelector(`form[action*="${tokenId}"]`);
+    // Find the closest form to this button and submit it
+    const btn = event.target;
+    const form = btn.closest('form');
     if (form) {
       form.submit();
     }
@@ -195,7 +187,7 @@ function confirmDeleteToken(event, tokenName, tokenId) {
 // Close modal when clicking outside
 document.getElementById('confirm-modal').addEventListener('click', function(e) {
   if (e.target === this) {
-    closeConfirmModal();
+    this.close();
   }
 });
 </script>

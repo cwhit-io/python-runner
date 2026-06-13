@@ -304,6 +304,7 @@ class ScriptRunner:
                 pass
 
             # Run the script
+            start_time = time.time()
             stdin_pipe = subprocess.PIPE if getattr(self, "input_text", None) is not None else None
             process = subprocess.Popen(
                 cmd,
