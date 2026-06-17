@@ -311,18 +311,25 @@ class ScriptRunner:
             try:
                 credentials_data = get_all_credentials_for_script(self.script.id)
                 for cred_name, cred_data in credentials_data.items():
-                    # For each credential, inject its values into the environment
-                    # Using credential name as prefix to avoid conflicts
+                    prefix = cred_name.upper().replace(" ", "_")
                     if isinstance(cred_data, dict):
-                        for key, value in cred_data.items():
-                            if value is not None:
-                                # Convert to string and use uppercase key with prefix
-                                env_key = f"{cred_name}_{key}".upper()
-                                env[env_key] = str(value)
-                                # Also set without prefix for convenience
-                                env[key.upper()] = str(value)
+                        # Simplified format: {"key": "API_KEY", "value": "abc123"}
+                        env_key = cred_data.get("key", "")
+                        env_value = cred_data.get("value")
+                        if env_key and env_value is not None:
+                            env_key_clean = env_key.upper().replace(" ", "_")
+                            env[f"{prefix}_{env_key_clean}"] = str(env_value)
+                            # Also set unprefixed for convenience
+                            env[env_key_clean] = str(env_value)
+                        else:
+                            # Legacy format: arbitrary keys
+                            for k, v in cred_data.items():
+                                if v is not None:
+                                    env_k = k.upper().replace(" ", "_")
+                                    env[f"{prefix}_{env_k}"] = str(v)
+                                    env[env_k] = str(v)
                     else:
-                        env[cred_name.upper()] = str(cred_data)
+                        env[prefix] = str(cred_data)
             except Exception:
                 logger.warning("Failed to load credentials for script %s", self.script.id)
 

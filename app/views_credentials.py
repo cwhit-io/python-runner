@@ -13,18 +13,11 @@ from app.models import GlobalCredential, CredentialType
 def credentials_list(request):
     """List all global credentials for the current user."""
     credentials = GlobalCredential.objects.filter(user=request.user).order_by("-updated_at")
-    credential_types = [
-        {"value": ct.value, "label": ct.label}
-        for ct in CredentialType
-    ]
     
     return render(
         request,
         "scripts/credentials_list.html",
-        {
-            "credentials": credentials,
-            "credential_types": credential_types,
-        },
+        {"credentials": credentials},
     )
 
 
@@ -33,32 +26,15 @@ def credential_create(request):
     """Create a new global credential."""
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        credential_type = request.POST.get("credential_type", CredentialType.GENERIC)
-        
-        # Build credential data based on type
-        credential_data = {}
-        
-        if credential_type == CredentialType.API_KEY:
-            credential_data["api_key"] = request.POST.get("api_key", "")
-        elif credential_type == CredentialType.BEARER_TOKEN:
-            credential_data["token"] = request.POST.get("token", "")
-        elif credential_type == CredentialType.BASIC_AUTH:
-            credential_data["username"] = request.POST.get("username", "")
-            credential_data["password"] = request.POST.get("password", "")
-        elif credential_type == CredentialType.OAUTH_CLIENT_CREDENTIALS:
-            credential_data["client_id"] = request.POST.get("client_id", "")
-            credential_data["client_secret"] = request.POST.get("client_secret", "")
-            credential_data["token_url"] = request.POST.get("token_url", "")
-        elif credential_type == CredentialType.GENERIC:
-            credential_data["key"] = request.POST.get("key", "")
-            credential_data["value"] = request.POST.get("value", "")
+        key = request.POST.get("key", "").strip()
+        value = request.POST.get("value", "").strip()
         
         if not name:
             messages.error(request, "Credential name is required.")
             return redirect("credentials_list")
         
-        if not credential_data:
-            messages.error(request, "Credential data is required.")
+        if not key or not value:
+            messages.error(request, "Both key and value are required.")
             return redirect("credentials_list")
         
         # Check if name already exists
@@ -69,9 +45,9 @@ def credential_create(request):
         credential = GlobalCredential.objects.create(
             user=request.user,
             name=name,
-            credential_type=credential_type,
+            credential_type=CredentialType.GENERIC,
         )
-        credential.set_encrypted_data(credential_data)
+        credential.set_encrypted_data({"key": key, "value": value})
         credential.save()
         
         messages.success(request, f'Credential "{name}" created successfully!')

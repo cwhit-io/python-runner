@@ -62,6 +62,14 @@ class GlobalCredential(models.Model):
         """Return a masked representation of the credential value for UI display."""
         return "••••••••••••••••••••••••••••••••••••••••••••••••••"
     
+    def get_env_var_names(self) -> list[str]:
+        """Return the environment variable names this credential will produce."""
+        prefix = self.name.upper().replace(" ", "_")
+        data = self.get_decrypted_data()
+        if not data:
+            return [f"{prefix}_KEY"]
+        return [f"{prefix}_{k.upper()}" for k in data.keys()]
+    
     def get_decrypted_data(self) -> dict:
         """Decrypt and return the credential data. Returns empty dict if decryption fails."""
         from app.services.secret_store import get_master_key
