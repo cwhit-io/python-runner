@@ -624,10 +624,10 @@ class BackwardCompatibilityTestCase(TestCase):
     def test_generic_tools_still_exist(self):
         """Test that generic tools like list_scripts, run_script still work."""
         # This test verifies that the generic tools are still present in the codebase
-        from app.mcp_server import mcp
+        from app.mcp_server import admin_mcp
         
-        # Check that generic tools are registered
-        tool_names = list(mcp._tool_manager._tools.keys())
+        # Check that generic tools are registered on admin_mcp
+        tool_names = list(admin_mcp._tool_manager._tools.keys())
         
         # These generic tools should always be present
         self.assertIn("list_scripts", tool_names)

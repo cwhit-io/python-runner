@@ -92,6 +92,21 @@ urlpatterns = [
         name="script_toggle_public",
     ),
     path(
+        "scripts/<int:script_id>/toggle-mcp/",
+        views_scripts.script_toggle_mcp,
+        name="script_toggle_mcp",
+    ),
+    path(
+        "scripts/<int:script_id>/edit-inline/",
+        views_scripts.script_edit_inline,
+        name="script_edit_inline",
+    ),
+    path(
+        "scripts/<int:script_id>/edit-meta/",
+        views_scripts.script_edit_meta,
+        name="script_edit_meta",
+    ),
+    path(
         "scripts/<int:script_id>/edit/", views_scripts.script_edit, name="script_edit"
     ),
     path(

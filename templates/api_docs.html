@@ -121,118 +121,188 @@
                 </div>
             </div>
 
-            <!-- API Information Section -->
-            <div class="grid lg:grid-cols-3 gap-8 mb-12">
-                <!-- API Details -->
-                <div class="lg:col-span-2">
-                    <div class="card bg-base-100 shadow-xl border border-base-200">
-                        <div class="card-body">
-                            <h3 class="card-title text-2xl mb-6 flex items-center gap-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                API Information
-                            </h3>
-                            <div class="grid md:grid-cols-2 gap-6">
-                                <div class="space-y-3">
-                                    <div>
-                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                            </svg>
-                                            Base URL
-                                        </h4>
-                                        <code class="bg-base-200 px-3 py-2 rounded-lg text-sm font-mono block border">{{ request.scheme }}://{{ request.get_host }}/api/</code>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            OpenAPI Schema
-                                        </h4>
-                                        <a href="{% url 'api-1.0.0:openapi-json' %}" class="link link-primary link-hover inline-flex items-center gap-2" target="_blank">
-                                            View JSON Schema
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                            </svg>
-                                        </a>
-                                    </div>
+            <!-- MCP Endpoints Section -->
+            <div class="card bg-base-100 shadow-xl border border-base-200 mb-12">
+                <div class="card-body">
+                    <h3 class="card-title text-2xl mb-2 flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Model Context Protocol (MCP) Endpoints
+                    </h3>
+                    <p class="text-base-content/70 mb-6">
+                        ScriptDash exposes two native MCP (Streamable HTTP) endpoints that AI assistants
+                        like ChatGPT, Claude, and Copilot can connect to. Each endpoint serves a different purpose
+                        with appropriate authentication scopes.
+                    </p>
+
+                    <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                        <!-- Scripts MCP Card -->
+                        <div class="card bg-base-200/50 border border-success/20">
+                            <div class="card-body">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="badge badge-success badge-lg">/mcp</div>
+                                    <div class="badge badge-outline">script:execute</div>
                                 </div>
-                                <div class="space-y-3">
-                                    <div>
-                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                            Authentication
-                                        </h4>
-                                        <div class="alert alert-info py-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <div class="text-sm">
-                                                <div class="font-medium">API Token Required</div>
-                                                <div class="text-base-content/70">Include <code class="bg-base-300 px-1 py-0.5 rounded text-xs">Authorization: Bearer &lt;token&gt;</code> in headers</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m-9 6h18" />
-                                            </svg>
-                                            MCP Translator
-                                        </h4>
-                                        <div class="alert alert-success py-3">
-                                            <div class="text-sm">
-                                                <div class="font-medium">Tool manifest support</div>
-                                                <div class="text-base-content/70">
-                                                    Discover scripts via <code class="bg-base-300 px-1 py-0.5 rounded text-xs">GET /api/v1/mcp/discovery</code>,
-                                                    then fetch manifests and invoke scripts using:
-                                                    <br>
-                                                    <code class="bg-base-300 px-1 py-0.5 rounded text-xs">GET /api/v1/mcp/scripts</code>,
-                                                    <code class="bg-base-300 px-1 py-0.5 rounded text-xs">GET /api/v1/mcp/scripts/{id}/manifest</code>,
-                                                    <code class="bg-base-300 px-1 py-0.5 rounded text-xs">POST /api/v1/mcp/scripts/{id}/invoke</code>.
-                                                </div>
-                                            </div>
-                                        </div>
+                                <h4 class="card-title text-lg mb-2">Scripts MCP</h4>
+                                <p class="text-sm text-base-content/70 mb-4">
+                                    Dynamically exposes one tool per script that has
+                                    <code class="bg-base-300 px-1 py-0.5 rounded text-xs">expose_to_mcp=True</code>.
+                                    Each tool is named after the script (auto-generated or custom via
+                                    <code class="bg-base-300 px-1 py-0.5 rounded text-xs">mcp_tool_name</code>).
+                                </p>
+                                <ul class="text-sm space-y-1.5 text-base-content/70">
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-success mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>Execute scripts via AI assistants</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-success mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>Each script gets its own named tool with custom input schema</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-success mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>OAuth scope: <code class="bg-base-300 px-1 py-0.5 rounded text-xs">script:execute</code></span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-success mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>Tools auto-refresh when scripts are saved or deleted</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Admin MCP Card -->
+                        <div class="card bg-base-200/50 border border-warning/20">
+                            <div class="card-body">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="badge badge-warning badge-lg">/mcp/admin</div>
+                                    <div class="badge badge-outline">script:read + script:write</div>
+                                </div>
+                                <h4 class="card-title text-lg mb-2">Admin MCP</h4>
+                                <p class="text-sm text-base-content/70 mb-4">
+                                    Provides full CRUD management tools for scripts, schedules, tags,
+                                    secrets, and global credentials. Use this endpoint for infrastructure
+                                    management via AI assistants.
+                                </p>
+                                <ul class="text-sm space-y-1.5 text-base-content/70">
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-warning mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span><code class="bg-base-300 px-1 py-0.5 rounded text-xs">list_scripts</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">search</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">fetch</code></span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-warning mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span><code class="bg-base-300 px-1 py-0.5 rounded text-xs">create_script</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">update_script</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">delete_script</code></span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-warning mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span><code class="bg-base-300 px-1 py-0.5 rounded text-xs">run_script</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">list_executions</code>, <code class="bg-base-300 px-1 py-0.5 rounded text-xs">get_execution</code></span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <svg class="h-4 w-4 text-warning mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>Schedule, tag, secret, and credential management tools</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MCP Authentication Details -->
+                    <div class="alert shadow-lg mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-info shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="text-sm">
+                            <span class="font-medium">MCP Authentication:</span>
+                            Both endpoints use OAuth 2.0 Bearer token authentication via
+                            <code class="bg-base-300 px-1 py-0.5 rounded text-xs">Authorization: Bearer &lt;token&gt;</code>.
+                            Obtain tokens from the
+                            <a href="{% url 'api_tokens' %}" class="link link-primary">API Tokens page</a>.
+                            The <code class="bg-base-300 px-1 py-0.5 rounded text-xs">/mcp</code> endpoint only requires
+                            <code class="bg-base-300 px-1 py-0.5 rounded text-xs">script:execute</code> scope,
+                            while <code class="bg-base-300 px-1 py-0.5 rounded text-xs">/mcp/admin</code> requires
+                            <code class="bg-base-300 px-1 py-0.5 rounded text-xs">script:read</code> and
+                            <code class="bg-base-300 px-1 py-0.5 rounded text-xs">script:write</code>.
+                        </div>
+                    </div>
+
+                    <!-- How to Connect -->
+                    <details class="collapse collapse-arrow bg-base-200/30 rounded-box">
+                        <summary class="collapse-title text-lg font-semibold">
+                            How to connect AI assistants to the MCP endpoints
+                        </summary>
+                        <div class="collapse-content">
+                            <div class="space-y-4">
+                                <div>
+                                    <h5 class="font-medium text-sm mb-2">Claude Desktop</h5>
+                                    <pre class="bg-base-300 p-3 rounded-lg text-xs overflow-x-auto"><code>{
+  "mcpServers": {
+    "scriptdash-scripts": {
+      "url": "{{ request.scheme }}://{{ request.get_host }}/mcp"
+    },
+    "scriptdash-admin": {
+      "url": "{{ request.scheme }}://{{ request.get_host }}/mcp/admin"
+    }
+  }
+}</code></pre>
+                                </div>
+                                <div>
+                                    <h5 class="font-medium text-sm mb-2">Programmatic (Python)</h5>
+                                    <pre class="bg-base-300 p-3 rounded-lg text-xs overflow-x-auto"><code>import httpx
+
+# List tools on the admin endpoint
+resp = httpx.get(
+    "{{ request.scheme }}://{{ request.get_host }}/mcp/admin",
+    headers={
+        "Authorization": "Bearer YOUR_TOKEN",
+        "Content-Type": "application/json",
+    },
+)
+print(resp.json())</code></pre>
+                                </div>
+                                <div class="alert alert-info py-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <div class="text-sm">
+                                        <span class="font-medium">Tip:</span>
+                                        When connecting to <code class="bg-base-300 px-1 py-0.5 rounded text-xs">/mcp</code>, AI clients will only see tools for scripts
+                                        with <strong>Expose to MCP Server</strong> enabled. Use the
+                                        <code class="bg-base-300 px-1 py-0.5 rounded text-xs">/mcp/admin</code> endpoint to manage your scripts.
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </details>
 
-                <!-- Quick Actions -->
-                <div>
-                    <div class="card bg-gradient-to-br from-primary/5 to-secondary/5 shadow-xl border border-base-200">
-                        <div class="card-body">
-                            <h3 class="card-title text-xl mb-4 flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                Quick Actions
-                            </h3>
-                            <div class="space-y-3">
-                                <a href="{% url 'swagger' %}" class="btn btn-primary btn-block justify-start gap-3" target="_blank">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    Test API Live
-                                </a>
-                                <a href="{% url 'redoc' %}" class="btn btn-secondary btn-block justify-start gap-3" target="_blank">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                    </svg>
-                                    Read Documentation
-                                </a>
-                                <a href="{% url 'api-1.0.0:openapi-json' %}" class="btn btn-outline btn-block justify-start gap-3" target="_blank">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    View Schema
-                                </a>
+                    <!-- REST MCP Translator -->
+                    <div class="mt-6 p-4 bg-base-200/30 rounded-box">
+                        <h4 class="font-semibold text-base mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            REST API MCP Translator
+                        </h4>
+                        <p class="text-sm text-base-content/70 mb-3">
+                            In addition to native MCP, the REST API provides MCP-compatible endpoints
+                            for script discovery, tool manifests, and invocation:
+                        </p>
+                        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                            <div class="bg-base-300/50 p-2.5 rounded-lg">
+                                <div class="badge badge-sm badge-outline mb-1">GET</div>
+                                <code class="text-xs block mt-1">/api/v1/mcp/discovery</code>
+                                <span class="text-xs text-base-content/60">Discover public scripts</span>
+                            </div>
+                            <div class="bg-base-300/50 p-2.5 rounded-lg">
+                                <div class="badge badge-sm badge-outline mb-1">GET</div>
+                                <code class="text-xs block mt-1">/api/v1/mcp/scripts</code>
+                                <span class="text-xs text-base-content/60">List MCP tool manifests</span>
+                            </div>
+                            <div class="bg-base-300/50 p-2.5 rounded-lg">
+                                <div class="badge badge-sm badge-outline mb-1">GET</div>
+                                <code class="text-xs block mt-1">/api/v1/mcp/scripts/{id}/manifest</code>
+                                <span class="text-xs text-base-content/60">Get tool manifest</span>
+                            </div>
+                            <div class="bg-base-300/50 p-2.5 rounded-lg">
+                                <div class="badge badge-sm badge-outline mb-1">POST</div>
+                                <code class="text-xs block mt-1">/api/v1/mcp/scripts/{id}/invoke</code>
+                                <span class="text-xs text-base-content/60">Execute script</span>
                             </div>
                         </div>
                     </div>

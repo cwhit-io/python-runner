@@ -20,10 +20,11 @@ django_asgi_app = get_asgi_application()
 # ── Import routing after Django ASGI app is initialized ─────────────────
 from app.routing import websocket_urlpatterns
 
-# ── Build the MCP ASGI app (import triggers django.setup internally) ────
-from app.mcp_server import create_mcp_asgi_app
+# ── Build MCP ASGI apps (import triggers django.setup internally) ──────
+from app.mcp_server import create_mcp_asgi_app, admin_mcp, scripts_mcp
 
-mcp_asgi_app = create_mcp_asgi_app()
+admin_mcp_asgi_app = create_mcp_asgi_app(admin_mcp)
+scripts_mcp_asgi_app = create_mcp_asgi_app(scripts_mcp)
 
 # ── Django + WebSocket router ───────────────────────────────────────────
 _django_app = ProtocolTypeRouter(
@@ -37,23 +38,23 @@ _django_app = ProtocolTypeRouter(
 
 # ── Top-level ASGI router ───────────────────────────────────────────────
 # FastMCP's streamable_http_app() is a Starlette instance with routes:
-#   /mcp                                  – MCP Streamable HTTP
-#   /.well-known/oauth-protected-resource – OAuth metadata (RFC 9728)
+#   admin_mcp: /mcp/admin                         – Admin CRUD MCP
+#   scripts_mcp: /mcp                             – Dynamic script tools MCP
+#   both:     /.well-known/oauth-protected-resource – OAuth metadata (RFC 9728)
 #
 # ChatGPT hits /mcp first (gets 401), then fetches the well-known metadata.
 # Resource metadata URL is {resource_server_url}/.well-known/oauth-protected-resource.
-# We route /mcp and /.well-known/oauth-protected-resource to FastMCP.
 from starlette.types import Scope, Receive, Send
 
 
 async def application(scope: Scope, receive: Receive, send: Send) -> None:
-    """Route /mcp and OAuth protected-resource paths to FastMCP, rest to Django."""
+    """Route MCP paths to the appropriate FastMCP app, rest to Django."""
     path = scope.get("path", "")
-    if scope["type"] == "http" and (
-        path.startswith("/mcp")
-        or path.startswith("/.well-known/oauth-protected-resource")
-    ):
-        await mcp_asgi_app(scope, receive, send)
-    else:
-        await _django_app(scope, receive, send)
+    if scope["type"] == "http":
+        if path.startswith("/mcp/admin"):
+            await admin_mcp_asgi_app(scope, receive, send)
+        elif path.startswith("/mcp") or path.startswith("/.well-known/oauth-protected-resource"):
+            await scripts_mcp_asgi_app(scope, receive, send)
+        else:
+            await _django_app(scope, receive, send)
 

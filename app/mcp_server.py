@@ -24,7 +24,7 @@ import django
 django.setup()
 
 # ── Imports ──────────────────────────────────────────────────────────────
-from typing import Any, Annotated
+from typing import Annotated
 
 from django.contrib.auth import get_user_model
 from mcp.server.fastmcp import FastMCP, Context
@@ -55,9 +55,6 @@ from app.mcp_schemas import (
     GetScriptSecretOutput,
     SetScriptSecretOutput,
     DeleteScriptSecretOutput,
-    RefreshMCPToolsOutput,
-    DynamicToolInfo,
-    MCPToolInfoOutput,
 )
 
 User = get_user_model()
@@ -412,8 +409,8 @@ def _register_dynamic_mcp_tools():
         tool_func.__name__ = tool_name
         tool_func.__doc__ = description
         
-        # Register with FastMCP - parameters are derived from function signature
-        tool = mcp._tool_manager.add_tool(
+        # Register with scripts_mcp - parameters are derived from function signature
+        tool = scripts_mcp._tool_manager.add_tool(
             tool_func,
             name=tool_name,
             description=description,
@@ -440,8 +437,8 @@ def _unregister_dynamic_mcp_tools():
     global _registered_dynamic_tool_names
     
     for tool_name in list(_registered_dynamic_tool_names):
-        if tool_name in mcp._tool_manager._tools:
-            mcp._tool_manager._tools.pop(tool_name)
+        if tool_name in scripts_mcp._tool_manager._tools:
+            scripts_mcp._tool_manager._tools.pop(tool_name)
             logger.info(f"Unregistered dynamic MCP tool: {tool_name}")
     
     _registered_dynamic_tool_names.clear()
@@ -464,92 +461,130 @@ _SERVER_BASE = os.environ.get(
     os.environ.get("SCRIPTDASH_URL", "http://localhost:8003"),
 )
 
-# ── FastMCP Server with OAuth ────────────────────────────────────────────
+# ── FastMCP Factory ──────────────────────────────────────────────────────
 
-mcp = FastMCP(
-    name="ScriptDash",
+
+def _create_mcp_instance(
+    name: str,
+    instructions: str,
+    streamable_http_path: str,
+    required_scopes: list[str],
+) -> FastMCP:
+    """Create a FastMCP instance with standard ScriptDash configuration."""
+    return FastMCP(
+        name=name,
+        instructions=instructions,
+        streamable_http_path=streamable_http_path,
+        # ── OAuth configuration ──────────────────────────────────────────
+        auth=AuthSettings(
+            issuer_url=f"{_SERVER_BASE}",
+            resource_server_url=f"{_SERVER_BASE}",
+            required_scopes=required_scopes,
+            client_registration_options=ClientRegistrationOptions(
+                enabled=True,
+                default_scopes=required_scopes,
+            ),
+        ),
+        token_verifier=ScriptDashTokenVerifier(),
+        # Use stateless HTTP to avoid TaskGroup lifecycle requirement
+        stateless_http=True,
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["scriptdash.bhm.li", "*.bhm.li"],
+            allowed_origins=["*"],
+        ),
+    )
+
+
+# ── Admin MCP Server (CRUD tools) ────────────────────────────────────────
+# Mounted at /mcp/admin. Exposes management tools for scripts, schedules,
+# tags, secrets, and credentials.
+
+admin_mcp = _create_mcp_instance(
+    name="ScriptDash Admin",
+    streamable_http_path="/mcp/admin",
+    required_scopes=["script:read", "script:write"],
     instructions=(
-        "ScriptDash MCP server – manage and execute Python/bash/HTTP scripts through the Model Context Protocol. "
+        "ScriptDash Admin MCP server – manage scripts, schedules, tags, "
+        "secrets, and credentials through the Model Context Protocol."
         "\n\n"
         "## SCRIPT MANAGEMENT TOOLS:\n"
         "- list_scripts: List all your scripts with their latest status.\n"
         "- list_mcp_tools: List only scripts exposed to MCP (expose_to_mcp=True).\n"
         "- search: Search scripts by name or description keyword.\n"
         "- fetch: Get full script details including source code and dependencies.\n"
-        "- create_script: Create a new script (provide name, code, description, language, dependencies, is_public).\n"
-        "- update_script: Update an existing script (provide script_id and optional fields to change).\n"
-        "- delete_script: Delete a script by ID (removes script and its virtual environment).\n"
+        "- create_script: Create a new script.\n"
+        "- update_script: Update an existing script.\n"
+        "- delete_script: Delete a script by ID.\n"
         "\n"
         "## EXECUTION TOOLS:\n"
         "- list_executions: List recent executions for a script by ID.\n"
-        "- get_execution: Get full execution details by execution ID (includes stdout, stderr, exit_code).\n"
+        "- get_execution: Get full execution details by execution ID.\n"
         "- run_script: Execute a script (only works for scripts exposed to MCP).\n"
         "\n"
         "## SCHEDULE MANAGEMENT TOOLS:\n"
-        "- list_schedules: List all schedules for a script by ID.\n"
-        "- create_schedule: Create a schedule (cron, interval, or one-time) for a script.\n"
+        "- list_schedules: List all schedules for a script.\n"
+        "- create_schedule: Create a schedule for a script.\n"
         "- delete_schedule: Delete a schedule by ID.\n"
         "\n"
         "## TAG MANAGEMENT TOOLS:\n"
-        "- list_tags: List all tags you've created.\n"
-        "- create_tag: Create a new tag with name and optional color/description.\n"
-        "- update_tag: Update an existing tag's name, color, or description.\n"
+        "- list_tags: List all tags.\n"
+        "- create_tag: Create a new tag.\n"
+        "- update_tag: Update an existing tag.\n"
         "- delete_tag: Delete a tag by ID.\n"
         "\n"
         "## SECRET MANAGEMENT TOOLS:\n"
         "- list_script_secrets: List all secret names for a script.\n"
-        "- get_script_secret: Get a secret value by name for a script.\n"
-        "- set_script_secret: Set/update a secret name and value for a script.\n"
-        "- delete_script_secret: Delete a secret by name for a script.\n"
+        "- get_script_secret: Get a secret value.\n"
+        "- set_script_secret: Set/update a secret.\n"
+        "- delete_script_secret: Delete a secret.\n"
         "\n"
         "## GLOBAL CREDENTIAL MANAGEMENT TOOLS:\n"
-        "- list_credentials: List all your global credentials (values are masked).\n"
+        "- list_credentials: List all your global credentials.\n"
         "- create_credential: Create a new global credential.\n"
-        "- update_credential: Update a credential's name or values.\n"
+        "- update_credential: Update a credential.\n"
         "- delete_credential: Delete a credential by ID.\n"
         "\n"
-        "IMPORTANT: To make a script callable via MCP, enable 'Expose to MCP Server' in the script settings. "
-        "When exposed, attached credentials are automatically injected into the script environment during execution. "
-        "Credential values are NEVER exposed in tool descriptions, logs, or responses."
+        "IMPORTANT: To make a script callable via the scripts MCP endpoint "
+        "(/mcp), enable 'Expose to MCP Server' in the script settings."
     ),
-    # ── OAuth configuration ──────────────────────────────────────────────
-    # Tells ChatGPT which OAuth authorization server to use.
-    auth=AuthSettings(
-        issuer_url=f"{_SERVER_BASE}",
-        resource_server_url=f"{_SERVER_BASE}",  # NOT /mcp – metadata is at root
-        required_scopes=["script:read", "script:write", "script:execute"],
-        # Allow ChatGPT to register itself as an OAuth client automatically
-        client_registration_options=ClientRegistrationOptions(
-            enabled=True,
-            default_scopes=["script:read", "script:write", "script:execute"],
-        ),
-    ),
-    token_verifier=ScriptDashTokenVerifier(),
-    # Use stateless HTTP to avoid TaskGroup lifecycle requirement when
-    # mounted inside Daphne (which doesn't support Starlette lifespan).
-    stateless_http=True,
-    # Allow the public domain for Host-header validation
-    transport_security=TransportSecuritySettings(
-        enable_dns_rebinding_protection=True,
-        allowed_hosts=["scriptdash.bhm.li", "*.bhm.li"],
-        allowed_origins=["*"],
+)
+
+
+# ── Scripts MCP Server (dynamic per-script tools) ────────────────────────
+# Mounted at /mcp. Only exposes dynamically registered tools for scripts
+# that have expose_to_mcp=True.
+
+scripts_mcp = _create_mcp_instance(
+    name="ScriptDash",
+    streamable_http_path="/mcp",
+    required_scopes=["script:execute"],
+    instructions=(
+        "ScriptDash MCP server – execute Python/bash/HTTP scripts through "
+        "the Model Context Protocol."
+        "\n\n"
+        "Each script with 'Expose to MCP Server' enabled appears as its own "
+        "tool, named after the script. Call any of the available tools to "
+        "execute that script."
+        "\n\n"
+        "To manage scripts (create, update, delete), schedules, tags, "
+        "secrets, and credentials, use the admin MCP endpoint at /mcp/admin."
     ),
 )
 
 
 # ── Dynamic Tool Registration on Startup ──────────────────────────────────
 
-# Register all MCP-exposed scripts as individual tools at startup
+# Register all MCP-exposed scripts as individual tools on scripts_mcp
 _rebuild_dynamic_tools()
 
 
-# ── Tools ────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# ADMIN MCP TOOLS (registered on admin_mcp, mounted at /mcp/admin)
+# ═══════════════════════════════════════════════════════════════════════════
 
 
-# ── Inputs/Outputs Using Pydantic Models for Schema Generation ─────────────
-
-
-@mcp.tool(
+@admin_mcp.tool(
     name="search",
     description="Search your ScriptDash scripts by name or description keyword.",
     annotations={"readOnlyHint": True},
@@ -575,7 +610,7 @@ def search_scripts(query: str, context: Context) -> Annotated[CallToolResult, Se
     return SearchScriptsOutput(results=results).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="fetch",
     description="Fetch full details and source code for a specific script by ID.",
     annotations={"readOnlyHint": True},
@@ -612,7 +647,7 @@ def fetch_script(script_id: int, context: Context) -> Annotated[CallToolResult, 
     return FetchScriptOutput(**structured).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_scripts",
     description="List all of your ScriptDash scripts with their latest status.",
     annotations={"readOnlyHint": True},
@@ -630,7 +665,7 @@ def list_scripts(context: Context) -> Annotated[CallToolResult, ListScriptsOutpu
     return ListScriptsOutput(scripts=results).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_mcp_tools",
     description="List all scripts that are currently exposed to the MCP server.",
     annotations={"readOnlyHint": True},
@@ -650,7 +685,7 @@ def list_mcp_tools(context: Context) -> Annotated[CallToolResult, ListScriptsOut
     return ListScriptsOutput(scripts=results).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="refresh_mcp_tools",
     description="Refresh the dynamic MCP tool list (call when scripts are added/removed/renamed).",
     annotations={
@@ -680,7 +715,7 @@ def refresh_mcp_tools(context: Context) -> dict:
     }
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_executions",
     description="List recent executions for a script by ID.",
     annotations={"readOnlyHint": True},
@@ -717,7 +752,7 @@ def list_executions(script_id: int, context: Context) -> Annotated[CallToolResul
     return ListExecutionsOutput(script_id=script_id, executions=execs).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="run_script",
     description="Execute a script and return the result. Provide optional stdin input and timeout.",
     annotations={
@@ -790,7 +825,7 @@ def run_script(
     ).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="get_execution",
     description="Fetch full details for a specific execution by ID, including stdout, stderr, and outputs.",
     annotations={"readOnlyHint": True},
@@ -828,7 +863,7 @@ def get_execution(execution_id: int, context: Context) -> Annotated[CallToolResu
     ).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="create_script",
     description="Create a new script with optional code, description, and tags.",
     annotations={
@@ -896,7 +931,7 @@ def create_script(
     ).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="update_script",
     description="Update an existing script's code, description, or other properties.",
     annotations={
@@ -983,7 +1018,7 @@ def update_script(
     ).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="delete_script",
     description="Delete a script by ID. This removes the script and its virtual environment.",
     annotations={
@@ -1011,7 +1046,7 @@ def delete_script(context: Context, script_id: int) -> Annotated[CallToolResult,
     return DeleteScriptOutput(success=True, deleted_script_id=script_id).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_schedules",
     description="List all schedules for a specific script by ID.",
     annotations={"readOnlyHint": True},
@@ -1054,7 +1089,7 @@ def list_schedules(context: Context, script_id: int) -> Annotated[CallToolResult
     return ListSchedulesOutput(script_id=script_id, schedules=result).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="create_schedule",
     description="Create a schedule (cron, interval, or one-time) for a script.",
     annotations={
@@ -1133,7 +1168,7 @@ def create_schedule(
     ).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="delete_schedule",
     description="Delete a schedule by ID.",
     annotations={
@@ -1168,7 +1203,7 @@ def delete_schedule(context: Context, schedule_id: int) -> Annotated[CallToolRes
     return DeleteScheduleOutput(success=True, deleted_schedule_id=schedule_id).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_tags",
     description="List all tags created by the authenticated user.",
     annotations={"readOnlyHint": True},
@@ -1193,7 +1228,7 @@ def list_tags(context: Context) -> Annotated[CallToolResult, ListTagsOutput]:
     return ListTagsOutput(tags=result).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="create_tag",
     description="Create a new tag with a name and optional color.",
     annotations={
@@ -1231,7 +1266,7 @@ def create_tag(
     return TagPropertySchema(id=tag.id, name=tag.name, color=tag.color, description=tag.description).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="update_tag",
     description="Update an existing tag's name, color, or description.",
     annotations={
@@ -1276,7 +1311,7 @@ def update_tag(
     return TagPropertySchema(id=tag.id, name=tag.name, color=tag.color, description=tag.description).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="delete_tag",
     description="Delete a tag by ID.",
     annotations={
@@ -1307,7 +1342,7 @@ def delete_tag(context: Context, tag_id: int) -> Annotated[CallToolResult, Delet
 # ── Secret Management Tools ────────────────────────────────────────────────
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_script_secrets",
     description="List all secret names for a script (values not returned).",
     annotations={"readOnlyHint": True},
@@ -1335,7 +1370,7 @@ def list_script_secrets(context: Context, script_id: int) -> Annotated[CallToolR
     return ListScriptSecretsOutput(script_id=script_id, secrets=result).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="get_script_secret",
     description="Get a secret value by name for a script.",
     annotations={"readOnlyHint": True},
@@ -1365,7 +1400,7 @@ def get_script_secret(context: Context, script_id: int, secret_name: str) -> Ann
     return GetScriptSecretOutput(script_id=script_id, name=secret_name, value=value).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="set_script_secret",
     description="Set or update a secret name and value for a script.",
     annotations={
@@ -1408,7 +1443,7 @@ def set_script_secret(
     return SetScriptSecretOutput(success=True, script_id=script_id, name=secret_name).model_dump()  # type: ignore[return-value]
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="delete_script_secret",
     description="Delete a secret by name for a script.",
     annotations={
@@ -1445,7 +1480,7 @@ def delete_script_secret(context: Context, script_id: int, secret_name: str) -> 
 # ── Global Credential Management Tools ─────────────────────────────────────
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="list_credentials",
     description="List all your global credentials (values are masked).",
     annotations={"readOnlyHint": True},
@@ -1474,7 +1509,7 @@ def list_credentials(context: Context) -> dict:
     return {"credentials": results}
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="create_credential",
     description="Create a new global credential.",
     annotations={
@@ -1561,7 +1596,7 @@ def create_credential(
         return _error(f"Failed to create credential: {str(e)}")
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="update_credential",
     description="Update a credential's name or values.",
     annotations={
@@ -1635,7 +1670,7 @@ def update_credential(
     }
 
 
-@mcp.tool(
+@admin_mcp.tool(
     name="delete_credential",
     description="Delete a global credential by ID.",
     annotations={
@@ -1663,7 +1698,7 @@ def delete_credential(context: Context, credential_id: int) -> dict:
 # ── ASGI app factory ─────────────────────────────────────────────────────
 
 
-def create_mcp_asgi_app() -> "Starlette":
+def create_mcp_asgi_app(mcp_instance: FastMCP = None) -> "Starlette":
     """Return the FastMCP streamable_http_app as a Starlette ASGI app.
 
     ``stateless_http=True`` avoids persistent sessions, but the SDK still
@@ -1674,8 +1709,11 @@ def create_mcp_asgi_app() -> "Starlette":
     import anyio
     import asyncio
 
-    app = mcp.streamable_http_app()
-    sm = mcp.session_manager
+    if mcp_instance is None:
+        mcp_instance = scripts_mcp
+
+    app = mcp_instance.streamable_http_app()
+    sm = mcp_instance.session_manager
 
     if sm._task_group is None:
         async def _enter_run():

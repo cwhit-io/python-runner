@@ -77,6 +77,7 @@ def script_create(request):
 def script_detail(request, script_id):
     """View script details and execution history."""
     script = get_object_or_404(Script, id=script_id)
+    from app.models import Tag, GlobalCredential
 
     # Check permissions: owner can always view, others can only view if public
     if script.owner != request.user and not script.is_public:
@@ -104,6 +105,8 @@ def script_detail(request, script_id):
             "script": script,
             "executions": executions,
             "schedules": schedules,
+            "user_tags": Tag.objects.filter(created_by=request.user).order_by("name"),
+            "user_credentials": GlobalCredential.objects.filter(user=request.user).order_by("name"),
         },
     )
 
@@ -133,75 +136,149 @@ def script_toggle_public(request, script_id):
 
 
 @login_required
-def script_edit(request, script_id):
-    """Edit script code and settings."""
+@require_http_methods(["POST"])
+def script_toggle_mcp(request, script_id):
+    """Toggle the MCP exposure status of a script via AJAX."""
+    from django.http import JsonResponse
+    import json
+
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    try:
+        data = json.loads(request.body)
+        expose_to_mcp = data.get("expose_to_mcp", False)
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({"success": False, "error": "Invalid data"}, status=400)
+
+    script.expose_to_mcp = expose_to_mcp
+    script.save()
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def script_edit_inline(request, script_id):
+    """Save inline-edited name/description via AJAX."""
+    from django.http import JsonResponse
+    import json
+
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    if "name" in data:
+        name = data["name"].strip()
+        if not name:
+            return JsonResponse({"success": False, "error": "Name is required"}, status=400)
+        script.name = name
+    if "description" in data:
+        script.description = data["description"].strip()
+
+    script.save()
+    return JsonResponse({"success": True, "name": script.name, "description": script.description})
+
+
+@login_required
+@require_http_methods(["POST"])
+def script_edit_meta(request, script_id):
+    """Edit script metadata (language, visibility, tags, credentials) via HTMX."""
     from app.models import Tag, GlobalCredential
     
     script = get_object_or_404(Script, id=script_id, owner=request.user)
+    
+    # Update fields (name/description edited inline on the detail page)
+    script.language = request.POST.get("language", script.language)
+    script.is_public = request.POST.get("is_public") == "on"
+    script.expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
+    
+    # Handle tags - only assign existing tags
+    tag_names = request.POST.getlist("tags")
+    tags = []
+    for tag_name in tag_names:
+        try:
+            tag = Tag.objects.get(name=tag_name, created_by=request.user)
+            tags.append(tag)
+        except Tag.DoesNotExist:
+            pass
+    script.tags.set(tags)
+    
+    # Handle credentials - only assign existing credentials owned by user
+    cred_ids = request.POST.getlist("credentials")
+    credentials = []
+    for cred_id in cred_ids:
+        try:
+            cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
+            credentials.append(cred)
+        except GlobalCredential.DoesNotExist:
+            pass
+    script.credentials.set(credentials)
+    
+    script.save()
+    
+    # Build the PUBLIC badge outside the f-string to avoid backslash issues
+    public_badge = ''
+    if script.is_public:
+        public_badge = '<span class=\"badge badge-sm badge-primary font-bold\">PUBLIC</span>'
+    
+    # Return HTMX response to update badges and close panel
+    response_html = f'''
+    <script>
+    // Update badges
+    const headerBadges = document.getElementById('header-badges');
+    headerBadges.innerHTML = '{public_badge}';
+    {{% for tag in script.tags.all %}}
+    headerBadges.innerHTML += '<span class="badge badge-sm badge-outline opacity-80" style="border-color: {{{{ tag.color }}}}; color: {{{{ tag.color }}}};">{{{{ tag.name }}}}</span>';
+    {{% endfor %}};
+    
+    showToast("Metadata updated successfully!", "success");
+    // Hide the inline settings panel instead of closing a modal
+    const settingsPanel = document.getElementById('inline-settings-panel');
+    if (settingsPanel) settingsPanel.classList.add('hidden');
+    const metaLabel = document.getElementById('edit-meta-label');
+    if (metaLabel) metaLabel.textContent = 'Edit Metadata';
+    </script>
+    '''
+    
+    return HttpResponse(response_html)
+
+
+@login_required
+def script_edit(request, script_id):
+    """Edit script code, dependencies, language, and credentials."""
+    script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     if request.method == "POST":
-        script.name = request.POST.get("name", script.name)
-        script.description = request.POST.get("description", script.description)
-        script.language = request.POST.get("language", script.language)
         script.code = request.POST.get("code", script.code)
         script.dependencies = request.POST.get("dependencies", script.dependencies)
-        script.is_public = request.POST.get("is_public") == "on"
-        script.expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
-        script.mcp_tool_name = request.POST.get("mcp_tool_name", script.mcp_tool_name)
-        script.is_destructive = request.POST.get("is_destructive") == "on"
-
-        # Handle input_schema as JSON string if provided
-        input_schema_json = request.POST.get("input_schema", "").strip()
-        if input_schema_json:
-            try:
-                import json
-                script.input_schema = json.loads(input_schema_json)
-            except json.JSONDecodeError:
-                messages.error(request, "Invalid input_schema JSON format.")
-                return redirect("script_edit", script_id=script.id)
-        else:
-            script.input_schema = None
-
-        # Handle tags - only assign existing tags
-        tag_names = request.POST.getlist("tags")
-
-        tags = []
-        for tag_name in tag_names:
-            try:
-                tag = Tag.objects.get(name=tag_name, created_by=request.user)
-                tags.append(tag)
-            except Tag.DoesNotExist:
-                # Skip tags that don't exist or don't belong to the user
-                pass
-        script.tags.set(tags)
+        script.language = request.POST.get("language", script.language)
 
         # Handle credentials - only assign existing credentials owned by user
+        from app.models import GlobalCredential
         cred_ids = request.POST.getlist("credentials")
-        credentials = []
-        for cred_id in cred_ids:
-            try:
-                cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
-                credentials.append(cred)
-            except GlobalCredential.DoesNotExist:
-                pass
-        script.credentials.set(credentials)
+        if cred_ids:
+            credentials = []
+            for cred_id in cred_ids:
+                try:
+                    cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
+                    credentials.append(cred)
+                except GlobalCredential.DoesNotExist:
+                    pass
+            script.credentials.set(credentials)
 
         script.save()
 
         messages.success(request, "Script updated successfully!")
         return redirect("script_detail", script_id=script.id)
 
-    # Get all user's tags and credentials for the form
-    user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
-    user_credentials = GlobalCredential.objects.filter(user=request.user).order_by("name")
-
     return render(
         request,
         "scripts/edit.html",
         {
             "script": script,
-            "user_tags": user_tags,
-            "user_credentials": user_credentials,
         },
     )
 
@@ -1062,122 +1139,15 @@ def tag_delete(request, tag_id):
 
 
 @login_required
-def script_edit(request, script_id):
-    """Edit a script."""
-    script = get_object_or_404(Script, id=script_id, owner=request.user)
-
-    if request.method == "POST":
-        # Update script
-        name = request.POST.get("name", "").strip()
-        description = request.POST.get("description", "").strip()
-        language = request.POST.get("language", "python")
-        code = request.POST.get("code", "")
-        dependencies = request.POST.get("dependencies", "")
-        is_public = request.POST.get("is_public") == "on"
-        expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
-        mcp_tool_name = request.POST.get("mcp_tool_name", "").strip()
-        is_destructive = request.POST.get("is_destructive") == "on"
-
-        # Get tags
-        tags = request.POST.getlist("tags")
-
-        # Validate
-        if not name:
-            messages.error(request, "Script name is required.")
-            return redirect("script_edit", script_id=script.id)
-
-        # Check name uniqueness
-        if (
-            Script.objects.filter(owner=request.user, name=name)
-            .exclude(id=script.id)
-            .exists()
-        ):
-            messages.error(request, "A script with this name already exists.")
-            return redirect("script_edit", script_id=script.id)
-
-        # Update script
-        script.name = name
-        script.description = description
-        script.language = language
-        script.code = code
-        script.dependencies = dependencies
-        script.is_public = is_public
-        script.expose_to_mcp = expose_to_mcp
-        script.mcp_tool_name = mcp_tool_name
-        script.is_destructive = is_destructive
-        script.save()
-
-        # Update tags
-        from app.models import Tag
-
-        script.tags.set(Tag.objects.filter(name__in=tags, created_by=request.user))
-
-        messages.success(request, f'Script "{name}" updated successfully!')
-        
-        # If AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            from django.http import JsonResponse
-            return JsonResponse({'status': 'success', 'message': f'Script "{name}" updated successfully!'})
-        
-        # Regular request - redirect to detail page
-        return redirect("script_detail", script_id=script.id)
-
-    # GET request - render edit form
-    from app.models import Tag
-
-    user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
-
-    return render(
-        request,
-        "scripts/edit.html",
-        {
-            "script": script,
-            "user_tags": user_tags,
-        },
-    )
-
-
-@login_required
 def script_test(request, script_id):
-    """Test run the script - save it first, then redirect to edit page."""
+    """Save code/dependencies then run the script."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     if request.method == "POST":
-        # Save the script with current form data
-        name = request.POST.get("name", "").strip()
-        description = request.POST.get("description", "").strip()
-        language = request.POST.get("language", script.language)
-        code = request.POST.get("code", script.code)
-        dependencies = request.POST.get("dependencies", script.dependencies)
-        is_public = request.POST.get("is_public") == "on"
-        tags = request.POST.getlist("tags")
-
-        # Validate
-        if not name:
-            messages.error(request, "Script name is required.")
-            return redirect("script_edit", script_id=script.id)
-
-        # Check name uniqueness
-        if (
-            Script.objects.filter(owner=request.user, name=name)
-            .exclude(id=script.id)
-            .exists()
-        ):
-            messages.error(request, "A script with this name already exists.")
-            return redirect("script_edit", script_id=script.id)
-
-        # Update script
-        script.name = name
-        script.description = description
-        script.language = language
-        script.code = code
-        script.dependencies = dependencies
-        script.is_public = is_public
+        # Only save code and dependencies (metadata is edited on the detail page)
+        script.code = request.POST.get("code", script.code)
+        script.dependencies = request.POST.get("dependencies", script.dependencies)
         script.save()
-
-        # Update tags
-        from app.models import Tag
-        script.tags.set(Tag.objects.filter(name__in=tags, created_by=request.user))
 
         # Run the test
         try:

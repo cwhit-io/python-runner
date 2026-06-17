@@ -25,21 +25,58 @@
         <div class="card-body">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                 <div class="flex-1">
-                    <h1 class="text-4xl font-bold mb-2">{{ script.name }}</h1>
-                    <p class="text-base opacity-80 mb-4">{{ script.description|default:"No description provided" }}</p>
+                    <!-- Inline-editable Name -->
+                    <div class="group relative mb-1">
+                        <h1 id="display-name" class="text-4xl font-bold cursor-pointer group-hover:opacity-80 transition-opacity"
+                            onclick="editInlineName()" title="Click to edit">{{ script.name }}</h1>
+                        <div id="inline-name-edit" class="hidden">
+                            <input type="text" id="inline-name-input" class="input input-bordered input-lg w-full text-2xl font-bold" value="{{ script.name }}" />
+                            <div class="flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-primary" onclick="saveInlineName()">Save</button>
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="cancelInlineName()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inline-editable Description -->
+                    <div class="group relative mb-4">
+                        <p id="display-desc" class="text-base opacity-80 cursor-pointer group-hover:opacity-60 transition-opacity"
+                           onclick="editInlineDesc()" title="Click to edit">{{ script.description|default:"No description provided" }}</p>
+                        <div id="inline-desc-edit" class="hidden">
+                            <textarea id="inline-desc-input" class="textarea textarea-bordered w-full" rows="2">{{ script.description }}</textarea>
+                            <div class="flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-primary" onclick="saveInlineDesc()">Save</button>
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="cancelInlineDesc()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <!-- Public Toggle (only for owners) -->
+                    <!-- Toggle Row: Public + MCP (only for owners) -->
                     {% if script.owner == request.user %}
-                    <div class="flex items-center gap-3 mb-4">
-                        <label class="label cursor-pointer">
+                    <div class="flex flex-wrap items-center gap-4 mb-4">
+                        <label class="label cursor-pointer gap-2">
                             <span class="label-text font-semibold">Public Script</span>
                             <input type="checkbox" id="public-toggle" class="toggle toggle-primary" {% if script.is_public %}checked{% endif %} onchange="togglePublicStatus()">
                         </label>
                         <div class="text-xs opacity-60">
                             {% if script.is_public %}
-                            <span class="text-success">✓ Public - Anyone can view and trigger via webhook</span>
+                            <span class="text-success">✓ Public</span>
                             {% else %}
-                            <span class="text-warning">🔒 Private - Only you can view and execute</span>
+                            <span class="text-warning">🔒 Private</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="w-px h-6 bg-base-300"></div>
+
+                        <label class="label cursor-pointer gap-2">
+                            <span class="label-text font-semibold">Expose to MCP</span>
+                            <input type="checkbox" id="mcp-toggle" class="toggle toggle-secondary" {% if script.expose_to_mcp %}checked{% endif %} onchange="toggleMcpStatus()">
+                        </label>
+                        <div class="text-xs opacity-60">
+                            {% if script.expose_to_mcp %}
+                            <span class="text-success">✓ MCP Enabled</span>
+                            {% else %}
+                            <span class="text-warning">MCP Disabled</span>
                             {% endif %}
                         </div>
                     </div>
@@ -165,6 +202,21 @@
                 </div>
 
 <div class="flex flex-col gap-2 lg:min-w-[200px]">
+    <!-- Edit Metadata Button (for owners) — now toggles inline panel -->
+    {% if script.owner == request.user %}
+    <button 
+        type="button" 
+        onclick="toggleInlineSettings()"
+        class="btn btn-ghost w-full gap-2"
+        id="edit-meta-btn"
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        <span id="edit-meta-label">Edit Metadata</span>
+    </button>
+    {% endif %}
+    
     <button 
         type="button" 
         onclick="run_script_modal.showModal()"
@@ -213,6 +265,130 @@
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Inline Settings Panel (hidden by default, toggled by Edit Metadata button) -->
+    <div id="inline-settings-panel" class="card bg-base-100 shadow-xl border border-primary/30 mb-6 hidden">
+        <div class="card-body">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="card-title text-lg flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Script Settings
+                </h3>
+                <button type="button" class="btn btn-ghost btn-sm btn-square" onclick="toggleInlineSettings()" title="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="{% url 'script_edit_meta' script.id %}" 
+                  hx-post="{% url 'script_edit_meta' script.id %}"
+                  hx-target="#metadata-response"
+                  hx-swap="innerHTML">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Left Column (language, visibility toggles) -->
+                    <div>
+                        <div class="form-control w-full mb-4">
+                            <label class="label"><span class="label-text font-semibold">Language</span></label>
+                            <select name="language" class="select select-bordered w-full">
+                                <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
+                                <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
+                                <option value="http" {% if script.language == 'http' %}selected{% endif %}>HTTP Request</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="form-control flex-1">
+                                <label class="label cursor-pointer justify-start gap-3 bg-base-200 p-3 rounded-lg">
+                                    <input type="checkbox" name="is_public" class="checkbox checkbox-primary" {% if script.is_public %}checked{% endif %} />
+                                    <span class="label-text">
+                                        <strong>Make Public</strong>
+                                        <span class="block text-xs opacity-60">Visible to everyone</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="form-control flex-1">
+                                <label class="label cursor-pointer justify-start gap-3 bg-gradient-to-r from-primary/10 to-violet-600/10 p-3 rounded-lg border border-primary/30">
+                                    <input type="checkbox" name="expose_to_mcp" class="checkbox checkbox-primary" {% if script.expose_to_mcp %}checked{% endif %} />
+                                    <span class="label-text">
+                                        <strong>Expose to MCP</strong>
+                                        <span class="block text-xs opacity-60">AI/MCP clients</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column (tags, credentials) -->
+                    <div>
+                        <label class="label"><span class="label-text font-semibold">Tags</span></label>
+                        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[180px] overflow-y-auto mb-4">
+                            {% if user_tags %}
+                            <div class="flex flex-wrap gap-2">
+                                {% for tag in user_tags %}
+                                <label class="cursor-pointer group select-none">
+                                    <input type="checkbox" class="meta-tag-checkbox peer hidden" 
+                                           name="tags" value="{{ tag.name }}"
+                                           {% if tag in script.tags.all %}checked{% endif %}
+                                           data-color="{{ tag.color }}">
+                                    <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
+                                                peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                                group-hover:border-primary/50 transition-all">
+                                        {{ tag.name }}
+                                    </div>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-8 opacity-50">
+                                <p class="text-sm">No tags available.</p>
+                                <a href="{% url 'tags_list' %}" target="_blank" class="link link-primary text-xs">Create Tags</a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <label class="label"><span class="label-text font-semibold">Credentials</span></label>
+                        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[140px] overflow-y-auto">
+                            {% if user_credentials %}
+                            <div class="flex flex-col gap-2">
+                                {% for cred in user_credentials %}
+                                <label class="cursor-pointer group select-none flex items-center gap-2">
+                                    <input type="checkbox" class="meta-cred-checkbox peer hidden" 
+                                           name="credentials" value="{{ cred.id }}"
+                                           {% if cred in script.credentials.all %}checked{% endif %}>
+                                    <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
+                                                peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                                group-hover:border-primary/50 transition-all w-full justify-start">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                        {{ cred.name }} <span class="opacity-60">({{ cred.get_credential_type_display }})</span>
+                                    </div>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4 opacity-50">
+                                <p class="text-sm">No credentials available.</p>
+                                <a href="{% url 'credentials_list' %}" target="_blank" class="link link-primary text-xs">Create Credentials</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div id="metadata-response" class="mt-4"></div>
+
+                <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-base-200">
+                    <button type="button" class="btn" onclick="toggleInlineSettings()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -557,6 +733,8 @@
             </div>
         </div>
     </div>
+
+    <!-- HTMX response target is now inside the inline panel -->
 </div>
 
 <!-- Create Schedule Modal -->
@@ -625,6 +803,101 @@
 </dialog>
 
 <script>
+    function toggleInlineSettings() {
+        const panel = document.getElementById('inline-settings-panel');
+        const btn = document.getElementById('edit-meta-btn');
+        const label = document.getElementById('edit-meta-label');
+        if (panel.classList.contains('hidden')) {
+            panel.classList.remove('hidden');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            label.textContent = 'Hide Settings';
+        } else {
+            panel.classList.add('hidden');
+            label.textContent = 'Edit Metadata';
+        }
+    }
+
+    function editInlineName() {
+        document.getElementById('display-name').classList.add('hidden');
+        document.getElementById('inline-name-edit').classList.remove('hidden');
+        document.getElementById('inline-name-input').focus();
+        document.getElementById('inline-name-input').select();
+    }
+    function cancelInlineName() {
+        document.getElementById('display-name').classList.remove('hidden');
+        document.getElementById('inline-name-edit').classList.add('hidden');
+    }
+    function saveInlineName() {
+        const input = document.getElementById('inline-name-input');
+        const name = input.value.trim();
+        if (!name) return showToast('Name is required', 'error');
+        fetch('{% url "script_edit_inline" script.id %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            body: JSON.stringify({name: name})
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                document.getElementById('display-name').textContent = d.name;
+                document.getElementById('display-name').classList.remove('hidden');
+                document.getElementById('inline-name-edit').classList.add('hidden');
+                document.querySelector('.breadcrumbs li:last-child').textContent = d.name;
+                showToast('Name updated', 'success');
+            } else {
+                showToast(d.error || 'Error saving name', 'error');
+            }
+        }).catch(() => showToast('Network error', 'error'));
+    }
+
+    function editInlineDesc() {
+        document.getElementById('display-desc').classList.add('hidden');
+        document.getElementById('inline-desc-edit').classList.remove('hidden');
+        document.getElementById('inline-desc-input').focus();
+    }
+    function cancelInlineDesc() {
+        document.getElementById('display-desc').classList.remove('hidden');
+        document.getElementById('inline-desc-edit').classList.add('hidden');
+    }
+    function saveInlineDesc() {
+        const input = document.getElementById('inline-desc-input');
+        const desc = input.value.trim();
+        fetch('{% url "script_edit_inline" script.id %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            body: JSON.stringify({description: desc})
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                document.getElementById('display-desc').textContent = d.description || 'No description provided';
+                document.getElementById('display-desc').classList.remove('hidden');
+                document.getElementById('inline-desc-edit').classList.add('hidden');
+                showToast('Description updated', 'success');
+            } else {
+                showToast(d.error || 'Error saving description', 'error');
+            }
+        }).catch(() => showToast('Network error', 'error'));
+    }
+
+    function toggleMcpStatus() {
+        const toggle = document.getElementById('mcp-toggle');
+        const expose = toggle.checked;
+        toggle.disabled = true;
+        fetch('{% url "script_toggle_mcp" script.id %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            body: JSON.stringify({expose_to_mcp: expose})
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                const statusText = toggle.parentElement.nextElementSibling;
+                if (expose) statusText.innerHTML = '<span class="text-success">✓ MCP Enabled</span>';
+                else statusText.innerHTML = '<span class="text-warning">MCP Disabled</span>';
+                showToast('MCP exposure updated', 'success');
+            } else {
+                toggle.checked = !expose;
+                showToast(d.error || 'Failed to update', 'error');
+            }
+        }).catch(() => { toggle.checked = !expose; showToast('Network error', 'error');
+        }).finally(() => { toggle.disabled = false; });
+    }
+
     function copyApiExecuteUrl() {
         const input = document.getElementById('api-execute-url');
         if (!input) return;

@@ -24,30 +24,11 @@
     <!-- MAIN FORM (Wraps Editor & Sidebar) -->
     <form id="script-edit-form" method="post" action="{% url 'script_edit' script.id %}">
         {% csrf_token %}
-        
-        <!-- HIDDEN STATE (Synced via JS from Modal) -->
-        <input type="hidden" name="name" id="real-name" value="{{ script.name }}">
-        <textarea name="description" id="real-description" class="hidden">{{ script.description }}</textarea>
-        <input type="hidden" name="language" id="real-language" value="{{ script.language }}">
-        <input type="checkbox" name="is_public" id="real-is-public" class="hidden" {% if script.is_public %}checked{% endif %}>
-        <input type="checkbox" name="expose_to_mcp" id="real-expose-mcp" class="hidden" {% if script.expose_to_mcp %}checked{% endif %}>
-        
-        <!-- Hidden Tag Container (Rebuilt by JS on Modal Save) -->
-        <div id="real-tags-container" class="hidden">
-            {% for tag in script.tags.all %}
-            <input type="checkbox" name="tags" value="{{ tag.name }}" checked>
-            {% endfor %}
-        </div>
-        
-        <!-- Hidden Credential Container (Rebuilt by JS on Modal Save) -->
-        <div id="real-credentials-container" class="hidden">
-            {% for cred in script.credentials.all %}
-            <input type="checkbox" name="credentials" value="{{ cred.id }}" checked>
-            {% endfor %}
-        </div>
 
-        <!-- Hidden Code Input (Synced via Monaco) -->
+        <!-- Code Input (synced with Monaco editor) -->
         <textarea name="code" id="code-input" class="hidden">{{ script.code }}</textarea>
+        <!-- Language field passed for JS (HTTP builder toggling) -->
+        <input type="hidden" id="script-language" value="{{ script.language }}">
 
         <!-- HEADER SECTION -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-base-200 pb-6">
@@ -62,14 +43,9 @@
                 <!-- Text Info -->
                 <div class="flex-grow min-w-0">
                     <div class="flex items-center gap-3 flex-wrap">
-                        <h1 class="text-2xl font-bold tracking-tight font-['Space_Grotesk'] truncate" id="display-name">
+                        <h1 class="text-2xl font-bold tracking-tight font-['Space_Grotesk'] truncate">
                             {{ script.name }}
                         </h1>
-                        
-                        <!-- Settings Trigger -->
-                        <button type="button" onclick="openSettingsModal()" class="btn btn-circle btn-ghost btn-xs opacity-50 hover:opacity-100 tooltip tooltip-right" data-tip="Edit Metadata & Tags">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </button>
                     </div>
 
                     <p class="text-sm opacity-60 max-w-2xl truncate mb-2" id="display-desc">
@@ -114,7 +90,24 @@
                 
                 <!-- PYTHON/BASH SECTIONS (Hidden for HTTP) -->
                 <div id="deps-secrets-container">
-                    <!-- 1. Dependencies -->
+                    <!-- 1. Language -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <label class="label pt-0 px-0">
+                                <span class="label-text font-bold text-xs uppercase tracking-wider opacity-60 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                                    Language
+                                </span>
+                            </label>
+                            <select name="language" class="select select-bordered w-full select-sm">
+                                <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
+                                <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
+                                <option value="http" {% if script.language == 'http' %}selected{% endif %}>HTTP Request</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 2. Dependencies -->
                     <div id="dependencies-card" class="card bg-base-100 shadow-sm border border-base-200">
                         <div class="card-body p-4">
                             <label class="label pt-0 px-0">
@@ -123,14 +116,14 @@
                                     Requirements
                                 </span>
                             </label>
-                            <textarea name="dependencies" class="textarea textarea-bordered w-full h-48 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
+                            <textarea name="dependencies" class="textarea textarea-bordered w-full h-40 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
                                 placeholder="requests==2.31.0&#10;pandas">{{ script.dependencies }}</textarea>
                             <div class="text-[10px] opacity-40 mt-1">Pip packages, one per line.</div>
                         </div>
                     </div>
 
-                    <!-- 2. Secrets (AJAX) -->
-                    <div id="secrets-card" class="card bg-base-100 shadow-sm border border-base-200 flex-grow">
+                    <!-- 3. Secrets (AJAX) -->
+                    <div id="secrets-card" class="card bg-base-100 shadow-sm border border-base-200">
                         <div class="card-body p-4">
                             <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -138,7 +131,7 @@
                             </span>
                             
                             <!-- List -->
-                            <div id="secrets-list" class="space-y-2 mb-4 min-h-[50px]">
+                            <div id="secrets-list" class="space-y-2 mb-3 min-h-[40px]">
                                 <div class="flex justify-center py-2"><span class="loading loading-spinner loading-xs opacity-50"></span></div>
                             </div>
 
@@ -151,6 +144,37 @@
                                         <button id="secret-add" type="button" class="btn btn-xs btn-primary join-item">Add</button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Credentials -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Credentials
+                            </span>
+                            <div id="credentials-container" class="bg-base-200/50 rounded-lg p-3 border border-base-300 max-h-[160px] overflow-y-auto">
+                                {% if user_credentials %}
+                                <div class="flex flex-col gap-1.5">
+                                    {% for cred in user_credentials %}
+                                    <label class="cursor-pointer group select-none flex items-center gap-2">
+                                        <input type="checkbox" class="peer hidden" name="credentials" value="{{ cred.id }}"
+                                               {% if cred in script.credentials.all %}checked{% endif %}>
+                                        <div class="badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
+                                                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                                    group-hover:border-primary/50 transition-all w-full justify-start">
+                                            {{ cred.name }} <span class="opacity-60">({{ cred.get_credential_type_display }})</span>
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 opacity-50 text-xs">
+                                    No credentials available.
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -231,118 +255,7 @@
 
 <!-- ================= MODALS ================= -->
 
-<!-- 1. Settings Modal (Metadata + Tags) -->
-<dialog id="settings-modal" class="modal">
-    <div class="modal-box w-11/12 max-w-2xl">
-        <h3 class="font-bold text-lg mb-6 border-b border-base-200 pb-2">Script Settings</h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Left: Meta -->
-            <div>
-                <div class="form-control w-full mb-4">
-                    <label class="label"><span class="label-text font-semibold">Script Name</span></label>
-                    <input type="text" id="modal-name" class="input input-bordered w-full font-['Space_Grotesk']" />
-                </div>
-
-                <div class="form-control w-full mb-4">
-                    <label class="label"><span class="label-text font-semibold">Description</span></label>
-                    <textarea id="modal-desc" class="textarea textarea-bordered h-32"></textarea>
-                </div>
-
-                <div class="form-control w-full mb-4">
-                    <label class="label"><span class="label-text font-semibold">Language</span></label>
-                    <select id="modal-language" class="select select-bordered w-full">
-                        <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
-                        <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
-                        <option value="http" {% if script.language == 'http' %}selected{% endif %}>HTTP Request</option>
-                    </select>
-                </div>
-
-                <div class="form-control">
-                    <label class="label cursor-pointer justify-start gap-3 bg-base-200 p-3 rounded-lg">
-                        <input type="checkbox" id="modal-public" class="checkbox checkbox-primary" />
-                        <span class="label-text">
-                            <strong>Make Public</strong>
-                            <span class="block text-xs opacity-60">Visible to everyone</span>
-                        </span>
-                    </label>
-                </div>
-
-                <div class="form-control mt-4">
-                    <label class="label cursor-pointer justify-start gap-3 bg-gradient-to-r from-primary/10 to-violet-600/10 p-3 rounded-lg border border-primary/30">
-                        <input type="checkbox" id="modal-expose-mcp" class="checkbox checkbox-primary" />
-                        <span class="label-text">
-                            <strong>Expose to MCP Server</strong>
-                            <span class="block text-xs opacity-60">Make this script callable via AI/MCP clients</span>
-                        </span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Right: Tags + Credentials -->
-            <div>
-                <label class="label"><span class="label-text font-semibold">Tags</span></label>
-                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[200px] overflow-y-auto mb-4">
-                    {% if user_tags %}
-                    <div class="flex flex-wrap gap-2">
-                        {% for tag in user_tags %}
-                        <label class="cursor-pointer group select-none">
-                            <!-- Dummy Checkbox for Modal Interaction -->
-                            <input type="checkbox" class="modal-tag-checkbox peer hidden" 
-                                   value="{{ tag.name }}" 
-                                   data-color="{{ tag.color }}">
-                            <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
-                                        peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
-                                        group-hover:border-primary/50 transition-all">
-                                {{ tag.name }}
-                            </div>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center py-10 opacity-50">
-                        <p class="text-sm">No tags available.</p>
-                        <a href="{% url 'tags_list' %}" target="_blank" class="link link-primary text-xs">Create Tags</a>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <label class="label"><span class="label-text font-semibold">Credentials</span></label>
-                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[160px] overflow-y-auto">
-                    {% if user_credentials %}
-                    <div class="flex flex-col gap-2">
-                        {% for cred in user_credentials %}
-                        <label class="cursor-pointer group select-none flex items-center gap-2">
-                            <input type="checkbox" class="modal-cred-checkbox peer hidden" 
-                                   value="{{ cred.id }}">
-                            <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
-                                        peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
-                                        group-hover:border-primary/50 transition-all w-full justify-start">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                {{ cred.name }} <span class="opacity-60">({{ cred.get_credential_type_display }})</span>
-                            </div>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center py-6 opacity-50">
-                        <p class="text-sm">No credentials available.</p>
-                        <a href="{% url 'credentials_list' %}" target="_blank" class="link link-primary text-xs">Create Credentials</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-action">
-            <button type="button" class="btn" onclick="document.getElementById('settings-modal').close()">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="saveSettingsModal()">Update Info</button>
-        </div>
-    </div>
-    <div class="modal-backdrop" onclick="settings-modal.close()"></div>
-</dialog>
-
-<!-- 2. Secret Input Modal -->
+<!-- 1. Secret Input Modal -->
 <dialog id="input-modal" class="modal">
     <div class="modal-box">
         <h3 class="font-bold text-lg" id="input-title">Edit Secret</h3>
@@ -375,147 +288,7 @@
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
 <script>
-    // --- 1. Settings & Tags Logic ---
-    function openSettingsModal() {
-        // 1. Sync Text Inputs
-        document.getElementById('modal-name').value = document.getElementById('real-name').value;
-        document.getElementById('modal-desc').value = document.getElementById('real-description').value;
-        document.getElementById('modal-language').value = document.getElementById('real-language').value;
-        document.getElementById('modal-public').checked = document.getElementById('real-is-public').checked;
-        document.getElementById('modal-expose-mcp').checked = document.getElementById('real-expose-mcp').checked;
-        
-        // 2. Sync Tags (Read from Real Hidden Container -> Check Modal Checkboxes)
-        const realContainer = document.getElementById('real-tags-container');
-        const realCheckboxes = realContainer.querySelectorAll('input[type="checkbox"]');
-        const activeTags = Array.from(realCheckboxes).map(cb => cb.value);
-
-        document.querySelectorAll('.modal-tag-checkbox').forEach(cb => {
-            cb.checked = activeTags.includes(cb.value);
-        });
-
-        // 3. Sync Credentials
-        const realCredContainer = document.getElementById('real-credentials-container');
-        const realCredCheckboxes = realCredContainer.querySelectorAll('input[type="checkbox"]');
-        const activeCreds = Array.from(realCredCheckboxes).map(cb => cb.value);
-
-        document.querySelectorAll('.modal-cred-checkbox').forEach(cb => {
-            cb.checked = activeCreds.includes(cb.value);
-        });
-
-        document.getElementById('settings-modal').showModal();
-    }
-
-    function saveSettingsModal() {
-        // 1. Update Hidden Text Inputs
-        const name = document.getElementById('modal-name').value;
-        const desc = document.getElementById('modal-desc').value;
-        const language = document.getElementById('modal-language').value;
-        const isPublic = document.getElementById('modal-public').checked;
-
-        document.getElementById('real-name').value = name;
-        document.getElementById('real-description').value = desc;
-        document.getElementById('real-language').value = language;
-        document.getElementById('real-is-public').checked = isPublic;
-
-        // Handle MCP exposure checkbox
-        const exposeMcp = document.getElementById('modal-expose-mcp').checked;
-        document.getElementById('real-expose-mcp').checked = exposeMcp;
-
-        // 2. Rebuild Real Hidden Tag Container
-        const realContainer = document.getElementById('real-tags-container');
-        realContainer.innerHTML = ''; // Clear old
-        
-        const modalCheckboxes = document.querySelectorAll('.modal-tag-checkbox:checked');
-        const selectedTags = [];
-
-        modalCheckboxes.forEach(cb => {
-            // Create hidden input for form submission
-            const input = document.createElement('input');
-            input.type = 'checkbox';
-            input.name = 'tags';
-            input.value = cb.value;
-            input.checked = true;
-            realContainer.appendChild(input);
-
-            // Store for UI update
-            selectedTags.push({ name: cb.value, color: cb.dataset.color || '#666' });
-        });
-
-        // Rebuild Real Hidden Credential Container
-        const realCredContainer = document.getElementById('real-credentials-container');
-        realCredContainer.innerHTML = ''; // Clear old
-        
-        const modalCredCheckboxes = document.querySelectorAll('.modal-cred-checkbox:checked');
-        const selectedCreds = [];
-
-        modalCredCheckboxes.forEach(cb => {
-            const input = document.createElement('input');
-            input.type = 'checkbox';
-            input.name = 'credentials';
-            input.value = cb.value;
-            input.checked = true;
-            realCredContainer.appendChild(input);
-
-            selectedCreds.push({ id: cb.value });
-        });
-
-        // 3. Update Header UI
-        document.getElementById('display-name').textContent = name;
-        document.getElementById('display-desc').textContent = desc || "No description provided.";
-        
-        // Update environment display and sidebar visibility
-        const envDisplay = document.getElementById('environment-display');
-        if (language === 'bash') {
-            envDisplay.textContent = 'Bash Environment';
-        } else if (language === 'http') {
-            envDisplay.textContent = 'HTTP Request Environment';
-        } else {
-            envDisplay.textContent = 'Python 3.11 Environment';
-        }
-        
-        // Show/hide sidebar sections based on language
-        const depsSecretsContainer = document.getElementById('deps-secrets-container');
-        const httpBuilderContainer = document.getElementById('http-builder-container');
-        const dependenciesCard = document.getElementById('dependencies-card');
-        const secretsCard = document.getElementById('secrets-card');
-        
-        if (language === 'http') {
-            depsSecretsContainer.classList.add('hidden');
-            httpBuilderContainer.classList.remove('hidden');
-        } else if (language === 'bash') {
-            depsSecretsContainer.classList.remove('hidden');
-            httpBuilderContainer.classList.add('hidden');
-            dependenciesCard.classList.add('hidden');
-            secretsCard.classList.add('hidden');
-        } else {
-            depsSecretsContainer.classList.remove('hidden');
-            httpBuilderContainer.classList.add('hidden');
-            dependenciesCard.classList.remove('hidden');
-            secretsCard.classList.remove('hidden');
-        }
-        
-        // Rebuild Badges
-        const badgeContainer = document.getElementById('header-badges');
-        badgeContainer.innerHTML = '';
-
-        if (isPublic) {
-            badgeContainer.innerHTML += `<span class="badge badge-sm badge-primary font-bold">PUBLIC</span>`;
-        }
-
-        selectedTags.forEach(tag => {
-            const span = document.createElement('span');
-            span.className = 'badge badge-sm badge-outline opacity-80';
-            span.style.borderColor = tag.color;
-            span.style.color = tag.color;
-            span.textContent = tag.name;
-            badgeContainer.appendChild(span);
-        });
-
-        document.getElementById('settings-modal').close();
-        showToast('Settings updated (Remember to Save Script)', 'info');
-    }
-
-    // --- 2. Monaco Editor Logic ---
+    // --- 1. Monaco Editor Logic ---
     require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
     let editorInstance = null;
 
@@ -720,7 +493,7 @@
 
         // Initialize on DOMContentLoaded for HTTP and Bash scripts
         document.addEventListener('DOMContentLoaded', () => {
-            const language = document.getElementById('real-language').value;
+            const language = document.getElementById('script-language').value;
             const dependenciesCard = document.getElementById('dependencies-card');
             const secretsCard = document.getElementById('secrets-card');
             
@@ -750,6 +523,8 @@
     // Save script without redirecting
     async function saveScript(event) {
         event.preventDefault();
+        // Sync Monaco editor content before capturing form data
+        if (typeof syncEditorContent === 'function') syncEditorContent();
         const form = document.getElementById('script-edit-form');
         const formData = new FormData(form);
         
@@ -783,6 +558,8 @@
     
     // Test script - save and redirect to details page
     async function testScript(event) {
+        // Sync Monaco editor content before capturing form data
+        if (typeof syncEditorContent === 'function') syncEditorContent();
         const form = document.getElementById('script-edit-form');
         const formData = new FormData(form);
         
