@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "emailoctopus",
+  "description": "AI-callable wrapper for the EmailOctopus API. Manage mailing lists, contacts, campaigns, and templates.",
+  "type": "object",
+  "required": ["action"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "The action to perform.",
+      "enum": [
+        "list_lists",
+        "get_list",
+        "list_contacts",
+        "get_contact",
+        "create_contact",
+        "update_contact",
+        "list_campaigns",
+        "get_campaign",
+        "create_draft_campaign",
+        "list_templates"
+      ]
+    },
+    "list_id": {
+      "type": "string",
+      "description": "Required for list_contacts, get_contact, create_contact, update_contact, and create_draft_campaign."
+    },
+    "contact_id": {
+      "type": "string",
+      "description": "Required for get_contact and update_contact."
+    },
+    "campaign_id": {
+      "type": "string",
+      "description": "Required for get_campaign."
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Required for create_contact. Email address of the contact."
+    },
+    "fields": {
+      "type": "object",
+      "description": "Contact custom fields as key-value pairs."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tags to apply to the contact."
+    },
+    "status": {
+      "type": "string",
+      "description": "Contact status: 'subscribed', 'unsubscribed', or 'pending'.",
+      "enum": ["subscribed", "unsubscribed", "pending"]
+    },
+    "subject": {
+      "type": "string",
+      "description": "Campaign subject line. Required for create_draft_campaign."
+    },
+    "name": {
+      "type": "string",
+      "description": "Campaign name/internal name. Required for create_draft_campaign."
+    },
+    "from_name": {
+      "type": "string",
+      "description": "Sender name for campaign."
+    },
+    "reply_to": {
+      "type": "string",
+      "format": "email",
+      "description": "Reply-to email for campaign."
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Template ID for campaign content."
+    },
+    "content": {
+      "type": "object",
+      "description": "Campaign content (HTML body, plain text, etc.)."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "When true, preview the request without sending.",
+      "default": false
+    },
+    "per_page": { "type": "integer", "description": "Results per page.", "default": 25, "minimum": 1, "maximum": 100 },
+    "page": { "type": "integer", "description": "Page number.", "minimum": 1 },
+    "search": { "type": "string", "description": "Search query for lists/contacts." },
+    "order_by": { "type": "string", "description": "Field to order results by." },
+    "direction": { "type": "string", "description": "Sort direction: 'asc' or 'desc'.", "enum": ["asc", "desc"] },
+    "timeout_seconds": { "type": "integer", "description": "Request timeout.", "default": 30, "minimum": 1, "maximum": 120 }
+  },
+  "examples": [
+    { "action": "list_lists", "per_page": 10 },
+    { "action": "get_list", "list_id": "abc123" },
+    { "action": "list_contacts", "list_id": "abc123", "per_page": 20 },
+    { "action": "create_contact", "list_id": "abc123", "email": "user@example.com", "fields": { "FirstName": "John" }, "dry_run": true },
+    { "action": "list_campaigns" },
+    { "action": "create_draft_campaign", "list_id": "abc123", "subject": "Hello!", "name": "Welcome Email", "dry_run": true }
+  ]
+}

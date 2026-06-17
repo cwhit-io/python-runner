@@ -183,7 +183,49 @@ docker-compose -f docker-compose.prod.yml up -d
 
 See [Docker Guide](docs/DOCKER.md) for details.
 
-## 🤝 Contributing
+## � AI-Callable API Wrappers
+
+The `ai_scripts/` directory contains standalone Python wrapper scripts designed to be called by AI agents (including ScriptDash's MCP tools). Each wrapper:
+
+- Accepts a single JSON object via `argv[1]` or stdin
+- Requires an `action` field
+- Returns consistent JSON with `success`, `data`, `warnings`, and `meta`
+- Supports `dry_run` for write actions
+- Uses environment variables for credentials
+
+### Services
+
+| Service | Description | Credentials |
+|---------|-------------|-------------|
+| `planning_center_people` | People, households, workflows, lists | `PLANNING_CENTER_ACCESS_TOKEN` or `PLANNING_CENTER_CLIENT_ID` + `PLANNING_CENTER_CLIENT_SECRET` |
+| `planning_center_calendar` | Events, resources, rooms, tags | Same as above |
+| `planning_center_services` | Service types, plans, songs, teams | Same as above |
+| `planning_center_publishing` | Episodes, series, speakers | Same as above |
+| `planning_center_giving` | Donations, funds, batches (read-only) | Same as above |
+| `planning_center_groups` | Groups, memberships, events | Same as above |
+| `planning_center_registrations` | Events, attendees (read-only) | Same as above |
+| `planning_center_checkins` | Check-ins, locations (read-only) | Same as above |
+| `vimeo` | Videos, livestreams, uploads | `VIMEO_ACCESS_TOKEN` |
+| `emailoctopus` | Lists, contacts, campaigns | `EMAILOCTOPUS_API_KEY` |
+| `bitfocus_companion` | Buttons, variables, surfaces | `COMPANION_BASE_URL` (optional `COMPANION_API_KEY`) |
+| `sermonshots` | Videos, clips, transcripts, AI content | `SERMONSHOTS_API_KEY` |
+
+### CLI Usage
+
+```bash
+# List Planning Center people
+python ai_scripts/planning_center_people/wrapper.py '{"action":"list_people","per_page":5}'
+
+# Dry-run a contact creation
+python ai_scripts/emailoctopus/wrapper.py '{"action":"create_contact","list_id":"abc123","email":"user@example.com","dry_run":true}'
+
+# Press a Companion button
+python ai_scripts/bitfocus_companion/wrapper.py '{"action":"press_button","page":0,"bank":0,"x":1,"y":2}'
+```
+
+See each subfolder's `README.md` for full action lists and examples.
+
+## �🤝 Contributing
 
 We love contributions! Whether it's:
 

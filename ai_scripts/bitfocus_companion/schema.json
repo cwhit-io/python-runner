@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "bitfocus_companion",
+  "description": "AI-callable wrapper for Bitfocus Companion HTTP remote control API. Press buttons, rotate encoders, set styles, manage variables, and rescan surfaces.",
+  "type": "object",
+  "required": ["action"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "The action to perform.",
+      "enum": [
+        "press_button",
+        "button_down",
+        "button_up",
+        "rotate_left",
+        "rotate_right",
+        "set_step",
+        "set_button_style",
+        "set_custom_variable",
+        "get_custom_variable",
+        "get_module_variable",
+        "rescan_surfaces"
+      ]
+    },
+    "page": {
+      "type": "integer",
+      "description": "Page number for button/surface actions.",
+      "default": 0,
+      "minimum": 0
+    },
+    "bank": {
+      "type": "integer",
+      "description": "Bank number for button actions.",
+      "default": 0,
+      "minimum": 0
+    },
+    "x": {
+      "type": "integer",
+      "description": "X (column) position for button actions.",
+      "default": 0,
+      "minimum": 0
+    },
+    "y": {
+      "type": "integer",
+      "description": "Y (row) position for button actions.",
+      "default": 0,
+      "minimum": 0
+    },
+    "step": {
+      "type": "integer",
+      "description": "Step number for set_step action.",
+      "minimum": 0
+    },
+    "style": {
+      "type": "object",
+      "description": "Button style object for set_button_style. Contains text, size, color, etc.",
+      "properties": {
+        "text": { "type": "string", "description": "Button text." },
+        "size": { "type": "string", "description": "Text size: 'auto', 'small', 'medium', 'large'." },
+        "color": { "type": "integer", "description": "Text color as RGB hex integer (e.g. 16777215 for white)." },
+        "bgcolor": { "type": "integer", "description": "Background color as RGB hex integer." }
+      }
+    },
+    "name": {
+      "type": "string",
+      "description": "Custom variable name for set_custom_variable and get_custom_variable."
+    },
+    "value": {
+      "type": "string",
+      "description": "Value to set for set_custom_variable."
+    },
+    "module_name": {
+      "type": "string",
+      "description": "Module name for get_module_variable."
+    },
+    "variable_name": {
+      "type": "string",
+      "description": "Variable name within the module for get_module_variable."
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "description": "Request timeout in seconds. Companion is local, so default is 10s.",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 60
+    }
+  },
+  "examples": [
+    { "action": "press_button", "page": 0, "bank": 0, "x": 1, "y": 2 },
+    { "action": "set_custom_variable", "name": "service_started", "value": "true" },
+    { "action": "get_custom_variable", "name": "current_song" },
+    { "action": "get_module_variable", "module_name": "obs-studio", "variable_name": "scene_name" },
+    { "action": "set_button_style", "page": 0, "bank": 0, "x": 1, "y": 2, "style": { "text": "Live", "size": "auto", "color": 65280 } },
+    { "action": "rescan_surfaces" }
+  ]
+}

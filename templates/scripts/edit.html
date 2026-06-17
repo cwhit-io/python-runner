@@ -160,14 +160,15 @@
                                 {% if user_credentials %}
                                 <div class="flex flex-col gap-1.5">
                                     {% for cred in user_credentials %}
-                                    <label class="cursor-pointer group select-none flex items-center gap-2">
-                                        <input type="checkbox" class="peer hidden" name="credentials" value="{{ cred.id }}"
-                                               {% if cred in script.credentials.all %}checked{% endif %}>
-                                        <div class="badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
-                                                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
-                                                    group-hover:border-primary/50 transition-all w-full justify-start font-mono">
+                                    <label class="cursor-pointer select-none flex items-center gap-2 pill-toggle">
+                                        <span class="pill-badge badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70
+                                                   group-hover:border-primary/50 transition-all w-full justify-start font-mono gap-1
+                                                   {% if cred in script.credentials.all %}border-primary bg-primary/10 text-primary{% endif %}">
+                                            <svg class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                             {% for env_var in cred.get_env_var_names %}<span class="{% if not forloop.first %}opacity-50 ml-1{% endif %}">{{ env_var }}</span>{% endfor %}
-                                        </div>
+                                        </span>
+                                        <input type="checkbox" class="hidden" name="credentials" value="{{ cred.id }}"
+                                               {% if cred in script.credentials.all %}checked{% endif %}>
                                     </label>
                                     {% endfor %}
                                 </div>
@@ -207,15 +208,16 @@
                                 {% if user_tags %}
                                 <div class="flex flex-wrap gap-1.5">
                                     {% for tag in user_tags %}
-                                    <label class="cursor-pointer group select-none">
-                                        <input type="checkbox" class="peer hidden" name="tags" value="{{ tag.name }}"
+                                    <label class="cursor-pointer select-none pill-toggle">
+                                        <span class="pill-badge badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
+                                                   group-hover:border-primary/50 transition-all gap-1
+                                                   {% if tag in script.tags.all %}border-primary bg-primary/10 text-primary{% endif %}">
+                                            <svg class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                            {{ tag.name }}
+                                        </span>
+                                        <input type="checkbox" class="hidden" name="tags" value="{{ tag.name }}"
                                                {% if tag in script.tags.all %}checked{% endif %}
                                                data-color="{{ tag.color }}">
-                                        <div class="badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
-                                                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
-                                                    group-hover:border-primary/50 transition-all">
-                                            {{ tag.name }}
-                                        </div>
                                     </label>
                                     {% endfor %}
                                 </div>
@@ -569,6 +571,23 @@
 </script>
 
 <script>
+    // Pill toggle: clicking any .pill-toggle toggles the checkbox and pill state
+    document.addEventListener('click', function(e) {
+        const toggle = e.target.closest('.pill-toggle');
+        if (!toggle) return;
+        const checkbox = toggle.querySelector('input[type="checkbox"]');
+        const pill = toggle.querySelector('.pill-badge');
+        if (!checkbox || !pill) return;
+        checkbox.checked = !checkbox.checked;
+        pill.classList.toggle('border-primary', checkbox.checked);
+        pill.classList.toggle('bg-primary/10', checkbox.checked);
+        pill.classList.toggle('text-primary', checkbox.checked);
+        pill.classList.toggle('border-base-300', !checkbox.checked);
+        pill.classList.toggle('bg-base-100', !checkbox.checked);
+        pill.classList.toggle('text-base-content/70', !checkbox.checked);
+        e.preventDefault();
+    });
+
     // Save script without redirecting
     async function saveScript(event) {
         event.preventDefault();
