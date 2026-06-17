@@ -562,6 +562,16 @@ class ScriptExecution(models.Model):
     # Process info
     process_id = models.IntegerField(null=True, blank=True)
 
+    # Snapshot of the code that was executed (for historical accuracy)
+    code_snapshot = models.TextField(
+        blank=True,
+        help_text="Snapshot of script code at time of execution",
+    )
+    dependencies_snapshot = models.TextField(
+        blank=True,
+        help_text="Snapshot of script dependencies at time of execution",
+    )
+
     # Resource monitoring
     peak_cpu_percent = models.FloatField(
         null=True, blank=True, help_text="Peak CPU usage percentage"

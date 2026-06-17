@@ -183,81 +183,30 @@ def script_edit_inline(request, script_id):
 
 
 @login_required
-@require_http_methods(["POST"])
-def script_edit_meta(request, script_id):
-    """Edit script metadata (language, visibility, tags, credentials) via HTMX."""
-    from app.models import Tag, GlobalCredential
-    
-    script = get_object_or_404(Script, id=script_id, owner=request.user)
-    
-    # Update fields (name/description edited inline on the detail page)
-    script.language = request.POST.get("language", script.language)
-    script.is_public = request.POST.get("is_public") == "on"
-    script.expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
-    
-    # Handle tags - only assign existing tags
-    tag_names = request.POST.getlist("tags")
-    tags = []
-    for tag_name in tag_names:
-        try:
-            tag = Tag.objects.get(name=tag_name, created_by=request.user)
-            tags.append(tag)
-        except Tag.DoesNotExist:
-            pass
-    script.tags.set(tags)
-    
-    # Handle credentials - only assign existing credentials owned by user
-    cred_ids = request.POST.getlist("credentials")
-    credentials = []
-    for cred_id in cred_ids:
-        try:
-            cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
-            credentials.append(cred)
-        except GlobalCredential.DoesNotExist:
-            pass
-    script.credentials.set(credentials)
-    
-    script.save()
-    
-    # Build the PUBLIC badge outside the f-string to avoid backslash issues
-    public_badge = ''
-    if script.is_public:
-        public_badge = '<span class=\"badge badge-sm badge-primary font-bold\">PUBLIC</span>'
-    
-    # Return HTMX response to update badges and close panel
-    response_html = f'''
-    <script>
-    // Update badges
-    const headerBadges = document.getElementById('header-badges');
-    headerBadges.innerHTML = '{public_badge}';
-    {{% for tag in script.tags.all %}}
-    headerBadges.innerHTML += '<span class="badge badge-sm badge-outline opacity-80" style="border-color: {{{{ tag.color }}}}; color: {{{{ tag.color }}}};">{{{{ tag.name }}}}</span>';
-    {{% endfor %}};
-    
-    showToast("Metadata updated successfully!", "success");
-    // Hide the inline settings panel instead of closing a modal
-    const settingsPanel = document.getElementById('inline-settings-panel');
-    if (settingsPanel) settingsPanel.classList.add('hidden');
-    const metaLabel = document.getElementById('edit-meta-label');
-    if (metaLabel) metaLabel.textContent = 'Edit Metadata';
-    </script>
-    '''
-    
-    return HttpResponse(response_html)
-
-
-@login_required
 def script_edit(request, script_id):
-    """Edit script code, dependencies, language, and credentials."""
+    """Edit script code, dependencies, language, tags, and credentials."""
     script = get_object_or_404(Script, id=script_id, owner=request.user)
+
+    from app.models import Tag, GlobalCredential
 
     if request.method == "POST":
         script.code = request.POST.get("code", script.code)
         script.dependencies = request.POST.get("dependencies", script.dependencies)
         script.language = request.POST.get("language", script.language)
 
+        # Handle tags - only assign existing tags owned by user
+        tag_names = request.POST.getlist("tags")
+        if tag_names:
+            tags = []
+            for tag_name in tag_names:
+                try:
+                    tag = Tag.objects.get(name=tag_name, created_by=request.user)
+                    tags.append(tag)
+                except Tag.DoesNotExist:
+                    pass
+            script.tags.set(tags)
+
         # Handle credentials - only assign existing credentials owned by user
-        from app.models import GlobalCredential
         cred_ids = request.POST.getlist("credentials")
         if cred_ids:
             credentials = []
@@ -279,6 +228,7 @@ def script_edit(request, script_id):
         "scripts/edit.html",
         {
             "script": script,
+            "user_tags": Tag.objects.filter(created_by=request.user).order_by("name"),
             "user_credentials": script.owner.credentials.all().order_by("-updated_at"),
         },
     )
@@ -630,6 +580,22 @@ def execution_kill(request, execution_id):
         )
 
     return redirect("execution_detail", execution_id=execution_id)
+
+
+@login_required
+@require_http_methods(["GET"])
+def execution_status(request, execution_id):
+    """Return JSON status of a running execution for polling fallback."""
+    from django.http import JsonResponse
+    execution = get_object_or_404(ScriptExecution, id=execution_id, script__owner=request.user)
+    return JsonResponse({
+        "status": execution.status,
+        "stdout": execution.stdout,
+        "stderr": execution.stderr,
+        "cpu_percent": execution.peak_cpu_percent,
+        "memory_mb": execution.peak_memory_mb,
+        "elapsed_seconds": execution.duration_seconds,
+    })
 
 
 @login_required

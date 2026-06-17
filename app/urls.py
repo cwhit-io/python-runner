@@ -102,11 +102,6 @@ urlpatterns = [
         name="script_edit_inline",
     ),
     path(
-        "scripts/<int:script_id>/edit-meta/",
-        views_scripts.script_edit_meta,
-        name="script_edit_meta",
-    ),
-    path(
         "scripts/<int:script_id>/edit/", views_scripts.script_edit, name="script_edit"
     ),
     path(
@@ -142,6 +137,11 @@ urlpatterns = [
         "executions/<int:execution_id>/",
         views_scripts.execution_detail,
         name="execution_detail",
+    ),
+    path(
+        "executions/<int:execution_id>/status/",
+        views_scripts.execution_status,
+        name="execution_status",
     ),
     path(
         "executions/<int:execution_id>/kill/",

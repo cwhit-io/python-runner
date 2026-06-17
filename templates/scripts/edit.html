@@ -178,6 +178,38 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 5. Tags -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                                Tags
+                            </span>
+                            <div class="bg-base-200/50 rounded-lg p-3 border border-base-300 max-h-[160px] overflow-y-auto">
+                                {% if user_tags %}
+                                <div class="flex flex-wrap gap-1.5">
+                                    {% for tag in user_tags %}
+                                    <label class="cursor-pointer group select-none">
+                                        <input type="checkbox" class="peer hidden" name="tags" value="{{ tag.name }}"
+                                               {% if tag in script.tags.all %}checked{% endif %}
+                                               data-color="{{ tag.color }}">
+                                        <div class="badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
+                                                    peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                                    group-hover:border-primary/50 transition-all">
+                                            {{ tag.name }}
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 opacity-50 text-xs">
+                                    No tags available.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- HTTP REQUEST BUILDER (Hidden for Python/Bash) -->

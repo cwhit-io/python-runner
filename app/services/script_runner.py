@@ -244,17 +244,19 @@ class ScriptRunner:
             try:
                 self.ensure_venv()
             except Exception as e:
-                # Create failed execution record
+                # Create failed execution record with snapshot
                 execution = ScriptExecution.objects.create(
                     script=self.script,
                     triggered_by=triggered_by,
                     trigger_type=trigger_type,
                     status="failed",
                     error_message=f"Failed to create/update virtual environment: {str(e)}",
+                    code_snapshot=self.script.code,
+                    dependencies_snapshot=self.script.dependencies,
                 )
                 return execution
 
-        # Create execution record
+        # Create execution record with code snapshot
         self.execution = ScriptExecution.objects.create(
             script=self.script,
             triggered_by=triggered_by,
@@ -262,6 +264,8 @@ class ScriptRunner:
             status="running",
             started_at=timezone.now(),
             timeout_seconds=timeout_seconds,
+            code_snapshot=self.script.code,
+            dependencies_snapshot=self.script.dependencies,
         )
 
         # Update script status
