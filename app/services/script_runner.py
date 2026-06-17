@@ -293,7 +293,7 @@ class ScriptRunner:
                 env["PYTHONUNBUFFERED"] = "1"  # Force Python to use unbuffered output
 
             # Load script-specific secrets into the environment
-            from app.services.secret_store import list_script_secrets, get_script_secret
+            from app.services.secret_store import list_script_secrets, get_script_secret, get_all_credentials_for_script
             try:
                 for name in list_script_secrets(self.script.id):
                     value = get_script_secret(self.script.id, name)
@@ -301,6 +301,26 @@ class ScriptRunner:
                         env[name] = value
             except Exception:
                 # Silently ignore if secrets can't be loaded (e.g., key issues)
+                pass
+            
+            # Load global credentials into the environment
+            try:
+                credentials_data = get_all_credentials_for_script(self.script.id)
+                for cred_name, cred_data in credentials_data.items():
+                    # For each credential, inject its values into the environment
+                    # Using credential name as prefix to avoid conflicts
+                    if isinstance(cred_data, dict):
+                        for key, value in cred_data.items():
+                            if value is not None:
+                                # Convert to string and use uppercase key with prefix
+                                env_key = f"{cred_name}_{key}".upper()
+                                env[env_key] = str(value)
+                                # Also set without prefix for convenience
+                                env[key.upper()] = str(value)
+                    else:
+                        env[cred_name.upper()] = str(cred_data)
+            except Exception:
+                # Silently ignore credential loading errors
                 pass
 
             # Run the script
@@ -426,12 +446,13 @@ class ScriptRunner:
             self.execution.save()
 
             # Send completion notification
+            duration = self.execution.duration_seconds
             self._send_websocket_update(
                 "completed",
                 {
                     "status": self.execution.status,
                     "exit_code": process.returncode,
-                    "duration_seconds": round(self.execution.duration_seconds, 2),
+                    "duration_seconds": round(duration, 2) if duration is not None else None,
                     "peak_cpu_percent": round(peak_cpu, 2),
                     "peak_memory_mb": round(peak_memory, 2),
                 },
@@ -513,21 +534,6 @@ class ScriptRunner:
             os.chmod(script_file, 0o755)
 
         return script_file
-        try:
-            channel_layer = get_channel_layer()
-            if channel_layer and self.execution:
-                async_to_sync(channel_layer.group_send)(
-                    f"execution_{self.execution.id}",
-                    {
-                        "type": "execution_update",
-                        "message_type": message_type,
-                        "execution_id": self.execution.id,
-                        **data,
-                    },
-                )
-        except Exception as e:
-            # Don't fail execution if websocket update fails
-            print(f"Failed to send websocket update: {e}")
 
     def _monitor_process(
         self, process: psutil.Process, start_time: float

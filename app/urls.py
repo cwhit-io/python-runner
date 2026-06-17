@@ -22,6 +22,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from . import views
 from . import views_scripts
+from . import views_credentials
 from .api import api
 from ninja.openapi.docs import Swagger, Redoc
 
@@ -137,6 +138,14 @@ urlpatterns = [
     path("tags/create/", views_scripts.tag_create, name="tag_create"),
     path("tags/<int:tag_id>/edit/", views_scripts.tag_edit, name="tag_edit"),
     path("tags/<int:tag_id>/delete/", views_scripts.tag_delete, name="tag_delete"),
+    # Global Credentials
+    path("credentials/", views_credentials.credentials_list, name="credentials_list"),
+    path("credentials/create/", views_credentials.credential_create, name="credential_create"),
+    path(
+        "credentials/<int:credential_id>/delete/",
+        views_credentials.credential_delete,
+        name="credential_delete",
+    ),
     # Schedules
     path("schedules/", views_scripts.schedules_list, name="schedules_list"),
     path(

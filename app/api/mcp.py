@@ -11,55 +11,42 @@ from .mcp_schemas import (
     MCPToolManifestSchema,
 )
 from .security import authenticate_bearer_token
+from app.mcp_server import _convert_script_name_to_tool_name, _get_default_input_schema
+
 
 router = Router(tags=["MCP"])
 
 
-def authenticate_bearer_token(request):
-    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
-    if not auth_header:
-        return None
-
-    parts = auth_header.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        return None
-
-    return APITokenAuth().authenticate(request, parts[1])
-
-
 def _build_mcp_manifest(script: Script) -> dict:
-    tool_name = f"run_script_{script.id}"
+    """Build an MCP tool manifest for a script using the new naming and schema logic."""
+    tool_name = _convert_script_name_to_tool_name(script.name, script.mcp_tool_name)
+    
+    # Use custom input schema if available, otherwise use default
+    input_schema = script.input_schema if script.input_schema else _get_default_input_schema()
+    
     return {
         "script_id": script.id,
         "name": script.name,
-        "description": script.description or "Run this script through the MCP tool interface.",
+        "description": script.description or f"Run the ScriptDash script: {script.name}.",
         "language": script.language,
         "tool_name": tool_name,
         "tool_description": (
             f"Execute script '{script.name}' ({script.language}). "
-            + (script.description or "No description available.")
+            + (script.description or f"Run the ScriptDash script: {script.name}.")
         ).strip(),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "input_text": {
-                    "type": "string",
-                    "description": "Optional text input provided to the script via stdin.",
-                },
-                "timeout_seconds": {
-                    "type": "number",
-                    "description": "Maximum execution time in seconds.",
-                },
-            },
-            "required": [],
-        },
+        "parameters": input_schema,
+        "is_destructive": script.is_destructive,
     }
 
 
 @router.get("/scripts", response=List[MCPToolManifestSchema], auth=APITokenAuth())
 def list_mcp_manifests(request):
-    """List MCP-compatible tool manifests for a user's scripts."""
-    scripts = Script.objects.filter(owner=request.auth.user).order_by("-updated_at")
+    """List MCP-compatible tool manifests for a user's scripts that are exposed to MCP."""
+    # Only show scripts where expose_to_mcp is True
+    scripts = Script.objects.filter(
+        owner=request.auth.user, 
+        expose_to_mcp=True
+    ).order_by("-updated_at")
     return [_build_mcp_manifest(script) for script in scripts]
 
 
@@ -87,9 +74,16 @@ def discover_mcp_resources(request):
 
 @router.get("/scripts/{script_id}/manifest", response=MCPToolManifestSchema, auth=None)
 def get_mcp_manifest(request, script_id: int):
-    """Get the MCP-compatible tool manifest for a script."""
+    """Get the MCP-compatible tool manifest for a script.
+    
+    Only returns manifest for scripts that are exposed to MCP.
+    """
     script = get_object_or_404(Script, id=script_id)
     api_token = authenticate_bearer_token(request)
+    
+    # Check if script is exposed to MCP
+    if not script.expose_to_mcp:
+        return {"error": "Script is not exposed to MCP"}, 404
 
     if script.is_public:
         return _build_mcp_manifest(script)
@@ -105,10 +99,18 @@ def get_mcp_manifest(request, script_id: int):
 
 @router.post("/scripts/{script_id}/invoke", response=MCPInvokeResponseSchema, auth=None)
 def invoke_script_mcp(request, script_id: int, payload: MCPInvokeRequestSchema):
-    """Invoke a script through the MCP-compatible execution interface."""
+    """Invoke a script through the MCP-compatible execution interface.
+    
+    Only allows execution of scripts that are exposed to MCP.
+    """
     script = get_object_or_404(Script, id=script_id)
     api_token = authenticate_bearer_token(request)
-
+    
+    # Check if script is exposed to MCP - this is the key security check
+    if not script.expose_to_mcp:
+        return {"error": "Script is not exposed to MCP"}, 403
+    
+    # For non-public scripts, require authentication
     if not script.is_public:
         if api_token is None:
             return {"error": "Authentication required"}, 401
@@ -123,4 +125,10 @@ def invoke_script_mcp(request, script_id: int, payload: MCPInvokeRequestSchema):
         input_text=payload.input_text,
     )
 
-    return execution
+    return {
+        "id": execution.id,
+        "script_id": script.id,
+        "status": execution.status,
+        "trigger_type": execution.trigger_type,
+        "started_at": execution.started_at.isoformat() if execution.started_at else None,
+    }

@@ -3,7 +3,6 @@ from .items import router as items_router, protected_router as protected_items_r
 from .scripts import router as scripts_router
 from .mcp import router as mcp_router
 from .schemas import MessageSchema
-from datetime import datetime
 from django.utils import timezone
 
 # Create main API instance
@@ -19,15 +18,15 @@ def api_root(request):
     """API root endpoint - health check."""
     return {
         "message": "Python Script Runner API is running!",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": timezone.now().isoformat(),
     }
 
 
 @api.get("/server-time/", tags=["Debug"])
 def server_time(request):
-    """Get current server time in UTC."""
+    """Get current server time in the configured timezone (America/New_York)."""
     now = timezone.now()
-    return {"server_time": now.strftime("%Y-%m-%d %H:%M:%S"), "timezone": "UTC"}
+    return {"server_time": now.strftime("%Y-%m-%d %H:%M:%S"), "timezone": "America/New_York"}
 
 
 # Register routers

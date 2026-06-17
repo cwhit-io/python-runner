@@ -6,6 +6,86 @@ from django.core.mail import send_mail
 import secrets
 import os
 import shutil
+import json
+from cryptography.fernet import Fernet, InvalidToken
+
+
+# Global Credential Types
+class CredentialType(models.TextChoices):
+    API_KEY = "api_key", "API Key"
+    BEARER_TOKEN = "bearer_token", "Bearer Token"
+    BASIC_AUTH = "basic_auth", "Basic Auth"
+    OAUTH_CLIENT_CREDENTIALS = "oauth_client_credentials", "OAuth Client Credentials"
+    GENERIC = "generic", "Generic Key/Value"
+
+
+class GlobalCredential(models.Model):
+    """Global credentials that can be attached to scripts for secure reuse.
+    
+    Secret values are encrypted and never returned to the frontend after save.
+    Credentials can be referenced by scripts during execution.
+    """
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="credentials"
+    )
+    name = models.CharField(max_length=100, help_text="Descriptive name for this credential")
+    credential_type = models.CharField(
+        max_length=30,
+        choices=CredentialType.choices,
+        default=CredentialType.GENERIC,
+    )
+    
+    # Encrypted JSON storage for credential data
+    encrypted_data = models.TextField(
+        help_text="Encrypted credential data (JSON)"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ["-updated_at"]
+        verbose_name = "Global Credential"
+        verbose_name_plural = "Global Credentials"
+        indexes = [
+            models.Index(fields=["user", "-updated_at"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
+    
+    def get_masked_value(self) -> str:
+        """Return a masked representation of the credential value for UI display."""
+        return "••••••••••••••••••••••••••••••••••••••••••••••••••"
+    
+    def get_decrypted_data(self) -> dict:
+        """Decrypt and return the credential data. Returns empty dict if decryption fails."""
+        from app.services.secret_store import get_master_key
+        key = get_master_key()
+        if not key:
+            return {}
+        
+        try:
+            fernet = Fernet(key)
+            decrypted = fernet.decrypt(self.encrypted_data.encode())
+            return json.loads(decrypted.decode())
+        except (InvalidToken, json.JSONDecodeError):
+            return {}
+    
+    def set_encrypted_data(self, data: dict) -> None:
+        """Encrypt and store the credential data."""
+        from app.services.secret_store import get_master_key
+        key = get_master_key()
+        if not key:
+            raise RuntimeError("Master encryption key not available")
+        
+        fernet = Fernet(key)
+        encrypted = fernet.encrypt(json.dumps(data).encode())
+        self.encrypted_data = encrypted.decode()
 
 
 class UserProfile(models.Model):
@@ -263,6 +343,30 @@ class Script(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="scripts")
     is_public = models.BooleanField(
         default=False, help_text="Allow other users to view/run"
+    )
+    expose_to_mcp = models.BooleanField(
+        default=False,
+        help_text="Make this script available as a tool through the MCP server",
+    )
+    mcp_tool_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Custom name for the MCP tool (lowercase snake_case, auto-generated from script name if empty)",
+    )
+    input_schema = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="JSON schema for script input parameters (auto-generated if empty)",
+    )
+    is_destructive = models.BooleanField(
+        default=False,
+        help_text="Mark this script as destructive/making changes (for safety warnings)",
+    )
+    credentials = models.ManyToManyField(
+        GlobalCredential,
+        blank=True,
+        related_name="scripts",
+        help_text="Global credentials to attach to this script",
     )
     tags = models.ManyToManyField(
         "Tag",

@@ -30,11 +30,19 @@
         <textarea name="description" id="real-description" class="hidden">{{ script.description }}</textarea>
         <input type="hidden" name="language" id="real-language" value="{{ script.language }}">
         <input type="checkbox" name="is_public" id="real-is-public" class="hidden" {% if script.is_public %}checked{% endif %}>
+        <input type="checkbox" name="expose_to_mcp" id="real-expose-mcp" class="hidden" {% if script.expose_to_mcp %}checked{% endif %}>
         
         <!-- Hidden Tag Container (Rebuilt by JS on Modal Save) -->
         <div id="real-tags-container" class="hidden">
             {% for tag in script.tags.all %}
             <input type="checkbox" name="tags" value="{{ tag.name }}" checked>
+            {% endfor %}
+        </div>
+        
+        <!-- Hidden Credential Container (Rebuilt by JS on Modal Save) -->
+        <div id="real-credentials-container" class="hidden">
+            {% for cred in script.credentials.all %}
+            <input type="checkbox" name="credentials" value="{{ cred.id }}" checked>
             {% endfor %}
         </div>
 
@@ -259,12 +267,22 @@
                         </span>
                     </label>
                 </div>
+
+                <div class="form-control mt-4">
+                    <label class="label cursor-pointer justify-start gap-3 bg-gradient-to-r from-primary/10 to-violet-600/10 p-3 rounded-lg border border-primary/30">
+                        <input type="checkbox" id="modal-expose-mcp" class="checkbox checkbox-primary" />
+                        <span class="label-text">
+                            <strong>Expose to MCP Server</strong>
+                            <span class="block text-xs opacity-60">Make this script callable via AI/MCP clients</span>
+                        </span>
+                    </label>
+                </div>
             </div>
 
-            <!-- Right: Tags -->
+            <!-- Right: Tags + Credentials -->
             <div>
                 <label class="label"><span class="label-text font-semibold">Tags</span></label>
-                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[280px] overflow-y-auto">
+                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[200px] overflow-y-auto mb-4">
                     {% if user_tags %}
                     <div class="flex flex-wrap gap-2">
                         {% for tag in user_tags %}
@@ -285,6 +303,31 @@
                     <div class="text-center py-10 opacity-50">
                         <p class="text-sm">No tags available.</p>
                         <a href="{% url 'tags_list' %}" target="_blank" class="link link-primary text-xs">Create Tags</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <label class="label"><span class="label-text font-semibold">Credentials</span></label>
+                <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[160px] overflow-y-auto">
+                    {% if user_credentials %}
+                    <div class="flex flex-col gap-2">
+                        {% for cred in user_credentials %}
+                        <label class="cursor-pointer group select-none flex items-center gap-2">
+                            <input type="checkbox" class="modal-cred-checkbox peer hidden" 
+                                   value="{{ cred.id }}">
+                            <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
+                                        peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
+                                        group-hover:border-primary/50 transition-all w-full justify-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                {{ cred.name }} <span class="opacity-60">({{ cred.get_credential_type_display }})</span>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-6 opacity-50">
+                        <p class="text-sm">No credentials available.</p>
+                        <a href="{% url 'credentials_list' %}" target="_blank" class="link link-primary text-xs">Create Credentials</a>
                     </div>
                     {% endif %}
                 </div>
@@ -339,6 +382,7 @@
         document.getElementById('modal-desc').value = document.getElementById('real-description').value;
         document.getElementById('modal-language').value = document.getElementById('real-language').value;
         document.getElementById('modal-public').checked = document.getElementById('real-is-public').checked;
+        document.getElementById('modal-expose-mcp').checked = document.getElementById('real-expose-mcp').checked;
         
         // 2. Sync Tags (Read from Real Hidden Container -> Check Modal Checkboxes)
         const realContainer = document.getElementById('real-tags-container');
@@ -347,6 +391,15 @@
 
         document.querySelectorAll('.modal-tag-checkbox').forEach(cb => {
             cb.checked = activeTags.includes(cb.value);
+        });
+
+        // 3. Sync Credentials
+        const realCredContainer = document.getElementById('real-credentials-container');
+        const realCredCheckboxes = realCredContainer.querySelectorAll('input[type="checkbox"]');
+        const activeCreds = Array.from(realCredCheckboxes).map(cb => cb.value);
+
+        document.querySelectorAll('.modal-cred-checkbox').forEach(cb => {
+            cb.checked = activeCreds.includes(cb.value);
         });
 
         document.getElementById('settings-modal').showModal();
@@ -363,6 +416,10 @@
         document.getElementById('real-description').value = desc;
         document.getElementById('real-language').value = language;
         document.getElementById('real-is-public').checked = isPublic;
+
+        // Handle MCP exposure checkbox
+        const exposeMcp = document.getElementById('modal-expose-mcp').checked;
+        document.getElementById('real-expose-mcp').checked = exposeMcp;
 
         // 2. Rebuild Real Hidden Tag Container
         const realContainer = document.getElementById('real-tags-container');
@@ -382,6 +439,24 @@
 
             // Store for UI update
             selectedTags.push({ name: cb.value, color: cb.dataset.color || '#666' });
+        });
+
+        // Rebuild Real Hidden Credential Container
+        const realCredContainer = document.getElementById('real-credentials-container');
+        realCredContainer.innerHTML = ''; // Clear old
+        
+        const modalCredCheckboxes = document.querySelectorAll('.modal-cred-checkbox:checked');
+        const selectedCreds = [];
+
+        modalCredCheckboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = 'credentials';
+            input.value = cb.value;
+            input.checked = true;
+            realCredContainer.appendChild(input);
+
+            selectedCreds.push({ id: cb.value });
         });
 
         // 3. Update Header UI

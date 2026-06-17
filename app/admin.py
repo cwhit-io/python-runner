@@ -8,6 +8,7 @@ from .models import (
     ScriptExecution,
     ScriptSchedule,
     Tag,
+    GlobalCredential,
 )
 from unfold.admin import ModelAdmin
 
@@ -253,10 +254,11 @@ class ScriptAdmin(ModelAdmin):
         "execution_count",
         "last_run",
         "is_public",
+        "expose_to_mcp",
         "tag_list",
         "created_at",
     ]
-    list_filter = ["last_status", "is_public", "created_at", "owner", "tags"]
+    list_filter = ["last_status", "is_public", "expose_to_mcp", "created_at", "owner", "tags"]
     search_fields = ["name", "description", "owner__username"]
     readonly_fields = [
         "venv_path",
@@ -283,7 +285,7 @@ class ScriptAdmin(ModelAdmin):
             "Status",
             {"fields": ("last_status", "last_run", "last_success", "execution_count")},
         ),
-        ("Permissions", {"fields": ("is_public",)}),
+        ("Permissions", {"fields": ("is_public", "expose_to_mcp", "credentials")}),
         (
             "Timestamps",
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
@@ -395,3 +397,25 @@ class ScriptScheduleAdmin(ModelAdmin):
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
+
+
+@admin.register(GlobalCredential)
+class GlobalCredentialAdmin(ModelAdmin):
+    """Admin interface for global credentials."""
+
+    list_display = ["name", "credential_type", "user", "created_at", "updated_at"]
+    list_filter = ["credential_type", "created_at", "user"]
+    search_fields = ["name"]
+    readonly_fields = ["created_at", "updated_at", "masked_value"]
+
+    fieldsets = (
+        ("Credential Information", {"fields": ("name", "credential_type", "user")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    def masked_value(self, obj):
+        """Display masked credential value."""
+        return obj.get_masked_value()
+
+    masked_value.short_description = "Credential Value (Masked)"
+

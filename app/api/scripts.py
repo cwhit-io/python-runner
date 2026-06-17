@@ -2,6 +2,7 @@
 API endpoints for script management.
 """
 
+import json
 from ninja import Router
 from typing import List
 from django.shortcuts import get_object_or_404
@@ -14,11 +15,37 @@ from .schemas import (
     ScriptUpdateSchema,
     ExecutionSchema,
     ExecutionDetailSchema,
+    ExecutionResultSchema,
     ScheduleSchema,
     ScheduleCreateSchema,
     TagSchema,
+    SecretSchema,
+    SecretSetSchema,
+    GlobalCredentialSchema,
+    GlobalCredentialCreateSchema,
+    GlobalCredentialUpdateSchema,
 )
 from .security import authenticate_bearer_token
+
+
+def parse_execution_output(stdout: str) -> dict | None:
+    """Try to parse stdout as JSON, returning None if parsing fails.
+    
+    Args:
+        stdout: The stdout string from script execution
+        
+    Returns:
+        Parsed JSON dict if stdout is valid JSON, None otherwise
+    """
+    if not stdout:
+        return None
+    try:
+        result = json.loads(stdout.strip())
+        if isinstance(result, dict):
+            return result
+        return None
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 router = Router(tags=["Scripts"])
 
@@ -69,10 +96,10 @@ def get_script(request, script_id: int):
 @router.put("/scripts/{script_id}", response=ScriptSchema, auth=APITokenAuth())
 def update_script(request, script_id: int, payload: ScriptUpdateSchema):
     """Update a script."""
-    from app.models import Tag
-
+    from app.models import Tag, GlobalCredential
+    
     script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
-
+    
     for attr, value in payload.dict(exclude_unset=True).items():
         if attr == "tags":
             # Handle tags separately - only assign existing tags
@@ -88,9 +115,22 @@ def update_script(request, script_id: int, payload: ScriptUpdateSchema):
                         # Skip tags that don't exist or don't belong to the user
                         pass
                 script.tags.set(tags)  # type: ignore[attr-defined]
+        elif attr == "credentials":
+            # Handle credentials - only assign existing credentials owned by user
+            if value is not None:
+                credentials = []
+                for cred_id in value:
+                    try:
+                        cred = GlobalCredential.objects.get(
+                            id=cred_id, user=request.auth.user
+                        )
+                        credentials.append(cred)
+                    except GlobalCredential.DoesNotExist:
+                        pass
+                script.credentials.set(credentials)
         else:
             setattr(script, attr, value)
-
+    
     script.save()
     return script
 
@@ -103,12 +143,14 @@ def delete_script(request, script_id: int):
     return {"success": True}
 
 
-@router.post("/scripts/{script_id}/execute", response=ExecutionSchema, auth=None)
+@router.post("/scripts/{script_id}/execute", auth=None)
 def execute_script_api(request, script_id: int):
-    """Execute a script.
+    """Execute a script and wait for completion.
 
+    Returns only the parsed JSON result if the script output is valid JSON.
     Requires authentication. For public scripts, use the webhook endpoint instead.
     """
+    import time
     api_token_obj = authenticate_bearer_token(request)
     if api_token_obj is None:
         return {"error": "Authentication required"}, 401
@@ -124,7 +166,30 @@ def execute_script_api(request, script_id: int):
     runner = ScriptRunner(script)
     execution = runner.execute(triggered_by=api_token_obj.user, trigger_type="api")
 
-    return execution
+    # Wait for execution to complete (poll every 0.5s, up to 60s)
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        execution.refresh_from_db()
+        if execution.status in ("success", "failed", "cancelled"):
+            break
+        time.sleep(0.5)
+
+    # Try to parse stdout as JSON
+    result = parse_execution_output(execution.stdout)
+
+    # For failed executions, include error details
+    if execution.status == "failed":
+        return {
+            "output": execution.stdout or "",
+            "error": execution.error_message or "",
+        }
+
+    # Only return the result when available
+    if result is not None:
+        return {"result": result}
+    
+    # For non-JSON output, return the stdout output
+    return {"output": execution.stdout or ""}
 
 
 @router.get(
@@ -140,17 +205,34 @@ def list_executions(request, script_id: int):
 
 
 @router.get(
-    "/executions/{execution_id}", response=ExecutionDetailSchema, auth=APITokenAuth()
+    "/executions/{execution_id}", response=ExecutionResultSchema, auth=APITokenAuth()
 )
 def get_execution(request, execution_id: int):
-    """Get execution details."""
+    """Get execution details with parsed JSON result if available."""
     execution = get_object_or_404(ScriptExecution, id=execution_id)
 
     # Check permission
     if execution.script.owner != request.auth.user:
         return {"error": "Permission denied"}, 403
 
-    return execution
+    # Try to parse stdout as JSON
+    result = parse_execution_output(execution.stdout)
+
+    return {
+        "id": execution.id,
+        "script_id": execution.script_id,
+        "status": execution.status,
+        "trigger_type": execution.trigger_type,
+        "started_at": execution.started_at,
+        "completed_at": execution.completed_at,
+        "duration_seconds": execution.duration_seconds,
+        "exit_code": execution.exit_code,
+        "created_at": execution.created_at,
+        "stdout": "" if result else (execution.stdout or ""),
+        "stderr": execution.stderr or "",
+        "error_message": execution.error_message or "",
+        "result": result,
+    }
 
 
 @router.get(
@@ -275,3 +357,200 @@ def execute_script_webhook(request, script_id: int):
     execution = runner.execute(triggered_by=None, trigger_type="webhook")
 
     return {"ok": True, "execution_id": execution.id}
+
+
+# Script Secrets API endpoints
+@router.get("/scripts/{script_id}/secrets", response=List[SecretSchema], auth=APITokenAuth())
+def list_script_secrets_api(request, script_id: int):
+    """List secret names for a script."""
+    from app.services.secret_store import list_script_secrets
+
+    script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
+
+    names = list_script_secrets(script_id)
+    return [{"name": name} for name in names]
+
+
+@router.get("/scripts/{script_id}/secrets/{secret_name}", auth=APITokenAuth())
+def get_script_secret_api(request, script_id: int, secret_name: str):
+    """Get a secret value for a script."""
+    from app.services.secret_store import get_script_secret
+
+    script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
+
+    value = get_script_secret(script_id, secret_name)
+    if value is None:
+        return {"error": "Secret not found"}, 404
+
+    return {"name": secret_name, "value": value}
+
+
+@router.post("/scripts/{script_id}/secrets", auth=APITokenAuth())
+def set_script_secret_api(request, script_id: int, payload: SecretSetSchema):
+    """Set/update a script secret."""
+    from app.services.secret_store import set_script_secret
+
+    script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
+
+    name = payload.name.strip()
+    if not name:
+        return {"error": "Secret name is required"}, 400
+
+    # Basic validation for secret name
+    import re
+    if not re.match(r"^[A-Z0-9_\-]+$", name, re.I):
+        return {
+            "error": "Invalid name (use letters, numbers, - or _)"
+        }, 400
+
+    set_script_secret(script_id, name, payload.value)
+    return {"success": True, "name": name}
+
+
+@router.delete("/scripts/{script_id}/secrets/{secret_name}", auth=APITokenAuth())
+def delete_script_secret_api(request, script_id: int, secret_name: str):
+    """Delete a script secret."""
+    from app.services.secret_store import delete_script_secret
+
+    script = get_object_or_404(Script, id=script_id, owner=request.auth.user)
+
+    deleted = delete_script_secret(script_id, secret_name)
+    if not deleted:
+        return {"error": "Secret not found"}, 404
+
+    return {"success": True}
+
+
+# Global Credential API endpoints
+@router.get("/credentials", response=List[GlobalCredentialSchema], auth=APITokenAuth())
+def list_credentials(request):
+    """List all global credentials for the current user."""
+    from app.models import GlobalCredential
+    
+    credentials = GlobalCredential.objects.filter(
+        user=request.auth.user
+    ).order_by("-updated_at")
+    return credentials
+
+
+@router.post("/credentials", response=GlobalCredentialSchema, auth=APITokenAuth())
+def create_credential(request, payload: GlobalCredentialCreateSchema):
+    """Create a new global credential."""
+    from app.models import GlobalCredential, CredentialType
+    
+    # Build the credential data based on type
+    credential_data = {}
+    
+    if payload.credential_type == CredentialType.API_KEY:
+        if not payload.api_key:
+            return {"error": "api_key is required for this credential type"}, 400
+        credential_data["api_key"] = payload.api_key
+    elif payload.credential_type == CredentialType.BEARER_TOKEN:
+        if not payload.token:
+            return {"error": "token is required for this credential type"}, 400
+        credential_data["token"] = payload.token
+    elif payload.credential_type == CredentialType.BASIC_AUTH:
+        if not payload.username or not payload.password:
+            return {"error": "username and password are required for basic auth"}, 400
+        credential_data["username"] = payload.username
+        credential_data["password"] = payload.password
+    elif payload.credential_type == CredentialType.OAUTH_CLIENT_CREDENTIALS:
+        if not payload.client_id or not payload.client_secret or not payload.token_url:
+            return {"error": "client_id, client_secret, and token_url are required"}, 400
+        credential_data["client_id"] = payload.client_id
+        credential_data["client_secret"] = payload.client_secret
+        credential_data["token_url"] = payload.token_url
+    elif payload.credential_type == CredentialType.GENERIC:
+        if not payload.key or not payload.value:
+            return {"error": "key and value are required for generic credentials"}, 400
+        credential_data["key"] = payload.key
+        credential_data["value"] = payload.value
+    
+    credential = GlobalCredential.objects.create(
+        user=request.auth.user,
+        name=payload.name,
+        credential_type=payload.credential_type,
+    )
+    credential.set_encrypted_data(credential_data)
+    credential.save()
+    
+    return credential
+
+
+@router.get("/credentials/{credential_id}", response=GlobalCredentialSchema, auth=APITokenAuth())
+def get_credential(request, credential_id: int):
+    """Get a specific global credential (masked value only)."""
+    from app.models import GlobalCredential
+    
+    credential = get_object_or_404(
+        GlobalCredential, 
+        id=credential_id, 
+        user=request.auth.user
+    )
+    return credential
+
+
+@router.put("/credentials/{credential_id}", response=GlobalCredentialSchema, auth=APITokenAuth())
+def update_credential(request, credential_id: int, payload: GlobalCredentialUpdateSchema):
+    """Update a global credential."""
+    from app.models import GlobalCredential, CredentialType
+    
+    credential = get_object_or_404(
+        GlobalCredential, 
+        id=credential_id, 
+        user=request.auth.user
+    )
+    
+    # Update name if provided
+    if payload.name:
+        credential.name = payload.name
+    
+    # Update credential data if any secret fields are provided
+    update_data = {}
+    existing_data = credential.get_decrypted_data()
+    
+    if payload.credential_type == CredentialType.API_KEY or credential.credential_type == CredentialType.API_KEY:
+        if payload.api_key:
+            update_data["api_key"] = payload.api_key
+    elif payload.credential_type == CredentialType.BEARER_TOKEN or credential.credential_type == CredentialType.BEARER_TOKEN:
+        if payload.token:
+            update_data["token"] = payload.token
+    elif payload.credential_type == CredentialType.BASIC_AUTH or credential.credential_type == CredentialType.BASIC_AUTH:
+        if payload.username:
+            update_data["username"] = payload.username
+        if payload.password:
+            update_data["password"] = payload.password
+    elif payload.credential_type == CredentialType.OAUTH_CLIENT_CREDENTIALS or credential.credential_type == CredentialType.OAUTH_CLIENT_CREDENTIALS:
+        if payload.client_id:
+            update_data["client_id"] = payload.client_id
+        if payload.client_secret:
+            update_data["client_secret"] = payload.client_secret
+        if payload.token_url:
+            update_data["token_url"] = payload.token_url
+    elif payload.credential_type == CredentialType.GENERIC or credential.credential_type == CredentialType.GENERIC:
+        if payload.key:
+            update_data["key"] = payload.key
+        if payload.value:
+            update_data["value"] = payload.value
+    
+    if update_data:
+        # Merge with existing data, keeping unchanged fields
+        merged_data = {**existing_data, **update_data}
+        credential.set_encrypted_data(merged_data)
+    
+    credential.save()
+    return credential
+
+
+@router.delete("/credentials/{credential_id}", auth=APITokenAuth())
+def delete_credential(request, credential_id: int):
+    """Delete a global credential."""
+    from app.models import GlobalCredential
+    
+    credential = get_object_or_404(
+        GlobalCredential, 
+        id=credential_id, 
+        user=request.auth.user
+    )
+    credential.delete()
+    return {"success": True}

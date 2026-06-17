@@ -51,6 +51,7 @@
               <li><a class="{% if current_url == 'scripts_list' %}active{% endif %}" href="{% url 'scripts_list' %}">My Scripts</a></li>
               <li><a class="{% if current_url == 'schedules_list' %}active{% endif %}" href="{% url 'schedules_list' %}">Schedules</a></li>
               <li><a class="{% if current_url == 'tags_list' %}active{% endif %}" href="{% url 'tags_list' %}">Tags</a></li>
+              <li><a class="{% if current_url == 'credentials_list' %}active{% endif %}" href="{% url 'credentials_list' %}">Credentials</a></li>
               <li><a class="{% if current_url == 'api_tokens' %}active{% endif %}" href="{% url 'api_tokens' %}">API Tokens</a></li>
               <div class="divider my-1"></div>
               <li><a href="{% url 'profile' %}">Profile</a></li>
@@ -101,6 +102,7 @@
             <li><a class="{% if current_url == 'scripts_list' %}active{% endif %}" href="{% url 'scripts_list' %}">My Scripts</a></li>
             <li><a class="{% if current_url == 'schedules_list' %}active{% endif %}" href="{% url 'schedules_list' %}">Schedules</a></li>
             <li><a class="{% if current_url == 'tags_list' %}active{% endif %}" href="{% url 'tags_list' %}">Tags</a></li>
+            <li><a class="{% if current_url == 'credentials_list' %}active{% endif %}" href="{% url 'credentials_list' %}">Credentials</a></li>
             <li><a href="{% url 'api_docs' %}">API</a></li>
           </ul>
         {% endif %}
@@ -319,7 +321,36 @@
       closeConfirmModal();
     }
 
-    // 5. Keyboard Shortcuts
+    // 6. Time Display
+    async function updateTimes() {
+        const userTimeEl = document.getElementById('user-time');
+        const serverTimeEl = document.getElementById('server-time');
+        
+        if (userTimeEl) {
+            // Update user time locally
+            const now = new Date();
+            userTimeEl.textContent = now.toLocaleString();
+        }
+        
+        if (serverTimeEl) {
+            // Fetch server time
+            try {
+                const response = await fetch('/api/server-time/');
+                const data = await response.json();
+                serverTimeEl.textContent = data.server_time;
+            } catch (error) {
+                serverTimeEl.textContent = 'Unavailable';
+            }
+        }
+    }
+    
+    // Update times on load and periodically
+    document.addEventListener('DOMContentLoaded', function () {
+        updateTimes();
+        setInterval(updateTimes, 1000);
+    });
+
+    // 7. Keyboard Shortcuts
     document.addEventListener('keydown', function (event) {
         const activeElement = document.activeElement;
         const isInput = ['INPUT', 'TEXTAREA'].includes(activeElement.tagName) || activeElement.classList.contains('monaco-editor');

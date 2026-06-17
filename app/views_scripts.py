@@ -135,6 +135,8 @@ def script_toggle_public(request, script_id):
 @login_required
 def script_edit(request, script_id):
     """Edit script code and settings."""
+    from app.models import Tag, GlobalCredential
+    
     script = get_object_or_404(Script, id=script_id, owner=request.user)
 
     if request.method == "POST":
@@ -144,10 +146,24 @@ def script_edit(request, script_id):
         script.code = request.POST.get("code", script.code)
         script.dependencies = request.POST.get("dependencies", script.dependencies)
         script.is_public = request.POST.get("is_public") == "on"
+        script.expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
+        script.mcp_tool_name = request.POST.get("mcp_tool_name", script.mcp_tool_name)
+        script.is_destructive = request.POST.get("is_destructive") == "on"
+
+        # Handle input_schema as JSON string if provided
+        input_schema_json = request.POST.get("input_schema", "").strip()
+        if input_schema_json:
+            try:
+                import json
+                script.input_schema = json.loads(input_schema_json)
+            except json.JSONDecodeError:
+                messages.error(request, "Invalid input_schema JSON format.")
+                return redirect("script_edit", script_id=script.id)
+        else:
+            script.input_schema = None
 
         # Handle tags - only assign existing tags
         tag_names = request.POST.getlist("tags")
-        from app.models import Tag
 
         tags = []
         for tag_name in tag_names:
@@ -159,18 +175,34 @@ def script_edit(request, script_id):
                 pass
         script.tags.set(tags)
 
+        # Handle credentials - only assign existing credentials owned by user
+        cred_ids = request.POST.getlist("credentials")
+        credentials = []
+        for cred_id in cred_ids:
+            try:
+                cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
+                credentials.append(cred)
+            except GlobalCredential.DoesNotExist:
+                pass
+        script.credentials.set(credentials)
+
         script.save()
 
         messages.success(request, "Script updated successfully!")
         return redirect("script_detail", script_id=script.id)
 
-    # Get all user's tags for the form
-    from app.models import Tag
-
+    # Get all user's tags and credentials for the form
     user_tags = Tag.objects.filter(created_by=request.user).order_by("name")
+    user_credentials = GlobalCredential.objects.filter(user=request.user).order_by("name")
 
     return render(
-        request, "scripts/edit.html", {"script": script, "user_tags": user_tags}
+        request,
+        "scripts/edit.html",
+        {
+            "script": script,
+            "user_tags": user_tags,
+            "user_credentials": user_credentials,
+        },
     )
 
 
@@ -1042,6 +1074,9 @@ def script_edit(request, script_id):
         code = request.POST.get("code", "")
         dependencies = request.POST.get("dependencies", "")
         is_public = request.POST.get("is_public") == "on"
+        expose_to_mcp = request.POST.get("expose_to_mcp") == "on"
+        mcp_tool_name = request.POST.get("mcp_tool_name", "").strip()
+        is_destructive = request.POST.get("is_destructive") == "on"
 
         # Get tags
         tags = request.POST.getlist("tags")
@@ -1067,6 +1102,9 @@ def script_edit(request, script_id):
         script.code = code
         script.dependencies = dependencies
         script.is_public = is_public
+        script.expose_to_mcp = expose_to_mcp
+        script.mcp_tool_name = mcp_tool_name
+        script.is_destructive = is_destructive
         script.save()
 
         # Update tags

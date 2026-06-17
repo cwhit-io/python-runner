@@ -14,9 +14,8 @@ class ItemSchema(Schema):
     description: Optional[str] = None
 
 
-class ItemCreateSchema(Schema):
-    name: str
-    description: Optional[str] = None
+class ItemCreateSchema(ItemSchema):
+    pass
 
 
 class ItemUpdateSchema(Schema):
@@ -30,6 +29,47 @@ class TagSchema(Schema):
     color: str
 
 
+class CredentialTypeSchema(Schema):
+    value: str
+    label: str
+
+
+class GlobalCredentialSchema(Schema):
+    id: int
+    name: str
+    credential_type: str
+    masked_value: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class GlobalCredentialCreateSchema(Schema):
+    name: str
+    credential_type: str
+    api_key: Optional[str] = None
+    token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    token_url: Optional[str] = None
+    key: Optional[str] = None
+    value: Optional[str] = None
+
+
+class GlobalCredentialUpdateSchema(Schema):
+    name: Optional[str] = None
+    api_key: Optional[str] = None
+    token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    token_url: Optional[str] = None
+    key: Optional[str] = None
+    value: Optional[str] = None
+
+
 class ScriptSchema(Schema):
     id: int
     name: str
@@ -37,6 +77,8 @@ class ScriptSchema(Schema):
     code: str
     dependencies: str
     tags: List[TagSchema]
+    credentials: List[GlobalCredentialSchema]
+    expose_to_mcp: bool
     last_status: str
     last_run: Optional[datetime]
     execution_count: int
@@ -51,6 +93,7 @@ class ScriptCreateSchema(Schema):
     code: Optional[str] = "# Write your Python script here\nprint('Hello, World!')"
     dependencies: Optional[str] = ""
     tags: Optional[List[str]] = []
+    expose_to_mcp: Optional[bool] = False
 
 
 class ScriptUpdateSchema(Schema):
@@ -59,7 +102,9 @@ class ScriptUpdateSchema(Schema):
     code: Optional[str] = None
     dependencies: Optional[str] = None
     is_public: Optional[bool] = None
+    expose_to_mcp: Optional[bool] = None
     tags: Optional[List[str]] = None
+    credentials: Optional[List[int]] = None
 
 
 class ExecutionSchema(Schema):
@@ -80,6 +125,11 @@ class ExecutionDetailSchema(ExecutionSchema):
     error_message: str
 
 
+class ExecutionResultSchema(ExecutionDetailSchema):
+    """Schema for execution results with parsed JSON output."""
+    result: Optional[dict] = None
+
+
 class ScheduleSchema(Schema):
     id: int
     script_id: int
@@ -94,3 +144,12 @@ class ScheduleSchema(Schema):
 class ScheduleCreateSchema(Schema):
     name: str
     cron_expression: str
+
+
+class SecretSchema(Schema):
+    name: str
+
+
+class SecretSetSchema(Schema):
+    name: str
+    value: str

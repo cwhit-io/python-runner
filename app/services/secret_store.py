@@ -28,6 +28,15 @@ def _get_master_key() -> Optional[bytes]:
     return None
 
 
+def get_master_key() -> bytes:
+    """Get or generate the master encryption key. Raises RuntimeError if unavailable."""
+    key = _get_master_key()
+    if not key:
+        raise RuntimeError("Master encryption key not available")
+    return key
+
+
+# ... (rest of the file remains the same)
 class SecretStore:
     def __init__(self) -> None:
         self._key = _get_master_key()
@@ -141,3 +150,48 @@ def list_script_secrets(script_id: int):
         if n.startswith(prefix):
             results.append(n[len(prefix) :])
     return results
+
+
+# Global Credential Service Functions
+
+def get_credential_for_script(credential_id: int, script_id: int) -> Optional[str]:
+    """Get a credential value for injection into script execution.
+    
+    Validates that the credential belongs to the script owner before returning.
+    Returns the credential data as JSON string, or None if not found/unauthorized.
+    """
+    from app.models import GlobalCredential, Script
+    
+    try:
+        credential = GlobalCredential.objects.get(id=credential_id)
+        script = Script.objects.get(id=script_id)
+        
+        # Verify the credential belongs to the script owner
+        if credential.user_id != script.owner_id:
+            return None
+        
+        return json.dumps(credential.get_decrypted_data())
+    except (GlobalCredential.DoesNotExist, Script.DoesNotExist):
+        return None
+
+
+def get_all_credentials_for_script(script_id: int) -> dict:
+    """Get all attached credential values for script execution.
+    
+    Returns a dict mapping credential names to their decrypted values.
+    Only returns credentials that belong to the script owner.
+    """
+    from app.models import Script
+    
+    try:
+        script = Script.objects.get(id=script_id)
+    except Script.DoesNotExist:
+        return {}
+    
+    credentials_data = {}
+    for credential in script.credentials.all():
+        data = credential.get_decrypted_data()
+        if data:
+            credentials_data[credential.name] = data
+    
+    return credentials_data
