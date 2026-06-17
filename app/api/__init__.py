@@ -25,8 +25,8 @@ def api_root(request):
 @api.get("/server-time/", tags=["Debug"])
 def server_time(request):
     """Get current server time in the configured timezone (America/New_York)."""
-    now = timezone.now()
-    return {"server_time": now.strftime("%Y-%m-%d %H:%M:%S"), "timezone": "America/New_York"}
+    now = timezone.localtime(timezone.now())
+    return {"server_time": now.strftime("%Y-%m-%d %H:%M:%S"), "timezone": str(now.tzinfo)}
 
 
 # Register routers
