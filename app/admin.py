@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from .models import (
     APILog,
     UserProfile,
@@ -308,7 +308,36 @@ class ScriptAdmin(ModelAdmin):
                     tag.name,
                 )
             )
-        return format_html("".join(tag_html))
+        return mark_safe("".join(tag_html))
+
+    @admin.action(description="🗑️ Delete venv & reset (recreates on next run)")
+    def rebuild_venv(self, request, queryset):
+        """Delete selected scripts' virtual env dirs and reset their state.
+
+        The venv will be recreated automatically the next time the script is
+        executed. Useful when a venv is corrupted or has stale host paths.
+        """
+        import shutil, threading
+        from app.services.script_runner import ScriptRunner
+
+        count = 0
+        for script in queryset.filter(language__in=("python", "http")):
+            try:
+                shutil.rmtree(script.get_venv_path(), ignore_errors=True)
+            except Exception:
+                pass
+            script.venv_path = ""
+            script.venv_created = False
+            script.save(update_fields=["venv_path", "venv_created"])
+            count += 1
+
+        self.message_user(
+            request,
+            f"Cleared venv state for {count} script(s). "
+            f"Fresh virtual environments will be created on next execution.",
+        )
+
+    actions = ["rebuild_venv"]
 
 
 @admin.register(ScriptExecution)

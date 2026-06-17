@@ -6,7 +6,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    TZ=America/New_York
+    TZ=America/New_York \
+    HOME=/app \
+    PIP_CACHE_DIR=/app/.cache/pip \
+    PYTHONUSERBASE=/app/.local
 
 # Set work directory
 WORKDIR /app
@@ -39,6 +42,14 @@ RUN python manage.py collectstatic --noinput || true
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 USER appuser
+
+# Re-set HOME after USER switch (USER overrides ENV)
+ENV HOME=/app
+ENV PIP_CACHE_DIR=/app/.cache/pip
+ENV PYTHONUSERBASE=/app/.local
+
+RUN mkdir -p /app/media/venvs /app/.cache/pip /app/.local && \
+    chown -R appuser:appuser /app
 
 # Expose port
 EXPOSE 8000

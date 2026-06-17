@@ -6,6 +6,9 @@ Supports managing mailing lists, contacts, campaigns, and templates
 via the EmailOctopus API v1.
 """
 
+import json
+import time
+
 import sys
 import os
 

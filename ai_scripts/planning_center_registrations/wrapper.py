@@ -8,6 +8,9 @@ signup locations via the Planning Center Registrations API.
 Write actions are guarded and minimal.
 """
 
+import json
+import time
+
 import sys
 import os
 

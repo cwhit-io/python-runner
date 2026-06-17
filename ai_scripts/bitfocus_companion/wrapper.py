@@ -7,6 +7,8 @@ managing custom/module variables, and rescanning surfaces.
 Targets Companion v4.x HTTP API.
 """
 
+import time
+
 import sys
 import os
 import json

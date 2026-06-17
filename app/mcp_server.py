@@ -26,8 +26,12 @@ django.setup()
 # ── Imports ──────────────────────────────────────────────────────────────
 from typing import Annotated
 
+from pydantic import ConfigDict
+
 from django.contrib.auth import get_user_model
 from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp.tools.base import Tool
+from mcp.server.fastmcp.utilities.func_metadata import FuncMetadata, ArgModelBase
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp.server import TransportSecuritySettings
@@ -308,54 +312,83 @@ def _invalidate_mcp_tool_cache(user_id: int = None):
 _registered_dynamic_tool_names: set[str] = set()
 
 
-def _create_dynamic_tool_function(script_id: int, is_destructive: bool):
-    """Create a tool function that executes a specific script.
-    
-    This creates a closure that captures the script_id and can be registered
-    as an MCP tool.
+def _build_tool_for_script(script, tool_name: str) -> Tool:
+    """Build a Tool for a script directly, bypassing function signature introspection.
+
+    This avoids the issue where ``**kwargs`` in the function signature causes the MCP
+    library to generate ``kwargs`` as a required field in the tool schema.
+
+    Instead, we:
+    - Create a function that accepts arbitrary keyword arguments
+    - Build a Pydantic arg_model with ``extra='allow'`` so any schema fields validate
+    - Inject the scripts ``input_schema`` as the tool's parameter schema
     """
-    def dynamic_tool_func(
-        context: Context = None,
-        input_text: str = "",
-        timeout_seconds: int = 60,
-        **kwargs,
-    ):
-        """Execute the MCP-exposed script.
-        
-        Extra keyword arguments from the script's input_schema are passed as
-        SCRIPT_PARAM_* environment variables.
-        
-        Args:
-            input_text: Optional text input for the script via stdin.
-            timeout_seconds: Maximum execution time (default 60).
-        """
-        user = _get_user_from_context(context)
+    description = script.description or f"Run the ScriptDash script: {script.name}."
+
+    # ── Pydantic model that accepts arbitrary extra fields ──────────────
+    class FlexibleArgs(ArgModelBase):
+        """Accepts declared fields + arbitrary extras from input_schema."""
+
+        model_config = ConfigDict(extra="allow")
+
+        context: Context | None = None
+        input_text: str = ""
+        timeout_seconds: int = 60
+
+        def model_dump_one_level(self) -> dict[str, Any]:
+            result = {}
+            for field_name, field_info in self.__class__.model_fields.items():
+                value = getattr(self, field_name)
+                output_name = field_info.alias if field_info.alias else field_name
+                result[output_name] = value
+            # Include extra fields passed via the input_schema
+            if hasattr(self, "__pydantic_extra__") and self.__pydantic_extra__:
+                result.update(self.__pydantic_extra__)
+            return result
+
+    fn_metadata = FuncMetadata(arg_model=FlexibleArgs)
+
+    # ── Tool function closure ───────────────────────────────────────────
+    async def dynamic_tool_func(**kwargs: Any) -> dict:
+        user = _get_user_from_context(kwargs.pop("context", None))
         if user is None:
             return _error("Authentication required")
-        
+
+        input_text = kwargs.pop("input_text", "")
+        timeout_seconds = kwargs.pop("timeout_seconds", 60)
+
         try:
-            script = Script.objects.get(id=script_id, owner=user)
+            script_obj = Script.objects.get(id=script.id, owner=user)
         except Script.DoesNotExist:
-            return _error(f"Script {script_id} not found or not accessible")
-        
-        runner = ScriptRunner(script)
+            return _error(f"Script {script.id} not found or not accessible")
+
+        # Serialize remaining kwargs to JSON and pipe as stdin to the script
+        import json as _json
+        if kwargs:
+            input_text = _json.dumps(kwargs)
+            # Also pass as SCRIPT_PARAM_* env vars for backward compatibility
+            extra_env = kwargs
+        else:
+            extra_env = None
+
+        runner = ScriptRunner(script_obj)
         execution = runner.execute(
             triggered_by=user,
             trigger_type="mcp",
             timeout_seconds=timeout_seconds or None,
             input_text=input_text or None,
-            extra_env=kwargs if kwargs else None,
+            extra_env=extra_env,
         )
-        
-        # Wait for completion (poll every 0.5s)
+
         import time
+
         deadline = time.time() + (timeout_seconds or 60)
         while time.time() < deadline:
             execution.refresh_from_db()
             if execution.status in ("success", "failed", "cancelled"):
                 break
             time.sleep(0.5)
-        
+
         text_parts = []
         if execution.stdout:
             text_parts.append(f"--- stdout ---\n{execution.stdout}")
@@ -363,14 +396,18 @@ def _create_dynamic_tool_function(script_id: int, is_destructive: bool):
             text_parts.append(f"--- stderr ---\n{execution.stderr}")
         if execution.error_message:
             text_parts.append(f"--- error ---\n{execution.error_message}")
-        
+
         return {
-            "content": [TextContent(type="text", text="\n".join(text_parts) or "Execution completed.")],
+            "content": [
+                TextContent(
+                    type="text",
+                    text="\n".join(text_parts) or "Execution completed.",
+                )
+            ],
             "isError": execution.status == "failed",
-            # Include structured output for clients that can parse it
             "structuredContent": {
                 "execution_id": execution.id,
-                "script_id": script_id,
+                "script_id": script.id,
                 "status": execution.status,
                 "stdout": execution.stdout or "",
                 "stderr": execution.stderr or "",
@@ -379,59 +416,58 @@ def _create_dynamic_tool_function(script_id: int, is_destructive: bool):
                 "duration_seconds": execution.duration_seconds,
             },
         }
-    
-    return dynamic_tool_func
+
+    dynamic_tool_func.__name__ = tool_name
+    dynamic_tool_func.__doc__ = description
+
+    parameters = (
+        script.input_schema
+        if script.input_schema
+        else _get_default_input_schema()
+    )
+
+    tool = Tool(
+        fn=dynamic_tool_func,
+        name=tool_name,
+        description=description,
+        parameters=parameters,
+        fn_metadata=fn_metadata,
+        is_async=True,
+        context_kwarg="context",
+        annotations={
+            "readOnlyHint": not script.is_destructive,
+            "openWorldHint": False,
+            "destructiveHint": script.is_destructive,
+        },
+    )
+    return tool
 
 
 def _register_dynamic_mcp_tools():
     """Register all MCP-exposed scripts as individual tools.
-    
-    This should be called on server startup to dynamically create tools
-    for scripts marked with expose_to_mcp=True.
-    
-    Tools are registered globally for all users. The actual execution is gated by
-    authentication in the tool function - only the script owner can execute it.
+
+    Tools are registered globally for all users. Actual execution is gated by
+    authentication in the tool function — only the script owner can run it.
     """
     global _registered_dynamic_tool_names
-    
-    # Get all scripts that should have dynamic tools
+
     scripts = list(Script.objects.filter(expose_to_mcp=True).order_by("name"))
-    
+
     for script in scripts:
-        tool_name = _convert_script_name_to_tool_name(script.name, script.mcp_tool_name)
-        
-        # Skip if already registered (avoid duplicates on refresh)
+        tool_name = _convert_script_name_to_tool_name(
+            script.name, script.mcp_tool_name
+        )
+
         if tool_name in _registered_dynamic_tool_names:
             continue
-        
-        # Create description
-        description = script.description or f"Run the ScriptDash script: {script.name}."
-        
-        # Create the tool function
-        tool_func = _create_dynamic_tool_function(script.id, script.is_destructive)
-        
-        # Set function attributes for introspection
-        tool_func.__name__ = tool_name
-        tool_func.__doc__ = description
-        
-        # Register with scripts_mcp - parameters are derived from function signature
-        tool = scripts_mcp._tool_manager.add_tool(
-            tool_func,
-            name=tool_name,
-            description=description,
-            annotations={
-                "readOnlyHint": not script.is_destructive,
-                "openWorldHint": False,
-                "destructiveHint": script.is_destructive,
-            },
-        )
-        
-        # Override parameters with custom input schema if provided
-        if script.input_schema:
-            tool.parameters = script.input_schema
-        
+
+        tool = _build_tool_for_script(script, tool_name)
+        scripts_mcp._tool_manager._tools[tool_name] = tool
         _registered_dynamic_tool_names.add(tool_name)
-        logger.info(f"Registered MCP tool: {tool_name} (script_id={script.id}, destructive={script.is_destructive})")
+        logger.info(
+            f"Registered MCP tool: {tool_name} (script_id={script.id}, "
+            f"destructive={script.is_destructive})"
+        )
 
 
 def _unregister_dynamic_mcp_tools():

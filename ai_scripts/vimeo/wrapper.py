@@ -7,6 +7,9 @@ finding livestreams, updating video metadata, and preparing uploads
 via the Vimeo API.
 """
 
+import json
+import time
+
 import sys
 import os
 

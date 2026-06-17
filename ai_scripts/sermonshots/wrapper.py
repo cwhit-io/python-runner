@@ -8,6 +8,9 @@ Supports managing videos, clips, transcripts, and AI-generated content
 API docs: https://sermonshots.com/api/
 """
 
+import json
+import time
+
 import sys
 import os
 

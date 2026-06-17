@@ -8,6 +8,9 @@ and attendees via the Planning Center Check-Ins API.
 Write actions are guarded and minimal.
 """
 
+import json
+import time
+
 import sys
 import os
 
