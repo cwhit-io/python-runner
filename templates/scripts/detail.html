@@ -292,17 +292,8 @@
                 {% csrf_token %}
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Left Column (language, visibility toggles) -->
+                    <!-- Left Column (visibility toggles) -->
                     <div>
-                        <div class="form-control w-full mb-4">
-                            <label class="label"><span class="label-text font-semibold">Language</span></label>
-                            <select name="language" class="select select-bordered w-full">
-                                <option value="python" {% if script.language == 'python' %}selected{% endif %}>Python</option>
-                                <option value="bash" {% if script.language == 'bash' %}selected{% endif %}>Bash</option>
-                                <option value="http" {% if script.language == 'http' %}selected{% endif %}>HTTP Request</option>
-                            </select>
-                        </div>
-
                         <div class="flex gap-3">
                             <div class="form-control flex-1">
                                 <label class="label cursor-pointer justify-start gap-3 bg-base-200 p-3 rounded-lg">
@@ -326,10 +317,10 @@
                         </div>
                     </div>
 
-                    <!-- Right Column (tags, credentials) -->
+                    <!-- Right Column (tags only) -->
                     <div>
                         <label class="label"><span class="label-text font-semibold">Tags</span></label>
-                        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[180px] overflow-y-auto mb-4">
+                        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[200px] overflow-y-auto">
                             {% if user_tags %}
                             <div class="flex flex-wrap gap-2">
                                 {% for tag in user_tags %}
@@ -350,32 +341,6 @@
                             <div class="text-center py-8 opacity-50">
                                 <p class="text-sm">No tags available.</p>
                                 <a href="{% url 'tags_list' %}" target="_blank" class="link link-primary text-xs">Create Tags</a>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <label class="label"><span class="label-text font-semibold">Credentials</span></label>
-                        <div class="bg-base-200/50 rounded-lg p-4 border border-base-300 h-[140px] overflow-y-auto">
-                            {% if user_credentials %}
-                            <div class="flex flex-col gap-2">
-                                {% for cred in user_credentials %}
-                                <label class="cursor-pointer group select-none flex items-center gap-2">
-                                    <input type="checkbox" class="meta-cred-checkbox peer hidden" 
-                                           name="credentials" value="{{ cred.id }}"
-                                           {% if cred in script.credentials.all %}checked{% endif %}>
-                                    <div class="badge badge-lg border-2 border-base-300 bg-base-100 text-base-content/70 
-                                                peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary 
-                                                group-hover:border-primary/50 transition-all w-full justify-start">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                        {{ cred.name }} <span class="opacity-60">({{ cred.get_credential_type_display }})</span>
-                                    </div>
-                                </label>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <div class="text-center py-4 opacity-50">
-                                <p class="text-sm">No credentials available.</p>
-                                <a href="{% url 'credentials_list' %}" target="_blank" class="link link-primary text-xs">Create Credentials</a>
                             </div>
                             {% endif %}
                         </div>

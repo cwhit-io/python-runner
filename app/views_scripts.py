@@ -279,6 +279,7 @@ def script_edit(request, script_id):
         "scripts/edit.html",
         {
             "script": script,
+            "user_credentials": script.owner.credentials.all().order_by("-updated_at"),
         },
     )
 
