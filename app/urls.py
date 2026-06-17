@@ -23,6 +23,7 @@ from django.conf.urls.static import static
 from . import views
 from . import views_scripts
 from . import views_credentials
+from . import views_ai
 from .api import api
 from ninja.openapi.docs import Swagger, Redoc
 
@@ -231,6 +232,7 @@ urlpatterns = [
     path("api/docs/", views.api_docs_swagger, name="swagger"),
     path("api/redoc/", views.api_docs_redoc, name="redoc"),
     path("api/docs/index/", views.api_docs, name="api_docs"),
+    path("api/docs/ai.txt", views_ai.ai_instructions, name="ai_instructions"),
 ]
 
 # Serve media files in development
