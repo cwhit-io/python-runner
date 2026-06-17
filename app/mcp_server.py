@@ -318,8 +318,12 @@ def _create_dynamic_tool_function(script_id: int, is_destructive: bool):
         context: Context = None,
         input_text: str = "",
         timeout_seconds: int = 60,
+        **kwargs,
     ):
         """Execute the MCP-exposed script.
+        
+        Extra keyword arguments from the script's input_schema are passed as
+        SCRIPT_PARAM_* environment variables.
         
         Args:
             input_text: Optional text input for the script via stdin.
@@ -340,6 +344,7 @@ def _create_dynamic_tool_function(script_id: int, is_destructive: bool):
             trigger_type="mcp",
             timeout_seconds=timeout_seconds or None,
             input_text=input_text or None,
+            extra_env=kwargs if kwargs else None,
         )
         
         # Wait for completion (poll every 0.5s)

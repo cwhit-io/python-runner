@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load custom_filters %}
 
 {% block title %}Edit {{ script.name }}{% endblock %}
 
@@ -179,7 +180,23 @@
                         </div>
                     </div>
 
-                    <!-- 5. Tags -->
+                    <!-- 5. Input Schema (JSON) -->
+                    <div class="card bg-base-100 shadow-sm border border-base-200">
+                        <div class="card-body p-4">
+                            <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                Input Schema
+                                {% if script.input_schema %}
+                                <span class="badge badge-success badge-xs ml-auto">Active</span>
+                                {% endif %}
+                            </span>
+                            <textarea name="input_schema" class="textarea textarea-bordered w-full h-32 font-mono text-xs leading-relaxed bg-base-100 resize-y" 
+                                placeholder='{&#10;  "type": "object",&#10;  "properties": {&#10;    "param": {&#10;      "type": "string",&#10;      "description": "Description"&#10;    }&#10;  }&#10;}' spellcheck="false">{% if script.input_schema %}{{ script.input_schema|json_dumps }}{% endif %}</textarea>
+                            <div class="text-[10px] opacity-40 mt-1">JSON Schema defining tool parameters for MCP. Empty = default (input_text + timeout).</div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Tags -->
                     <div class="card bg-base-100 shadow-sm border border-base-200">
                         <div class="card-body p-4">
                             <span class="text-xs font-bold uppercase tracking-wider opacity-60 mb-2 block flex items-center gap-2">

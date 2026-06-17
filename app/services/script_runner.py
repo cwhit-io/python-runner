@@ -226,6 +226,7 @@ class ScriptRunner:
         trigger_type="manual",
         timeout_seconds=None,
         input_text: Optional[str] = None,
+        extra_env: Optional[dict] = None,
     ):
         """
         Execute the script in its environment (virtual environment for Python, system for bash).
@@ -236,8 +237,10 @@ class ScriptRunner:
             trigger_type: How the execution was triggered (manual, scheduled, api)
             timeout_seconds: Maximum execution time in seconds (None for no timeout)
             input_text: Optional text to send to the script via stdin
+            extra_env: Optional dict of env vars to inject (values converted to str)
         """
         self.input_text = input_text
+        self.extra_env = extra_env or {}
 
         # Ensure environment is ready (venv for Python, skip for bash)
         if self.script.language == "python":
@@ -326,6 +329,12 @@ class ScriptRunner:
             except Exception:
                 # Silently ignore credential loading errors
                 pass
+
+            # Inject extra env vars from MCP input_schema parameters
+            if hasattr(self, 'extra_env') and self.extra_env:
+                for key, value in self.extra_env.items():
+                    env_key = f"SCRIPT_PARAM_{key.upper()}"
+                    env[env_key] = str(value)
 
             # Run the script
             start_time = time.time()

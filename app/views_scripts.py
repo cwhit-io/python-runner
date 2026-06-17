@@ -218,6 +218,18 @@ def script_edit(request, script_id):
                     pass
             script.credentials.set(credentials)
 
+        # Handle input_schema (JSON textarea, cleared when empty)
+        input_schema_raw = request.POST.get("input_schema", "").strip()
+        if input_schema_raw:
+            try:
+                import json
+                script.input_schema = json.loads(input_schema_raw)
+            except json.JSONDecodeError:
+                messages.error(request, "Invalid input_schema JSON. Changes not saved.")
+                return redirect("script_edit", script_id=script.id)
+        else:
+            script.input_schema = None
+
         script.save()
 
         messages.success(request, "Script updated successfully!")

@@ -161,3 +161,10 @@ def user_datetime_iso(value, user):
 
     # Return ISO format for datetime-local input
     return localized_time.strftime("%Y-%m-%dT%H:%M")
+
+
+@register.filter
+def json_dumps(value):
+    """Convert a Python object to a JSON string for display."""
+    import json
+    return json.dumps(value, indent=2)

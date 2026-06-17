@@ -23,6 +23,9 @@ the script (auto-generated snake_case, or a custom name if set).
 - Each tool accepts:
   - `input_text` (optional string) — sent to the script via stdin
   - `timeout_seconds` (optional integer, default 60, max 3600)
+  - Any parameters defined in the script's custom `input_schema` — sent as
+    `SCRIPT_PARAM_*` environment variables (e.g. a `url` param becomes
+    `SCRIPT_PARAM_URL`)
 - The tool returns stdout, stderr, exit code, and execution duration.
 - Credentials attached to the script are injected as environment variables.
 - **Only the script owner can execute their own scripts.**
@@ -115,7 +118,9 @@ Tokens are managed on the API Tokens page in the web UI.
    `update_script` on the admin endpoint.
 
 4. **Input schemas** — scripts can have custom JSON input schemas.
-   Use `fetch` on the admin endpoint to see a script's schema.
+   Parameters from the schema are passed as `SCRIPT_PARAM_*` environment
+   variables. Use `fetch` on the admin endpoint to see a script's schema.
+   The script reads them via `os.environ["SCRIPT_PARAM_<NAME>"]`.
 
 5. **Credentials** — credentials attached to a script are injected as
    environment variables during execution. They are never visible in
