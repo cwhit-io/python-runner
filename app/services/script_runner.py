@@ -44,8 +44,7 @@ class ScriptRunner:
                     },
                 )
         except Exception:
-            # Silently ignore WebSocket errors
-            pass
+            logger.warning("WebSocket send failed (execution %s)", self.execution.id if self.execution else "?")
 
     def _clear_overdue_schedules(self):
         """Update next_run for overdue schedules after a successful execution."""
@@ -69,8 +68,7 @@ class ScriptRunner:
                         f"Failed to reschedule overdue schedule {schedule.id}: {e}"
                     )
         except Exception:
-            # Silently ignore errors in clearing overdue schedules
-            pass
+            logger.warning("Failed to clear overdue schedules for script %s", self.script.id)
 
     def _calculate_dependencies_hash(self) -> str:
         """Calculate SHA-256 hash of dependencies string."""
@@ -307,8 +305,7 @@ class ScriptRunner:
                     if value is not None:
                         env[name] = value
             except Exception:
-                # Silently ignore if secrets can't be loaded (e.g., key issues)
-                pass
+                logger.warning("Failed to load secrets for script %s", self.script.id)
             
             # Load global credentials into the environment
             try:
@@ -327,8 +324,7 @@ class ScriptRunner:
                     else:
                         env[cred_name.upper()] = str(cred_data)
             except Exception:
-                # Silently ignore credential loading errors
-                pass
+                logger.warning("Failed to load credentials for script %s", self.script.id)
 
             # Inject extra env vars from MCP input_schema parameters
             if hasattr(self, 'extra_env') and self.extra_env:

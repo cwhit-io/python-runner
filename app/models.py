@@ -594,6 +594,8 @@ class ScriptExecution(models.Model):
             ("manual", "Manual"),
             ("scheduled", "Scheduled"),
             ("api", "API"),
+            ("mcp", "MCP"),
+            ("test", "Test"),
         ],
         default="manual",
     )
