@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "wordpress",
+  "description": "AI-callable wrapper for the WordPress REST API v2. Manage posts, pages, media, categories, tags, and search.",
+  "type": "object",
+  "required": ["action"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "The action to perform.",
+      "enum": [
+        "list_posts",
+        "get_post",
+        "create_post",
+        "update_post",
+        "list_pages",
+        "get_page",
+        "create_page",
+        "update_page",
+        "list_categories",
+        "list_tags",
+        "list_media",
+        "get_media",
+        "search",
+        "get_current_user"
+      ]
+    },
+    "post_id": {
+      "type": "integer",
+      "description": "Required for get_post and update_post."
+    },
+    "page_id": {
+      "type": "integer",
+      "description": "Required for get_page and update_page."
+    },
+    "media_id": {
+      "type": "integer",
+      "description": "Required for get_media."
+    },
+    "title": {
+      "type": "string",
+      "description": "Required for create_post and create_page. Post or page title."
+    },
+    "content": {
+      "type": "string",
+      "description": "HTML or block content for posts/pages."
+    },
+    "excerpt": {
+      "type": "string",
+      "description": "Short excerpt for posts/pages."
+    },
+    "status": {
+      "type": "string",
+      "description": "Content status. Drafts and private content require authentication.",
+      "enum": ["publish", "future", "draft", "pending", "private"]
+    },
+    "slug": {
+      "type": "string",
+      "description": "URL slug."
+    },
+    "featured_media": {
+      "type": "integer",
+      "description": "Featured image media ID."
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Category IDs for posts."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Tag IDs for posts."
+    },
+    "parent": {
+      "type": "integer",
+      "description": "Parent page ID (for pages) or filter by parent."
+    },
+    "menu_order": {
+      "type": "integer",
+      "description": "Menu order for pages."
+    },
+    "comment_status": {
+      "type": "string",
+      "enum": ["open", "closed"],
+      "description": "Whether comments are open."
+    },
+    "ping_status": {
+      "type": "string",
+      "enum": ["open", "closed"],
+      "description": "Whether pings are open."
+    },
+    "template": {
+      "type": "string",
+      "description": "Page template slug."
+    },
+    "format": {
+      "type": "string",
+      "description": "Post format (standard, aside, gallery, etc.)."
+    },
+    "type": {
+      "type": "string",
+      "description": "For search: content type (post, term, post-format)."
+    },
+    "subtype": {
+      "type": "string",
+      "description": "For search: subtype such as page or post."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "When true, preview write requests without sending.",
+      "default": false
+    },
+    "per_page": {
+      "type": "integer",
+      "description": "Results per page (capped at 25; large values can crash WordPress when returning full content).",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 25
+    },
+    "wp_page": {
+      "type": "integer",
+      "description": "Pagination page number (maps to WordPress 'page' query param).",
+      "minimum": 1
+    },
+    "include_content": {
+      "type": "boolean",
+      "description": "When true, return full post/page bodies on list actions. Default is metadata-only for smaller, safer responses.",
+      "default": false
+    },
+    "search": {
+      "type": "string",
+      "description": "Search query for list and search actions."
+    },
+    "orderby": {
+      "type": "string",
+      "description": "Sort field: date, id, title, slug, modified, etc."
+    },
+    "order": {
+      "type": "string",
+      "description": "Sort direction.",
+      "enum": ["asc", "desc"]
+    },
+    "wp_context": {
+      "type": "string",
+      "description": "WordPress REST API response detail level (maps to the WP 'context' query param).",
+      "enum": ["view", "embed", "edit"]
+    },
+    "fields": {
+      "type": "string",
+      "description": "Comma-separated fields to return (_fields query param)."
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "description": "HTTP request timeout in seconds for WordPress API calls.",
+      "default": 30,
+      "minimum": 1,
+      "maximum": 120
+    }
+  },
+  "examples": [
+    { "action": "list_posts", "per_page": 5, "status": "publish" },
+    { "action": "get_post", "post_id": 123 },
+    { "action": "search", "search": "sermon", "type": "post" },
+    { "action": "list_pages", "per_page": 10 },
+    { "action": "list_categories", "per_page": 20 },
+    { "action": "get_current_user" },
+    {
+      "action": "create_post",
+      "title": "Sunday Recap",
+      "content": "<p>Great service this week.</p>",
+      "status": "draft",
+      "dry_run": true
+    },
+    {
+      "action": "update_post",
+      "post_id": 123,
+      "title": "Updated Title",
+      "dry_run": true
+    }
+  ]
+}

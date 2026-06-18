@@ -114,11 +114,57 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
+# PostgreSQL support via DATABASE_URL or individual POSTGRES_* variables
+# Falls back to SQLite if neither is configured
+import dj_database_url
+
+def get_database_config():
+    """Configure database from environment variables.
+    
+    Priority:
+    1. DATABASE_URL (recommended)
+    2. Individual POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT
+    3. SQLite fallback for local development
+    """
+    # Try DATABASE_URL first (recommended for production)
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return dj_database_url.parse(database_url, conn_max_age=600, conn_health_checks=True)
+    
+    # Try individual POSTGRES_* variables
+    db_name = os.environ.get("POSTGRES_DB")
+    db_user = os.environ.get("POSTGRES_USER")
+    db_password = os.environ.get("POSTGRES_PASSWORD")
+    db_host = os.environ.get("POSTGRES_HOST", "localhost")
+    db_port = os.environ.get("POSTGRES_PORT", "5432")
+    
+    if db_name and db_user and db_password:
+        return {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": db_name,
+            "USER": db_user,
+            "PASSWORD": db_password,
+            "HOST": db_host,
+            "PORT": db_port,
+            "CONN_MAX_AGE": 600,
+            "OPTIONS": {
+                "sslmode": "require" if not DEBUG else "prefer",
+            },
+            # Connection pool options (psycopg3 async support)
+            "DISABLE_SERVER_SIDE_CURSORS": False,
+        }
+    
+    # SQLite fallback for local development
+    return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / 'db' / "db.sqlite3",
+        "OPTIONS": {
+            "timeout": 20,
+        },
     }
+
+DATABASES = {
+    "default": get_database_config()
 }
 
 
@@ -191,6 +237,10 @@ LOGOUT_REDIRECT_URL = "/"
 # Media files (uploads)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# uv package manager (script virtual environments)
+UV_EXECUTABLE = os.environ.get("UV_EXECUTABLE", "uv")
+UV_CACHE_DIR = os.environ.get("UV_CACHE_DIR", str(BASE_DIR / ".cache" / "uv"))
 
 # Email settings (for development - prints to console)
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

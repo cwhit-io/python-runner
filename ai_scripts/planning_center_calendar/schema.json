@@ -13,6 +13,12 @@
         "search_events",
         "get_event",
         "list_event_instances",
+        "list_resource_bookings",
+        "list_event_resource_requests",
+        "list_conflicts",
+        "list_room_setups",
+        "list_feeds",
+        "list_attachments",
         "list_resources",
         "list_rooms",
         "list_tags",
@@ -22,7 +28,7 @@
     },
     "event_id": {
       "type": "string",
-      "description": "Required for get_event, list_event_instances, and update_event."
+      "description": "Required for get_event and update_event. Optional for list_event_instances to scope to a specific event."
     },
     "query": {
       "type": "string",

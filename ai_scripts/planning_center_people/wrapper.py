@@ -302,6 +302,48 @@ def handle_action(data: dict, action: str) -> str:
             "GET", f"{BASE_URL}/people/birthdays", action, params=params
         )
 
+    if action == "list_person_emails":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/emails", action, params=params
+        )
+
+    if action == "list_person_phone_numbers":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/phone_numbers", action, params=params
+        )
+
+    if action == "list_person_addresses":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/addresses", action, params=params
+        )
+
+    if action == "list_person_households":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/households", action, params=params
+        )
+
+    if action == "list_list_people":
+        require_fields(data, ["list_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/lists/{data['list_id']}/people", action, params=params
+        )
+
+    if action == "list_workflow_cards":
+        require_fields(data, ["workflow_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/workflows/{data['workflow_id']}/cards", action, params=params
+        )
+
+    if action == "get_workflow_card":
+        require_fields(data, ["workflow_card_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/workflow_cards/{data['workflow_card_id']}", action, params=params
+        )
+
     # ── Write actions (guarded) ───────────────────────────────────────────
 
     if action == "create_person":

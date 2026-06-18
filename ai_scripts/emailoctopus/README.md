@@ -13,14 +13,12 @@ AI-callable wrapper for the EmailOctopus API v1.6.
 | `get_contact` | Get contact details | `list_id`, `contact_id` |
 | `list_campaigns` | List all campaigns | — |
 | `get_campaign` | Get campaign details | `campaign_id` |
-| `list_templates` | List all templates | — |
 
 ### Write (guarded)
 | Action | Description | Required Fields |
 |--------|-------------|-----------------|
 | `create_contact` | Add a contact to a list | `list_id`, `email` |
 | `update_contact` | Update contact fields/tags | `list_id`, `contact_id` |
-| `create_draft_campaign` | Create a draft campaign | `list_id`, `subject`, `name` |
 
 All write actions support `dry_run`.
 
@@ -49,7 +47,7 @@ python ai_scripts/emailoctopus/wrapper.py '{"action":"list_campaigns"}'
 ## Notes
 
 - API key is sent as a query parameter per EmailOctopus API spec
-- Campaign creation creates a draft only — it is not sent
+- Only officially documented v1.6 endpoints are implemented
 - No destructive delete actions are implemented
 
 ## API Docs

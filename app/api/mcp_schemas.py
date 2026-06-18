@@ -22,6 +22,7 @@ class MCPToolManifestSchema(Schema):
     tool_name: str
     tool_description: str
     parameters: dict
+    output_schema: dict
     is_destructive: bool = False
 
 

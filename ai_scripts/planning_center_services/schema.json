@@ -18,6 +18,13 @@
         "search_songs",
         "list_teams",
         "list_people",
+        "list_media",
+        "list_series",
+        "list_email_templates",
+        "list_attachment_types",
+        "list_plan_notes",
+        "list_plan_attachments",
+        "list_team_people",
         "update_plan_title",
         "create_plan_note"
       ]
@@ -28,7 +35,11 @@
     },
     "plan_id": {
       "type": "string",
-      "description": "Required for get_plan, list_plan_items, list_plan_people, update_plan_title, create_plan_note."
+      "description": "Required for get_plan, list_plan_items, list_plan_people, list_plan_notes, list_plan_attachments, update_plan_title, create_plan_note."
+    },
+    "team_id": {
+      "type": "string",
+      "description": "Required for list_team_people."
     },
     "title": {
       "type": "string",

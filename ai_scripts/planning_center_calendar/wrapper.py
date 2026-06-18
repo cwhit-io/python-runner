@@ -260,11 +260,29 @@ def handle_action(data: dict, action: str) -> str:
         )
 
     if action == "list_event_instances":
-        require_fields(data, ["event_id"], action)
-        return planning_center_request(
-            "GET", f"{BASE_URL}/events/{data['event_id']}/event_instances",
-            action, params=params
-        )
+        if data.get("event_id"):
+            url = f"{BASE_URL}/events/{data['event_id']}/event_instances"
+        else:
+            url = f"{BASE_URL}/event_instances"
+        return planning_center_request("GET", url, action, params=params)
+
+    if action == "list_resource_bookings":
+        return planning_center_request("GET", f"{BASE_URL}/resource_bookings", action, params=params)
+
+    if action == "list_event_resource_requests":
+        return planning_center_request("GET", f"{BASE_URL}/event_resource_requests", action, params=params)
+
+    if action == "list_conflicts":
+        return planning_center_request("GET", f"{BASE_URL}/conflicts", action, params=params)
+
+    if action == "list_room_setups":
+        return planning_center_request("GET", f"{BASE_URL}/room_setups", action, params=params)
+
+    if action == "list_feeds":
+        return planning_center_request("GET", f"{BASE_URL}/feeds", action, params=params)
+
+    if action == "list_attachments":
+        return planning_center_request("GET", f"{BASE_URL}/attachments", action, params=params)
 
     if action == "list_resources":
         return planning_center_request("GET", f"{BASE_URL}/resources", action, params=params)

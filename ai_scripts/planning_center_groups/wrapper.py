@@ -280,6 +280,33 @@ def handle_action(data: dict, action: str) -> str:
             "GET", f"{BASE_URL}/people", action, params=params
         )
 
+    if action == "list_group_applications":
+        return planning_center_request("GET", f"{BASE_URL}/group_applications", action, params=params)
+
+    if action == "list_group_attendance":
+        require_fields(data, ["group_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/groups/{data['group_id']}/attendance", action, params=params
+        )
+
+    if action == "list_group_tags":
+        require_fields(data, ["group_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/groups/{data['group_id']}/tags", action, params=params
+        )
+
+    if action == "list_tag_groups":
+        return planning_center_request("GET", f"{BASE_URL}/tag_groups", action, params=params)
+
+    if action == "list_campuses":
+        return planning_center_request("GET", f"{BASE_URL}/campuses", action, params=params)
+
+    if action == "list_person_groups":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/groups", action, params=params
+        )
+
     # ── Write actions (guarded) ───────────────────────────────────────────
 
     if action == "create_group_event":

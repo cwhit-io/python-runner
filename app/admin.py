@@ -1,4 +1,8 @@
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 from .models import (
     APILog,
@@ -243,6 +247,17 @@ class TagAdmin(ModelAdmin):
         return obj.scripts.count()
 
 
+class BulkAddTagsForm(forms.Form):
+    """Select tags to add to multiple scripts."""
+
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.order_by("name"),
+        widget=forms.SelectMultiple(attrs={"size": 12}),
+        required=True,
+        help_text="Selected tags are added to every chosen script (existing tags are kept).",
+    )
+
+
 @admin.register(Script)
 class ScriptAdmin(ModelAdmin):
     """Admin interface for scripts."""
@@ -310,6 +325,40 @@ class ScriptAdmin(ModelAdmin):
             )
         return mark_safe("".join(tag_html))
 
+    @admin.action(description="Add tags to selected scripts")
+    def bulk_add_tags(self, request, queryset):
+        """Add one or more tags to the selected scripts."""
+        form = BulkAddTagsForm(request.POST or None)
+
+        if request.POST.get("post") == "yes":
+            if form.is_valid():
+                tags = list(form.cleaned_data["tags"])
+                script_count = queryset.count()
+                for script in queryset:
+                    script.tags.add(*tags)
+                tag_names = ", ".join(tag.name for tag in tags)
+                self.message_user(
+                    request,
+                    f"Added {len(tags)} tag(s) ({tag_names}) to {script_count} script(s).",
+                    messages.SUCCESS,
+                )
+                return redirect(reverse("admin:app_script_changelist"))
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Add tags to selected scripts",
+            "form": form,
+            "scripts": queryset,
+            "opts": self.model._meta,
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            "action_name": "bulk_add_tags",
+        }
+        return TemplateResponse(
+            request,
+            "admin/app/script/bulk_add_tags.html",
+            context,
+        )
+
     @admin.action(description="🗑️ Delete venv & reset (recreates on next run)")
     def rebuild_venv(self, request, queryset):
         """Delete selected scripts' virtual env dirs and reset their state.
@@ -337,7 +386,7 @@ class ScriptAdmin(ModelAdmin):
             f"Fresh virtual environments will be created on next execution.",
         )
 
-    actions = ["rebuild_venv"]
+    actions = ["bulk_add_tags", "rebuild_venv"]
 
 
 @admin.register(ScriptExecution)

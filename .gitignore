@@ -12,3 +12,6 @@ staticfiles/
 
 # Script virtual environments
 media/venvs/
+
+# uv cache
+.cache/

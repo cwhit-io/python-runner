@@ -2,7 +2,7 @@
 """
 EmailOctopus API wrapper for AI agents.
 
-Supports managing mailing lists, contacts, campaigns, and templates
+Supports managing mailing lists, contacts, and campaigns
 via the EmailOctopus API v1.
 """
 
@@ -319,30 +319,6 @@ def handle_action(data: dict, action: str) -> str:
         return eo_request(
             "GET", f"/campaigns/{data['campaign_id']}", action, params=params
         )
-
-    if action == "create_draft_campaign":
-        require_fields(data, ["list_id", "subject", "name"], action)
-        body = {
-            "subject": data["subject"],
-            "name": data["name"],
-            "list_id": data["list_id"],
-        }
-        if data.get("from_name"):
-            body["from_name"] = data["from_name"]
-        if data.get("reply_to"):
-            body["reply_to"] = data["reply_to"]
-        if data.get("template_id"):
-            body["template_id"] = data["template_id"]
-        if data.get("content"):
-            body["content"] = data["content"]
-
-        if data.get("dry_run", False):
-            return build_dry_run_response(action, "POST",
-                                          f"{EMAILOCTOPUS_API_BASE}/campaigns", body=body)
-        return eo_request("POST", "/campaigns", action, json_body=body)
-
-    if action == "list_templates":
-        return eo_request("GET", "/templates", action, params=params)
 
     return error_result(action, f"Unknown action: {action}")
 

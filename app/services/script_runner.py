@@ -30,6 +30,33 @@ class ScriptRunner:
         self.script = script
         self.execution = None
 
+    def _uv_executable(self) -> str:
+        return settings.UV_EXECUTABLE
+
+    def _uv_env(self) -> dict:
+        env = os.environ.copy()
+        cache_dir = settings.UV_CACHE_DIR
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
+            env["UV_CACHE_DIR"] = cache_dir
+        return env
+
+    def _run_uv(self, args: List[str], *, cwd: Optional[str] = None) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(
+                [self._uv_executable(), *args],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=self._uv_env(),
+                cwd=cwd,
+            )
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or "").strip()
+            stdout = (e.stdout or "").strip()
+            details = stderr or stdout or str(e)
+            raise RuntimeError(f"uv {' '.join(args)} failed: {details}") from e
+
     def _send_websocket_update(self, message_type, data):
         """Send WebSocket update for execution progress."""
         try:
@@ -159,11 +186,7 @@ class ScriptRunner:
         # Create venv if it doesn't exist
         if not os.path.exists(venv_path):
             os.makedirs(os.path.dirname(venv_path), exist_ok=True)
-            subprocess.run(
-                [sys.executable, "-m", "venv", venv_path],
-                check=True,
-                capture_output=True,
-            )
+            self._run_uv(["venv", "--python", sys.executable, venv_path])
             self.script.venv_created = True
             self.script.venv_updated_at = timezone.now()
             self.script.save(update_fields=["venv_created", "venv_updated_at"])
@@ -200,19 +223,14 @@ class ScriptRunner:
 
     def _install_dependencies(self, venv_path):
         """Install dependencies in the virtual environment."""
-        pip_path = os.path.join(venv_path, "bin", "pip")
+        python_path = os.path.join(venv_path, "bin", "python")
 
-        # Create a temporary requirements file
         requirements_file = os.path.join(venv_path, "requirements.txt")
         with open(requirements_file, "w") as f:
             f.write(self.script.dependencies)
 
-        # Install dependencies
-        subprocess.run(
-            [pip_path, "install", "-r", requirements_file],
-            check=True,
-            capture_output=True,
-            text=True,
+        self._run_uv(
+            ["pip", "install", "--python", python_path, "-r", requirements_file]
         )
 
         self.script.venv_updated_at = timezone.now()
@@ -381,26 +399,20 @@ class ScriptRunner:
             stderr_lines = []
 
             def read_stdout():
-                """Read stdout in real-time and send updates."""
+                """Read stdout in real-time and stream to websocket only."""
                 for line in iter(process.stdout.readline, ""):
                     if line:
                         stdout_lines.append(line)
-                        # Update execution stdout in DB periodically
-                        self.execution.stdout = "".join(stdout_lines)
-                        self.execution.save(update_fields=["stdout"])
                         self._send_websocket_update(
                             "output", {"stream": "stdout", "line": line.rstrip("\n")}
                         )
                 process.stdout.close()
 
             def read_stderr():
-                """Read stderr in real-time and send updates."""
+                """Read stderr in real-time and stream to websocket only."""
                 for line in iter(process.stderr.readline, ""):
                     if line:
                         stderr_lines.append(line)
-                        # Update execution stderr in DB periodically
-                        self.execution.stderr = "".join(stderr_lines)
-                        self.execution.save(update_fields=["stderr"])
                         self._send_websocket_update(
                             "output", {"stream": "stderr", "line": line.rstrip("\n")}
                         )
@@ -430,9 +442,10 @@ class ScriptRunner:
             process.wait()
             end_time = time.time()
 
-            # Wait for output threads to finish
-            stdout_thread.join(timeout=1.0)
-            stderr_thread.join(timeout=1.0)
+            # Drain pipes before persisting output; per-line DB writes previously
+            # slowed readers enough that the 1s join timed out and left truncated stdout.
+            stdout_thread.join()
+            stderr_thread.join()
 
             # Wait for monitoring thread to finish
             monitor_thread.join(timeout=1.0)

@@ -11,7 +11,11 @@ from .mcp_schemas import (
     MCPToolManifestSchema,
 )
 from .security import authenticate_bearer_token
-from app.mcp_server import _convert_script_name_to_tool_name, _get_default_input_schema
+from app.mcp_server import (
+    _convert_script_name_to_tool_name,
+    _get_default_input_schema,
+)
+from app.mcp_schemas import get_script_tool_output_schema
 
 
 router = Router(tags=["MCP"])
@@ -35,6 +39,7 @@ def _build_mcp_manifest(script: Script) -> dict:
             + (script.description or f"Run the ScriptDash script: {script.name}.")
         ).strip(),
         "parameters": input_schema,
+        "output_schema": get_script_tool_output_schema(),
         "is_destructive": script.is_destructive,
     }
 

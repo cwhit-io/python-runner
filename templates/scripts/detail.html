@@ -4,6 +4,9 @@
 {% block title %}{{ script.name }}{% endblock %}
 
 {% block content %}
+<!-- Hidden CSRF token for AJAX requests -->
+<input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
 <div class="container mx-auto px-4 py-8 max-w-7xl">
     <!-- Breadcrumbs -->
     <div class="breadcrumbs text-sm mb-4">
@@ -560,42 +563,6 @@
         </div>
     </div>
 
-    <!-- Danger Zone - Compact but Clear -->
-    <div class="mt-8 max-w-2xl">
-        <div class="card bg-base-100 border-2 border-error border-opacity-20 shadow-sm">
-            <div class="card-body p-4">
-                <div class="flex items-start gap-3">
-                    <div class="flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-error text-sm mb-1">Delete Script</h3>
-                        <p class="text-xs opacity-70 leading-relaxed mb-3">
-                            Permanently delete this script along with all executions, schedules, and history. This action cannot be undone.
-                        </p>
-                        <form method="post" action="{% url 'script_delete' script.id %}" 
-                              hx-post="{% url 'script_delete' script.id %}"
-                              hx-target="#htmx-response"
-                              hx-swap="innerHTML"
-                              id="delete-script-form">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-error btn-sm gap-2" 
-                                    onclick="confirmDelete('{{ script.name }}', 'delete-script-form')"
-                                    title="Permanently delete this script and all its data">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Delete Script
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- HTMX response target is now inside the inline panel -->
 </div>
 
@@ -665,14 +632,6 @@
 </dialog>
 
 <script>
-);
-            label.textContent = 'Hide Settings';
-        } else {
-            panel.classList.add('hidden');
-            label.textContent = 'Edit Metadata';
-        }
-    }
-
     function editInlineName() {
         document.getElementById('display-name').classList.add('hidden');
         document.getElementById('inline-name-edit').classList.remove('hidden');
@@ -689,7 +648,7 @@
         if (!name) return showToast('Name is required', 'error');
         fetch('{% url "script_edit_inline" script.id %}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.getElementById('csrf-token').value},
             body: JSON.stringify({name: name})
         }).then(r => r.json()).then(d => {
             if (d.success) {
@@ -718,7 +677,7 @@
         const desc = input.value.trim();
         fetch('{% url "script_edit_inline" script.id %}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.getElementById('csrf-token').value},
             body: JSON.stringify({description: desc})
         }).then(r => r.json()).then(d => {
             if (d.success) {
@@ -738,7 +697,7 @@
         toggle.disabled = true;
         fetch('{% url "script_toggle_mcp" script.id %}', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.getElementById('csrf-token').value},
             body: JSON.stringify({expose_to_mcp: expose})
         }).then(r => r.json()).then(d => {
             if (d.success) {
@@ -802,15 +761,15 @@
         const toggle = document.getElementById('public-toggle');
         const isPublic = toggle.checked;
         const scriptId = {{ script.id }};
-        
+
         // Show loading state
         toggle.disabled = true;
-        
+
         fetch(`/scripts/${scriptId}/toggle-public/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': document.getElementById('csrf-token').value
             },
             body: JSON.stringify({ is_public: isPublic })
         })
@@ -934,12 +893,14 @@
     }
 
     // Handle form submission to prevent modal from closing prematurely
-    document.getElementById('schedule-form').addEventListener('submit', function(e) {
-        // Close the modal after a short delay to allow form submission
-        setTimeout(() => {
-            create_schedule_modal.close();
-        }, 100);
-    });
+    const scheduleForm = document.getElementById('schedule-form');
+    if (scheduleForm) {
+        scheduleForm.addEventListener('submit', function(e) {
+            setTimeout(() => {
+                create_schedule_modal.close();
+            }, 100);
+        });
+    }
 
     // Reset modal to create mode when opened normally
     document.addEventListener('click', function(e) {

@@ -244,44 +244,112 @@ SERVICE_NAME = "planning_center_registrations"
 def handle_action(data: dict, action: str) -> str:
     params = build_params(data)
 
-    # ── Read actions ──────────────────────────────────────────────────────
+    # ── Signups (registration events) ─────────────────────────────────────
 
-    if action == "list_events":
-        return planning_center_request("GET", f"{BASE_URL}/events", action, params=params)
+    if action == "list_signups":
+        return planning_center_request("GET", f"{BASE_URL}/signups", action, params=params)
 
-    if action == "get_event":
-        require_fields(data, ["event_id"], action)
+    if action == "get_signup":
+        require_fields(data, ["signup_id"], action)
         return planning_center_request(
-            "GET", f"{BASE_URL}/events/{data['event_id']}", action, params=params
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}", action, params=params
         )
+
+    # ── Attendees ─────────────────────────────────────────────────────────
 
     if action == "list_attendees":
-        require_fields(data, ["event_id"], action)
-        return planning_center_request(
-            "GET", f"{BASE_URL}/events/{data['event_id']}/attendees", action, params=params
-        )
+        if data.get("signup_id"):
+            return planning_center_request(
+                "GET", f"{BASE_URL}/signups/{data['signup_id']}/attendees", action, params=params
+            )
+        return planning_center_request("GET", f"{BASE_URL}/attendees", action, params=params)
 
     if action == "get_attendee":
-        require_fields(data, ["event_id", "attendee_id"], action)
+        require_fields(data, ["attendee_id"], action)
+        if data.get("signup_id"):
+            return planning_center_request(
+                "GET", f"{BASE_URL}/signups/{data['signup_id']}/attendees/{data['attendee_id']}",
+                action, params=params
+            )
         return planning_center_request(
-            "GET", f"{BASE_URL}/events/{data['event_id']}/attendees/{data['attendee_id']}",
+            "GET", f"{BASE_URL}/attendees/{data['attendee_id']}", action, params=params
+        )
+
+    # ── Categories ────────────────────────────────────────────────────────
+
+    if action == "list_categories":
+        if data.get("signup_id"):
+            return planning_center_request(
+                "GET", f"{BASE_URL}/signups/{data['signup_id']}/categories", action, params=params
+            )
+        return planning_center_request("GET", f"{BASE_URL}/categories", action, params=params)
+
+    if action == "get_category":
+        require_fields(data, ["category_id"], action)
+        if data.get("signup_id"):
+            return planning_center_request(
+                "GET", f"{BASE_URL}/signups/{data['signup_id']}/categories/{data['category_id']}",
+                action, params=params
+            )
+        return planning_center_request(
+            "GET", f"{BASE_URL}/categories/{data['category_id']}", action, params=params
+        )
+
+    # ── Selection Types ───────────────────────────────────────────────────
+
+    if action == "list_selection_types":
+        require_fields(data, ["signup_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}/selection_types", action, params=params
+        )
+
+    if action == "get_selection_type":
+        require_fields(data, ["signup_id", "selection_type_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}/selection_types/{data['selection_type_id']}",
             action, params=params
         )
 
-    if action == "list_categories":
-        return planning_center_request("GET", f"{BASE_URL}/categories", action, params=params)
-
-    if action == "list_selections":
-        # Selections are per-event
-        require_fields(data, ["event_id"], action)
-        return planning_center_request(
-            "GET", f"{BASE_URL}/events/{data['event_id']}/selections", action, params=params
-        )
+    # ── Signup Locations ──────────────────────────────────────────────────
 
     if action == "list_signup_locations":
+        require_fields(data, ["signup_id"], action)
         return planning_center_request(
-            "GET", f"{BASE_URL}/signup_locations", action, params=params
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}/signup_location", action, params=params
         )
+
+    if action == "get_signup_location":
+        require_fields(data, ["signup_id", "signup_location_id"], action)
+        return planning_center_request(
+            "GET",
+            f"{BASE_URL}/signups/{data['signup_id']}/signup_location/{data['signup_location_id']}",
+            action, params=params,
+        )
+
+    # ── Signup Times ──────────────────────────────────────────────────────
+
+    if action == "list_signup_times":
+        require_fields(data, ["signup_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}/signup_times", action, params=params
+        )
+
+    if action == "get_signup_time":
+        require_fields(data, ["signup_id", "signup_time_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/signups/{data['signup_id']}/signup_times/{data['signup_time_id']}",
+            action, params=params,
+        )
+
+    # ── Campuses ──────────────────────────────────────────────────────────
+
+    if action == "list_campuses":
+        return planning_center_request("GET", f"{BASE_URL}/campuses", action, params=params)
+
+    # ── People (registrations-scoped) ─────────────────────────────────────
+
+    if action == "list_people":
+        return planning_center_request("GET", f"{BASE_URL}/people", action, params=params)
 
     return error_result(action, f"Unknown action: {action}")
 

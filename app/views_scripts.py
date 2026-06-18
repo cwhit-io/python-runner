@@ -196,27 +196,25 @@ def script_edit(request, script_id):
 
         # Handle tags - only assign existing tags owned by user
         tag_names = request.POST.getlist("tags")
-        if tag_names:
-            tags = []
-            for tag_name in tag_names:
-                try:
-                    tag = Tag.objects.get(name=tag_name, created_by=request.user)
-                    tags.append(tag)
-                except Tag.DoesNotExist:
-                    pass
-            script.tags.set(tags)
+        tags = []
+        for tag_name in tag_names:
+            try:
+                tag = Tag.objects.get(name=tag_name, created_by=request.user)
+                tags.append(tag)
+            except Tag.DoesNotExist:
+                pass
+        script.tags.set(tags)
 
         # Handle credentials - only assign existing credentials owned by user
         cred_ids = request.POST.getlist("credentials")
-        if cred_ids:
-            credentials = []
-            for cred_id in cred_ids:
-                try:
-                    cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
-                    credentials.append(cred)
-                except GlobalCredential.DoesNotExist:
-                    pass
-            script.credentials.set(credentials)
+        credentials = []
+        for cred_id in cred_ids:
+            try:
+                cred = GlobalCredential.objects.get(id=cred_id, user=request.user)
+                credentials.append(cred)
+            except GlobalCredential.DoesNotExist:
+                pass
+        script.credentials.set(credentials)
 
         # Handle input_schema (JSON textarea, cleared when empty)
         input_schema_raw = request.POST.get("input_schema", "").strip()
@@ -233,6 +231,12 @@ def script_edit(request, script_id):
         script.save()
 
         messages.success(request, "Script updated successfully!")
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            from django.http import JsonResponse
+
+            return JsonResponse({"status": "success"})
+
         return redirect("script_detail", script_id=script.id)
 
     return render(
@@ -1051,6 +1055,60 @@ def tag_create(request):
         return redirect("tags_list")
 
     return redirect("tags_list")
+
+
+@login_required
+@require_http_methods(["POST"])
+def tag_edit_inline(request, tag_id):
+    """Save inline-edited tag fields via AJAX."""
+    import re
+
+    tag = get_object_or_404(Tag, id=tag_id, created_by=request.user)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON"}, status=400)
+
+    if "name" in data:
+        name = data["name"].strip()
+        if not name:
+            return JsonResponse({"success": False, "error": "Name is required"}, status=400)
+        if (
+            Tag.objects.filter(created_by=request.user, name=name)
+            .exclude(id=tag.id)
+            .exists()
+        ):
+            return JsonResponse(
+                {"success": False, "error": "A tag with this name already exists"},
+                status=400,
+            )
+        tag.name = name
+
+    if "color" in data:
+        color = data["color"].strip()
+        if not re.match(r"^#[0-9A-Fa-f]{6}$", color):
+            return JsonResponse(
+                {"success": False, "error": "Invalid color format"}, status=400
+            )
+        tag.color = color
+
+    if "description" in data:
+        tag.description = data["description"].strip()
+
+    try:
+        tag.save()
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "name": tag.name,
+            "color": tag.color,
+            "description": tag.description,
+        }
+    )
 
 
 @login_required

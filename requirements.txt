@@ -16,3 +16,5 @@ pytz>=2023.3
 requests>=2.31.0
 mcp>=1.0.0
 starlette>=0.40.0
+psycopg[binary]>=3.1.0
+dj-database-url>=2.1.0

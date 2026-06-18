@@ -286,6 +286,33 @@ def handle_action(data: dict, action: str) -> str:
             )
         return planning_center_request("GET", f"{BASE_URL}/attendees", action, params=params)
 
+    if action == "list_headcounts":
+        return planning_center_request("GET", f"{BASE_URL}/headcounts", action, params=params)
+
+    if action == "list_event_times":
+        require_fields(data, ["event_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/events/{data['event_id']}/event_times", action, params=params
+        )
+
+    if action == "list_passes":
+        return planning_center_request("GET", f"{BASE_URL}/passes", action, params=params)
+
+    if action == "list_options":
+        return planning_center_request("GET", f"{BASE_URL}/options", action, params=params)
+
+    if action == "list_stations":
+        return planning_center_request("GET", f"{BASE_URL}/stations", action, params=params)
+
+    if action == "list_labels":
+        return planning_center_request("GET", f"{BASE_URL}/labels", action, params=params)
+
+    if action == "list_person_check_ins":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/check_ins", action, params=params
+        )
+
     return error_result(action, f"Unknown action: {action}")
 
 

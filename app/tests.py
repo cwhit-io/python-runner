@@ -2,12 +2,13 @@
 Tests for clearing overdue schedules on successful script execution.
 Tests for dynamic MCP tool generation.
 """
+from django.contrib import admin
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import Mock, patch, MagicMock
-from app.models import Script, ScriptSchedule, ScriptExecution, GlobalCredential
+from app.models import Script, ScriptSchedule, ScriptExecution, GlobalCredential, Tag
 from app.services.script_runner import ScriptRunner
 # Import MCP server functions for testing
 from app.mcp_server import (
@@ -15,7 +16,10 @@ from app.mcp_server import (
     _convert_script_name_to_tool_name,
     _get_default_input_schema,
     _invalidate_mcp_tool_cache,
+    _build_tool_for_script,
+    _build_execution_tool_result,
 )
+from app.mcp_schemas import get_script_tool_output_schema
 
 
 class ClearOverdueSchedulesTestCase(TestCase):
@@ -195,6 +199,20 @@ class GlobalCredentialTestCase(TestCase):
         self.other_user = User.objects.create_user(
             username="otheruser", password="testpass123"
         )
+
+    def test_legacy_web_form_credential_data_is_normalized(self):
+        """Legacy key/value wrapper storage should normalize for env injection."""
+        cred = GlobalCredential.objects.create(
+            user=self.user,
+            name="Legacy",
+            credential_type="generic",
+        )
+        cred.set_encrypted_data({"key": "API_KEY", "value": "secret123"})
+        cred.save()
+
+        self.assertEqual(cred.get_credential_data(), {"API_KEY": "secret123"})
+        self.assertEqual(cred.get_credential_keys(), ["API_KEY"])
+        self.assertEqual(cred.get_env_var_names(), ["LEGACY_API_KEY"])
 
     def test_create_api_key_credential(self):
         """Test creating an API key credential."""
@@ -459,6 +477,53 @@ class DynamicMCPToolTestCase(TestCase):
         self.assertIn("input_text", tool["input_schema"]["properties"])
         self.assertIn("timeout_seconds", tool["input_schema"]["properties"])
 
+    def test_execution_tool_result_avoids_duplicating_stdout(self):
+        """Text content should summarize; full stdout stays in structuredContent."""
+        script = Script.objects.create(
+            name="Lean Output Script",
+            language="python",
+            code='print("ok")',
+            owner=self.user,
+        )
+        execution = ScriptExecution.objects.create(
+            script=script,
+            status="success",
+            stdout='{"success": true, "data": ["page-one", "page-two"]}',
+            exit_code=0,
+            duration_seconds=1.25,
+        )
+
+        result = _build_execution_tool_result(execution, script.id)
+
+        self.assertIn("structuredContent.stdout", result.content[0].text)
+        self.assertNotIn("page-one", result.content[0].text)
+        self.assertIn("page-one", result.structuredContent["stdout"])
+
+    def test_script_tool_output_schema_is_advertised(self):
+        """Dynamic MCP tools should publish a shared execution output schema."""
+        _invalidate_mcp_tool_cache(self.user.id)
+        script = Script.objects.create(
+            name="Output Schema Script",
+            language="python",
+            code='print("ok")',
+            owner=self.user,
+            expose_to_mcp=True,
+        )
+
+        tools = _get_mcp_tools_for_user(self.user.id)
+        tool = next((t for t in tools if t["script_id"] == script.id), None)
+
+        self.assertIsNotNone(tool)
+        self.assertEqual(tool["output_schema"], get_script_tool_output_schema())
+        self.assertIn("execution_id", tool["output_schema"]["properties"])
+        self.assertIn("stdout", tool["output_schema"]["properties"])
+
+        built_tool = _build_tool_for_script(script, tool["tool_name"])
+        self.assertEqual(
+            built_tool.output_schema,
+            get_script_tool_output_schema(),
+        )
+
     def test_custom_input_schema(self):
         """Test that custom input schema is used when provided."""
         _invalidate_mcp_tool_cache(self.user.id)
@@ -666,4 +731,162 @@ class BackwardCompatibilityTestCase(TestCase):
         self.assertEqual(script.mcp_tool_name, "")
         self.assertIsNone(script.input_schema)
         self.assertFalse(script.is_destructive)
+
+
+class ScriptAdminBulkTagsTestCase(TestCase):
+    """Test bulk tag admin action."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="adminuser",
+            email="admin@example.com",
+            password="adminpass123",
+        )
+        self.client.login(username="adminuser", password="adminpass123")
+        self.script_one = Script.objects.create(
+            name="Script One",
+            language="python",
+            code='print("one")',
+            owner=self.user,
+        )
+        self.script_two = Script.objects.create(
+            name="Script Two",
+            language="python",
+            code='print("two")',
+            owner=self.user,
+        )
+        self.tag_alpha = Tag.objects.create(
+            name="alpha",
+            color="#111111",
+            created_by=self.user,
+        )
+        self.tag_beta = Tag.objects.create(
+            name="beta",
+            color="#222222",
+            created_by=self.user,
+        )
+
+    def test_bulk_add_tags_action_adds_without_removing_existing(self):
+        self.script_one.tags.add(self.tag_alpha)
+
+        changelist_url = "/admin/app/script/"
+        response = self.client.post(
+            changelist_url,
+            {
+                "action": "bulk_add_tags",
+                "post": "yes",
+                "tags": [str(self.tag_beta.id)],
+                admin.helpers.ACTION_CHECKBOX_NAME: [
+                    str(self.script_one.id),
+                    str(self.script_two.id),
+                ],
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(self.script_one.tags.values_list("name", flat=True)),
+            {"alpha", "beta"},
+        )
+        self.assertEqual(
+            list(self.script_two.tags.values_list("name", flat=True)),
+            ["beta"],
+        )
+
+
+class CredentialEditTestCase(TestCase):
+    """Test credential edit endpoint."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="testpass123"
+        )
+        self.client.login(username="testuser", password="testpass123")
+        self.credential = GlobalCredential.objects.create(
+            user=self.user,
+            name="WordPress",
+            credential_type="generic",
+        )
+        self.credential.set_encrypted_data({"APP_PASSWORD": "old-secret"})
+        self.credential.save()
+
+    def test_edit_updates_name_and_key_without_changing_secret(self):
+        response = self.client.post(
+            f"/credentials/{self.credential.id}/edit/",
+            {
+                "name": "WP Site",
+                "key": "TOKEN",
+                "value": "",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.credential.refresh_from_db()
+        self.assertEqual(self.credential.name, "WP Site")
+        self.assertEqual(self.credential.get_credential_data(), {"TOKEN": "old-secret"})
+
+    def test_create_stores_key_value_map_directly(self):
+        response = self.client.post(
+            "/credentials/create/",
+            {
+                "name": "Vimeo",
+                "key": "access_token",
+                "value": "abc123",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cred = GlobalCredential.objects.get(name="Vimeo", user=self.user)
+        self.assertEqual(cred.get_credential_data(), {"ACCESS_TOKEN": "abc123"})
+
+
+class ScriptEditAssignmentsTestCase(TestCase):
+    """Test tag and credential assignment on script edit."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="testpass123"
+        )
+        self.client.login(username="testuser", password="testpass123")
+        self.script = Script.objects.create(
+            name="Edit Script",
+            language="python",
+            code='print("ok")',
+            owner=self.user,
+        )
+        self.tag = Tag.objects.create(
+            name="ops",
+            color="#3B82F6",
+            created_by=self.user,
+        )
+        self.script.tags.add(self.tag)
+        self.credential = GlobalCredential.objects.create(
+            user=self.user,
+            name="WordPress",
+            credential_type="api_key",
+        )
+        self.credential.set_encrypted_data({"api_key": "secret"})
+        self.credential.save()
+        self.script.credentials.add(self.credential)
+
+    def test_edit_clears_tags_and_credentials_when_none_selected(self):
+        response = self.client.post(
+            f"/scripts/{self.script.id}/edit/",
+            {
+                "code": self.script.code,
+                "dependencies": "",
+                "language": "python",
+                "input_schema": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.script.refresh_from_db()
+        self.assertEqual(self.script.tags.count(), 0)
+        self.assertEqual(self.script.credentials.count(), 0)
 

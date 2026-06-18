@@ -1,4 +1,18 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: scriptdash
+      POSTGRES_USER: scriptdash
+      POSTGRES_PASSWORD: scriptdash
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "scriptdash"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   runner-web:
     build:
       context: ..
@@ -11,5 +25,14 @@ services:
     env_file:
       - .env
     environment:
-      MCP_SERVER_URL: https://scriptdash.bhm.li
+      - DATABASE_URL=postgresql://scriptdash:scriptdash@db:5432/scriptdash
+      - MCP_SERVER_URL=https://scriptdash.bhm.li
+      - UV_CACHE_DIR=/app/.cache/uv
+      - UV_LINK_MODE=copy
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
 

@@ -272,6 +272,21 @@ def handle_action(data: dict, action: str) -> str:
             action, params=params
         )
 
+    if action == "list_channels":
+        return planning_center_request("GET", f"{BASE_URL}/channels", action, params=params)
+
+    if action == "list_channel_episodes":
+        require_fields(data, ["channel_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/channels/{data['channel_id']}/episodes", action, params=params
+        )
+
+    if action == "list_episode_times":
+        require_fields(data, ["episode_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/episodes/{data['episode_id']}/times", action, params=params
+        )
+
     # ── Write actions (guarded) ───────────────────────────────────────────
 
     if action == "create_episode":
@@ -281,6 +296,20 @@ def handle_action(data: dict, action: str) -> str:
         require_fields(data, ["episode_id"], action)
         return handle_write(
             data, action, "PATCH", f"{BASE_URL}/episodes/{data['episode_id']}"
+        )
+
+    if action == "create_episode_resource":
+        require_fields(data, ["episode_id"], action)
+        return handle_write(
+            data, action, "POST",
+            f"{BASE_URL}/episodes/{data['episode_id']}/resources",
+        )
+
+    if action == "update_episode_resource":
+        require_fields(data, ["episode_id", "resource_id"], action)
+        return handle_write(
+            data, action, "PATCH",
+            f"{BASE_URL}/episodes/{data['episode_id']}/resources/{data['resource_id']}",
         )
 
     return error_result(action, f"Unknown action: {action}")

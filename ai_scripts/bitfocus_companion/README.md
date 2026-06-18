@@ -18,42 +18,44 @@ AI-callable wrapper for the Bitfocus Companion HTTP remote control API (v4.x).
 | `get_module_variable` | Get a module variable value | `module_name`, `variable_name` |
 | `rescan_surfaces` | Trigger surface rescan | — |
 
-Button locations are specified with `page`, `bank`, `x`, `y` (all default to 0).
+Button locations use Companion's v4 format: `page`, `row`, `column` (all 0-based unless your pages are numbered differently). `x`/`y` are accepted as aliases for `column`/`row`.
+
+Example from the official docs: press page 1, row 0, column 2:
+
+```json
+{"action":"press_button","page":1,"row":0,"column":2}
+```
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `COMPANION_BASE_URL` | No | Companion base URL (default: `http://localhost:8000`) |
-| `COMPANION_API_KEY` | No | API key/token for Companion auth (if enabled) |
-| `COMPANION_TOKEN` | No | Alias for COMPANION_API_KEY |
+| `COMPANION_API_KEY` | No | Optional Bearer token if configured in Companion |
+| `COMPANION_TOKEN` | No | Alias for `COMPANION_API_KEY` |
+
+If ScriptDash runs in Docker and Companion runs on the host, use something like `http://host.docker.internal:8000` instead of `localhost`.
 
 ## CLI Usage
 
 ```bash
-# Press a button at page 0, bank 0, x=1, y=2
-python ai_scripts/bitfocus_companion/wrapper.py '{"action":"press_button","page":0,"bank":0,"x":1,"y":2}'
+# Press page 1, row 0, column 2
+python ai_scripts/bitfocus_companion/wrapper.py '{"action":"press_button","page":1,"row":0,"column":2}'
 
 # Set a custom variable
 python ai_scripts/bitfocus_companion/wrapper.py '{"action":"set_custom_variable","name":"current_song","value":"Amazing Grace"}'
 
-# Get a custom variable
-python ai_scripts/bitfocus_companion/wrapper.py '{"action":"get_custom_variable","name":"current_song"}'
-
-# Get a module variable (e.g. from OBS)
-python ai_scripts/bitfocus_companion/wrapper.py '{"action":"get_module_variable","module_name":"obs-studio","variable_name":"scene_name"}'
-
-# Rescan surfaces
-python ai_scripts/bitfocus_companion/wrapper.py '{"action":"rescan_surfaces"}'
+# Get a module variable (connection label from Companion UI)
+python ai_scripts/bitfocus_companion/wrapper.py '{"action":"get_module_variable","module_name":"My OBS","variable_name":"scene_name"}'
 ```
 
 ## Notes
 
-- Button coordinates use Companion's 0-based indexing
-- Empty page/bank/x/y values default to 0
-- Timeout default is 10 seconds (Companion is typically local)
-- This wrapper exposes no destructive actions; button presses are safe
+- Enable **HTTP Remote Control** in Companion settings (`http_api_enabled`)
+- Companion returns plain text for variable reads; the wrapper wraps that as `{"value": "..."}`
+- `module_name` must match the connection **label** in Companion, not the module ID
+- No destructive actions are exposed
 
 ## API Docs
 
-https://github.com/bitfocus/companion/wiki/HTTP-Actions
+https://companion.free/user-guide/v4.3/remote-control/http-remote-control/

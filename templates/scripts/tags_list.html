@@ -2,12 +2,45 @@
 
 {% block title %}My Tags{% endblock %}
 
+{% block extra_head %}
+<style>
+    .tag-card { position: relative; }
+    .tag-color-popover {
+        position: absolute;
+        top: 3.5rem;
+        left: 0;
+        z-index: 30;
+        min-width: 220px;
+    }
+    .color-swatch {
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 9999px;
+        border: 2px solid oklch(var(--b3));
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .color-swatch:hover { transform: scale(1.1); }
+    .color-swatch.active {
+        box-shadow: 0 0 0 2px oklch(var(--b1)), 0 0 0 4px currentColor;
+        transform: scale(1.1);
+    }
+    .tag-name-display:hover,
+    .tag-desc-display:hover {
+        background: oklch(var(--b2) / 0.5);
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-3xl font-bold">My Tags</h1>
-            <p class="text-gray-600 mt-2">Create and manage tags to organize your scripts</p>
+            <p class="text-sm opacity-60 mt-2">Click a name, color, or description to edit inline</p>
         </div>
         <button class="btn btn-primary" onclick="create_tag_modal.showModal()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
@@ -21,15 +54,26 @@
     {% if tags %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for tag in tags %}
-        <div class="card bg-base-200 shadow-xl">
+        <div class="tag-card card bg-base-200 shadow-xl" data-tag-id="{{ tag.id }}">
             <div class="card-body">
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="w-6 h-6 rounded-full border-2 border-gray-300"
-                        style="background-color: {{ tag.color }}; /* stylelint-disable-line property-no-unknown */">
+                    <button type="button"
+                            class="tag-color-btn w-8 h-8 rounded-full border-2 border-base-300 shrink-0 shadow-sm hover:scale-110 transition-transform"
+                            style="background-color: {{ tag.color }};"
+                            title="Change color"
+                            aria-label="Change tag color"></button>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="tag-name-display font-bold text-lg truncate px-1 -mx-1 cursor-text"
+                             title="Click to edit name">{{ tag.name }}</div>
+                        <input type="text"
+                               class="tag-name-input hidden input input-sm input-bordered w-full font-bold"
+                               maxlength="50"
+                               value="{{ tag.name }}" />
                     </div>
-                    <h2 class="card-title flex-1">{{ tag.name }}</h2>
+
                     <div class="dropdown dropdown-end">
-                        <label tabindex="0" class="btn btn-ghost btn-sm">
+                        <label tabindex="0" class="btn btn-ghost btn-sm btn-square">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -37,16 +81,16 @@
                             </svg>
                         </label>
                         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                            <li><a href="{% url 'tag_edit' tag.id %}">Edit Tag</a></li>
                             <li><a href="#" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}"
                                     onclick="confirmDelete(this)" class="text-error">Delete Tag</a></li>
                         </ul>
                     </div>
                 </div>
 
-                {% if tag.description %}
-                <p class="text-sm opacity-70 mb-3">{{ tag.description }}</p>
-                {% endif %}
+                <div class="tag-desc-display text-sm opacity-70 mb-3 px-1 -mx-1 min-h-[1.5rem] cursor-text {% if not tag.description %}italic opacity-40{% endif %}"
+                     title="Click to edit description">{% if tag.description %}{{ tag.description }}{% else %}Add description…{% endif %}</div>
+                <textarea class="tag-desc-input hidden textarea textarea-bordered textarea-sm w-full h-20 resize-y"
+                          placeholder="What is this tag for?">{{ tag.description }}</textarea>
 
                 <div class="stats stats-horizontal shadow">
                     <div class="stat place-items-center py-2">
@@ -61,7 +105,8 @@
                     <div class="flex flex-wrap gap-1">
                         {% for script in tag.scripts.all|slice:":5" %}
                         <a href="{% url 'script_detail' script.id %}"
-                            class="badge badge-outline badge-sm hover:badge-primary">
+                            class="badge badge-outline badge-sm hover:badge-primary"
+                            style="border-color: {{ tag.color }}; color: {{ tag.color }};">
                             {{ script.name|truncatechars:20 }}
                         </a>
                         {% endfor %}
@@ -71,6 +116,16 @@
                     </div>
                 </div>
                 {% endif %}
+            </div>
+
+            <div class="tag-color-popover hidden card bg-base-100 shadow-xl border border-base-300 p-3">
+                <p class="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-2">Pick a color</p>
+                <div class="tag-preset-colors grid grid-cols-6 gap-2 mb-3"></div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="color" class="tag-custom-color w-10 h-8 rounded cursor-pointer border-0 p-0 bg-transparent" value="{{ tag.color }}" />
+                    <span class="text-xs opacity-60">Custom</span>
+                    <span class="tag-hex-label text-xs font-mono opacity-80 ml-auto">{{ tag.color }}</span>
+                </label>
             </div>
         </div>
         {% endfor %}
@@ -105,7 +160,12 @@
                     <label class="label">
                         <span class="label-text font-semibold">Color</span>
                     </label>
-                    <input type="color" name="color" value="#3B82F6" class="input input-bordered w-full h-12" />
+                    <div id="create-preset-colors" class="grid grid-cols-9 gap-2 mb-3"></div>
+                    <div class="flex items-center gap-3">
+                        <input type="color" name="color" id="create-color-input" value="#3B82F6"
+                               class="w-12 h-10 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                        <span id="create-color-label" class="text-sm font-mono opacity-70">#3B82F6</span>
+                    </div>
                 </div>
 
                 <div class="form-control w-full mb-6">
@@ -145,6 +205,255 @@
 </div>
 
 <script>
+    const TAG_PRESET_COLORS = [
+        '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E',
+        '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1',
+        '#8B5CF6', '#A855F7', '#D946EF', '#EC4899', '#F43F5E', '#64748B',
+    ];
+
+    const csrfToken = document.getElementById('csrf-token').value;
+    let openColorPopover = null;
+
+    function buildPresetGrid(container, currentColor, onSelect) {
+        container.innerHTML = '';
+        TAG_PRESET_COLORS.forEach(color => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'color-swatch' + (color.toLowerCase() === currentColor.toLowerCase() ? ' active' : '');
+            btn.style.backgroundColor = color;
+            btn.style.color = color;
+            btn.title = color;
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onSelect(color);
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    function initCreateModalColors() {
+        const grid = document.getElementById('create-preset-colors');
+        const input = document.getElementById('create-color-input');
+        const label = document.getElementById('create-color-label');
+        if (!grid || !input) return;
+
+        buildPresetGrid(grid, input.value, (color) => {
+            input.value = color;
+            label.textContent = color.toUpperCase();
+            grid.querySelectorAll('.color-swatch').forEach(s => {
+                s.classList.toggle('active', s.style.backgroundColor.toLowerCase() === color.toLowerCase()
+                    || s.title.toLowerCase() === color.toLowerCase());
+            });
+        });
+
+        input.addEventListener('input', () => {
+            label.textContent = input.value.toUpperCase();
+        });
+    }
+
+    function closeColorPopover() {
+        if (openColorPopover) {
+            openColorPopover.classList.add('hidden');
+            openColorPopover = null;
+        }
+    }
+
+    async function saveTagField(tagId, payload) {
+        const response = await fetch(`/tags/${tagId}/edit-inline/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to save');
+        }
+        return data;
+    }
+
+    function getCard(tagId) {
+        return document.querySelector(`.tag-card[data-tag-id="${tagId}"]`);
+    }
+
+    function applyTagColor(card, color) {
+        const btn = card.querySelector('.tag-color-btn');
+        const hexLabel = card.querySelector('.tag-hex-label');
+        const customInput = card.querySelector('.tag-custom-color');
+        btn.style.backgroundColor = color;
+        if (hexLabel) hexLabel.textContent = color.toUpperCase();
+        if (customInput) customInput.value = color;
+        card.querySelectorAll('.badge.badge-outline').forEach(badge => {
+            badge.style.borderColor = color;
+            badge.style.color = color;
+        });
+        const grid = card.querySelector('.tag-preset-colors');
+        if (grid) {
+            grid.querySelectorAll('.color-swatch').forEach(s => {
+                s.classList.toggle('active', s.title.toLowerCase() === color.toLowerCase());
+            });
+        }
+    }
+
+    function initTagCards() {
+        document.querySelectorAll('.tag-card').forEach(card => {
+            const tagId = card.dataset.tagId;
+            const colorBtn = card.querySelector('.tag-color-btn');
+            const popover = card.querySelector('.tag-color-popover');
+            const presetGrid = card.querySelector('.tag-preset-colors');
+            const customColor = card.querySelector('.tag-custom-color');
+            const hexLabel = card.querySelector('.tag-hex-label');
+
+            const currentColor = customColor.value;
+
+            buildPresetGrid(presetGrid, currentColor, async (color) => {
+                try {
+                    const data = await saveTagField(tagId, { color });
+                    applyTagColor(card, data.color);
+                    showToast('Color updated', 'success');
+                    closeColorPopover();
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            });
+
+            colorBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (openColorPopover === popover) {
+                    closeColorPopover();
+                    return;
+                }
+                closeColorPopover();
+                popover.classList.remove('hidden');
+                openColorPopover = popover;
+            });
+
+            let colorDebounce;
+            customColor.addEventListener('input', () => {
+                const color = customColor.value;
+                hexLabel.textContent = color.toUpperCase();
+                applyTagColor(card, color);
+                clearTimeout(colorDebounce);
+                colorDebounce = setTimeout(async () => {
+                    try {
+                        await saveTagField(tagId, { color });
+                        showToast('Color updated', 'success');
+                    } catch (err) {
+                        showToast(err.message, 'error');
+                    }
+                }, 300);
+            });
+
+            const nameDisplay = card.querySelector('.tag-name-display');
+            const nameInput = card.querySelector('.tag-name-input');
+            const descDisplay = card.querySelector('.tag-desc-display');
+            const descInput = card.querySelector('.tag-desc-input');
+
+            function showNameEdit() {
+                nameDisplay.classList.add('hidden');
+                nameInput.classList.remove('hidden');
+                nameInput.focus();
+                nameInput.select();
+            }
+
+            function hideNameEdit(revert) {
+                if (revert) nameInput.value = nameDisplay.textContent.trim();
+                nameInput.classList.add('hidden');
+                nameDisplay.classList.remove('hidden');
+            }
+
+            async function commitName() {
+                const name = nameInput.value.trim();
+                if (!name) {
+                    showToast('Name is required', 'error');
+                    nameInput.focus();
+                    return;
+                }
+                if (name === nameDisplay.textContent.trim()) {
+                    hideNameEdit(false);
+                    return;
+                }
+                try {
+                    const data = await saveTagField(tagId, { name });
+                    nameDisplay.textContent = data.name;
+                    hideNameEdit(false);
+                    showToast('Name updated', 'success');
+                } catch (err) {
+                    showToast(err.message, 'error');
+                    nameInput.focus();
+                }
+            }
+
+            nameDisplay.addEventListener('click', showNameEdit);
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitName(); }
+                if (e.key === 'Escape') { hideNameEdit(true); }
+            });
+            nameInput.addEventListener('blur', () => setTimeout(commitName, 100));
+
+            function showDescEdit() {
+                descDisplay.classList.add('hidden');
+                descInput.classList.remove('hidden');
+                descInput.focus();
+            }
+
+            function hideDescEdit(revert) {
+                if (revert) descInput.value = descDisplay.classList.contains('italic') ? '' : descDisplay.textContent.trim();
+                descInput.classList.add('hidden');
+                descDisplay.classList.remove('hidden');
+            }
+
+            function renderDesc(text) {
+                if (text) {
+                    descDisplay.textContent = text;
+                    descDisplay.classList.remove('italic', 'opacity-40');
+                    descDisplay.classList.add('opacity-70');
+                } else {
+                    descDisplay.textContent = 'Add description…';
+                    descDisplay.classList.add('italic', 'opacity-40');
+                    descDisplay.classList.remove('opacity-70');
+                }
+            }
+
+            async function commitDesc() {
+                const description = descInput.value.trim();
+                const current = descDisplay.classList.contains('italic') ? '' : descDisplay.textContent.trim();
+                if (description === current) {
+                    hideDescEdit(false);
+                    return;
+                }
+                try {
+                    const data = await saveTagField(tagId, { description });
+                    renderDesc(data.description);
+                    descInput.value = data.description;
+                    hideDescEdit(false);
+                    showToast('Description updated', 'success');
+                } catch (err) {
+                    showToast(err.message, 'error');
+                    descInput.focus();
+                }
+            }
+
+            descDisplay.addEventListener('click', showDescEdit);
+            descInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') { hideDescEdit(true); }
+            });
+            descInput.addEventListener('blur', () => setTimeout(commitDesc, 100));
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.tag-color-popover') && !e.target.closest('.tag-color-btn')) {
+            closeColorPopover();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeColorPopover();
+    });
+
     function confirmDelete(element) {
         const tagId = element.getAttribute('data-tag-id');
         const tagName = element.getAttribute('data-tag-name');
@@ -152,5 +461,8 @@
         document.getElementById('delete-form').setAttribute('hx-post', `/tags/${tagId}/delete/`);
         delete_modal.showModal();
     }
+
+    initCreateModalColors();
+    initTagCards();
 </script>
 {% endblock %}

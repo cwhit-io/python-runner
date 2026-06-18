@@ -34,7 +34,7 @@ PLANNING_CENTER_SERVICES = {
 }
 
 # Services that need simple_api_request
-SIMPLE_API_SERVICES = {"vimeo", "emailoctopus", "sermonshots"}
+SIMPLE_API_SERVICES = {"vimeo", "emailoctopus", "sermonshots", "wordpress"}
 
 SERVICE_CONFIGS = {
     "planning_center_people": {
@@ -120,6 +120,13 @@ SERVICE_CONFIGS = {
         "is_destructive": False,
         "mcp_tool_name": "sermonshots",
         "tags": ["sermonshots", "sermon", "ai", "content"],
+    },
+    "wordpress": {
+        "name": "WordPress",
+        "description": "AI-callable wrapper for the WordPress REST API v2. List and manage posts, pages, media, categories, tags, and search. Uses Application Password auth.",
+        "is_destructive": False,
+        "mcp_tool_name": "wordpress",
+        "tags": ["wordpress", "cms", "website", "content"],
     },
 }
 

@@ -8,9 +8,11 @@ Supports OAuth2 bearer-token authentication via the APIToken model.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,8 @@ from app.mcp_schemas import (
     GetScriptSecretOutput,
     SetScriptSecretOutput,
     DeleteScriptSecretOutput,
+    ScriptToolExecutionOutput,
+    get_script_tool_output_schema,
 )
 
 User = get_user_model()
@@ -251,6 +255,81 @@ def _get_default_input_schema() -> dict:
     }
 
 
+def _execution_result_summary(execution: ScriptExecution) -> str:
+    """Short human-readable summary; full output lives in structuredContent."""
+    parts = [f"Execution {execution.id} {execution.status}."]
+    if execution.duration_seconds is not None:
+        parts.append(f"Duration {execution.duration_seconds:.2f}s.")
+    if execution.exit_code is not None:
+        parts.append(f"Exit code {execution.exit_code}.")
+    if execution.stdout:
+        parts.append(
+            f"stdout {len(execution.stdout)} chars in structuredContent.stdout."
+        )
+    if execution.stderr:
+        parts.append(
+            f"stderr {len(execution.stderr)} chars in structuredContent.stderr."
+        )
+    if execution.error_message:
+        parts.append(f"Error: {execution.error_message}")
+    return " ".join(parts)
+
+
+def _build_execution_tool_result(execution: ScriptExecution, script_id: int) -> CallToolResult:
+    """Build a validated MCP tool result for a script execution."""
+    structured = ScriptToolExecutionOutput(
+        execution_id=execution.id,
+        script_id=script_id,
+        status=execution.status,
+        stdout=execution.stdout or "",
+        stderr=execution.stderr or "",
+        error_message=execution.error_message or "",
+        exit_code=execution.exit_code,
+        duration_seconds=execution.duration_seconds,
+    ).model_dump()
+
+    return CallToolResult(
+        content=[
+            TextContent(
+                type="text",
+                text=_execution_result_summary(execution),
+            )
+        ],
+        structuredContent=structured,
+        isError=execution.status == "failed",
+    )
+
+
+# Property names reserved by ScriptDash MCP tool arg validation (FlexibleArgs).
+_MCP_RESERVED_SCHEMA_PROPERTIES = frozenset({"context", "input_text"})
+
+
+def _sanitize_tool_parameters(parameters: dict) -> dict:
+    """Drop script schema fields that collide with MCP-internal tool arguments."""
+    if not parameters or not isinstance(parameters, dict):
+        return parameters
+
+    props = parameters.get("properties")
+    if not isinstance(props, dict):
+        return parameters
+
+    conflicts = _MCP_RESERVED_SCHEMA_PROPERTIES.intersection(props)
+    if not conflicts:
+        return parameters
+
+    sanitized = copy.deepcopy(parameters)
+    for key in conflicts:
+        logger.warning(
+            "Removing reserved input_schema property %r from MCP tool %s",
+            key,
+            parameters.get("title", "unknown"),
+        )
+        del sanitized["properties"][key]
+        if isinstance(sanitized.get("required"), list):
+            sanitized["required"] = [r for r in sanitized["required"] if r != key]
+    return sanitized
+
+
 # ── MCP Tool Cache ─────────────────────────────────────────────────────────
 
 
@@ -288,6 +367,7 @@ def _get_mcp_tools_for_user(user_id: int) -> list[dict]:
             "description": script.description or f"Run the ScriptDash script: {script.name}.",
             "is_destructive": script.is_destructive,
             "input_schema": script.input_schema if script.input_schema else _get_default_input_schema(),
+            "output_schema": get_script_tool_output_schema(),
         })
     
     _mcp_tool_cache[user_id] = tools
@@ -346,7 +426,11 @@ def _build_tool_for_script(script, tool_name: str) -> Tool:
                 result.update(self.__pydantic_extra__)
             return result
 
-    fn_metadata = FuncMetadata(arg_model=FlexibleArgs)
+    fn_metadata = FuncMetadata(
+        arg_model=FlexibleArgs,
+        output_schema=get_script_tool_output_schema(),
+        output_model=ScriptToolExecutionOutput,
+    )
 
     # ── Tool function closure ───────────────────────────────────────────
     async def dynamic_tool_func(**kwargs: Any) -> dict:
@@ -389,38 +473,12 @@ def _build_tool_for_script(script, tool_name: str) -> Tool:
                 break
             time.sleep(0.5)
 
-        text_parts = []
-        if execution.stdout:
-            text_parts.append(f"--- stdout ---\n{execution.stdout}")
-        if execution.stderr:
-            text_parts.append(f"--- stderr ---\n{execution.stderr}")
-        if execution.error_message:
-            text_parts.append(f"--- error ---\n{execution.error_message}")
-
-        return {
-            "content": [
-                TextContent(
-                    type="text",
-                    text="\n".join(text_parts) or "Execution completed.",
-                )
-            ],
-            "isError": execution.status == "failed",
-            "structuredContent": {
-                "execution_id": execution.id,
-                "script_id": script.id,
-                "status": execution.status,
-                "stdout": execution.stdout or "",
-                "stderr": execution.stderr or "",
-                "error_message": execution.error_message or "",
-                "exit_code": execution.exit_code,
-                "duration_seconds": execution.duration_seconds,
-            },
-        }
+        return _build_execution_tool_result(execution, script.id)
 
     dynamic_tool_func.__name__ = tool_name
     dynamic_tool_func.__doc__ = description
 
-    parameters = (
+    parameters = _sanitize_tool_parameters(
         script.input_schema
         if script.input_schema
         else _get_default_input_schema()
@@ -617,7 +675,27 @@ scripts_mcp = _create_mcp_instance(
 # ── Dynamic Tool Registration on Startup ──────────────────────────────────
 
 # Register all MCP-exposed scripts as individual tools on scripts_mcp
-_rebuild_dynamic_tools()
+# Note: This is called lazily to avoid database access during import/tests
+def _maybe_register_dynamic_tools():
+    """Register dynamic tools if Django is ready and database is available."""
+    from django.db import connection
+    from django.db.utils import OperationalError
+    
+    try:
+        # Check if database is available and has the required tables
+        connection.ensure_connection()
+        # Only register if tables exist (migration may not be run)
+        if Script.objects.exists() or True:  # Allow registration even with empty table
+            _rebuild_dynamic_tools()
+    except (OperationalError, Exception):
+        # Database not ready (tests, migrations, etc.) - skip registration
+        pass
+
+# Register on startup for production, but gracefully handle when DB isn't ready
+try:
+    _maybe_register_dynamic_tools()
+except Exception:
+    pass
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -846,15 +924,7 @@ def run_script(
             break
         time.sleep(0.5)
 
-    text_parts = []
-    if execution.stdout:
-        text_parts.append(f"--- stdout ---\n{execution.stdout}")
-    if execution.stderr:
-        text_parts.append(f"--- stderr ---\n{execution.stderr}")
-    if execution.error_message:
-        text_parts.append(f"--- error ---\n{execution.error_message}")
-
-    return RunScriptOutput(
+    structured = RunScriptOutput(
         id=execution.id,
         script_id=script.id,
         status=execution.status,
@@ -863,7 +933,13 @@ def run_script(
         error_message=execution.error_message or "",
         exit_code=execution.exit_code,
         duration_seconds=execution.duration_seconds,
-    ).model_dump()  # type: ignore[return-value]
+    ).model_dump()
+
+    return CallToolResult(
+        content=[TextContent(type="text", text=_execution_result_summary(execution))],
+        structuredContent=structured,
+        isError=execution.status == "failed",
+    )  # type: ignore[return-value]
 
 
 @admin_mcp.tool(
@@ -1789,22 +1865,35 @@ from django.db.models.signals import post_save, post_delete
 
 def _on_script_saved(sender, instance, **kwargs):
     """Rebuild dynamic MCP tools when a script is saved.
-    
-    This handles:
-    - Scripts being created with expose_to_mcp=True
-    - Scripts having expose_to_mcp toggled on/off
-    - Script names changing (affects auto-generated tool names)
-    - Script mcp_tool_name changing
+
+    Debounced: multiple saves within 2 seconds only trigger one rebuild.
     """
-    _rebuild_dynamic_tools()
+    _debounced_rebuild()
 
 
 def _on_script_deleted(sender, instance, **kwargs):
-    """Rebuild dynamic MCP tools when a script is deleted.
-    
-    Ensures tools for deleted scripts are removed from the registry.
-    """
+    """Rebuild dynamic MCP tools when a script is deleted."""
     _rebuild_dynamic_tools()
+
+
+# ── Debounced rebuild ────────────────────────────────────────────────────
+
+_debounce_timer: threading.Timer | None = None
+_debounce_lock = threading.Lock()
+
+
+def _debounced_rebuild():
+    """Schedule a rebuild, cancelling any pending rebuild.
+
+    Multiple rapid saves only fire one rebuild after 2 seconds of quiet.
+    """
+    global _debounce_timer
+    with _debounce_lock:
+        if _debounce_timer is not None:
+            _debounce_timer.cancel()
+        _debounce_timer = threading.Timer(2.0, _rebuild_dynamic_tools)
+        _debounce_timer.daemon = True
+        _debounce_timer.start()
 
 
 post_save.connect(_on_script_saved, sender=Script, weak=False)

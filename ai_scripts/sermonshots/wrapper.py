@@ -5,7 +5,7 @@ SermonShots API wrapper for AI agents.
 Supports managing videos, clips, transcripts, and AI-generated content
 (summaries, blog posts, devotionals, discussion guides) via the SermonShots API.
 
-API docs: https://sermonshots.com/api/
+API docs: https://sermonshots.com/api/v1/
 """
 
 import json
@@ -236,20 +236,40 @@ def get_api_key():
 def ss_request(method: str, path: str, action: str,
                params: dict | None = None,
                json_body: dict | None = None,
-               timeout_seconds: int = 30) -> str:
-    """Make a SermonShots API request with Bearer token auth."""
-    api_key = get_api_key()
-    if not api_key:
+               timeout_seconds: int = 30,
+               require_auth: bool = True) -> str:
+    """Make a SermonShots API request with auth-token header (no prefix)."""
+    api_key = get_api_key() if require_auth else None
+    if require_auth and not api_key:
         return error_result(
             action,
             "SermonShots credentials not configured. Set SERMONSHOTS_API_KEY."
         )
     return simple_api_request(
-        method, f"{SERMONSHOTS_API_BASE}{path}", action,
-        api_key=api_key, api_key_prefix="Bearer ",
-        params=params, json_body=json_body,
+        method,
+        f"{SERMONSHOTS_API_BASE}{path}",
+        action,
+        api_key=api_key,
+        api_key_header="auth-token",
+        api_key_prefix="",
+        params=params,
+        json_body=json_body,
         timeout_seconds=timeout_seconds,
     )
+
+
+def build_upload_body(data: dict) -> dict:
+    body = {
+        "publicUrl": data["public_url"],
+        "language": data["language"],
+        "reencode": data.get("reencode", False),
+        "filename": data["filename"],
+    }
+    if data.get("start") is not None:
+        body["start"] = data["start"]
+    if data.get("end") is not None:
+        body["end"] = data["end"]
+    return body
 
 
 def handle_action(data: dict, action: str) -> str:
@@ -257,109 +277,163 @@ def handle_action(data: dict, action: str) -> str:
 
     # ── Videos ────────────────────────────────────────────────────────────
 
+    if action == "get_church_meta":
+        require_fields(data, ["church_name"], action)
+        return ss_request(
+            "GET", f"/api/v1/public/church/{data['church_name']}",
+            action, require_auth=False,
+        )
+
     if action == "list_videos":
-        return ss_request("GET", "/api/videos", action, params=params)
+        return ss_request(
+            "GET", "/api/v1/videos", action, params=build_list_videos_params(data)
+        )
 
     if action == "get_video":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}", action, params=params
         )
 
     if action == "create_video_from_url":
-        require_fields(data, ["url"], action)
-        body = {"url": data["url"]}
-        if data.get("title"):
-            body["title"] = data["title"]
-        if data.get("publish_at"):
-            body["publish_at"] = data["publish_at"]
-        if data.get("metadata"):
-            body["metadata"] = data["metadata"]
+        require_fields(data, ["public_url", "language", "filename"], action)
+        body = build_upload_body(data)
 
         if data.get("dry_run", False):
             return build_dry_run_response(
-                action, "POST", f"{SERMONSHOTS_API_BASE}/api/videos", body=body
+                action, "POST", f"{SERMONSHOTS_API_BASE}/api/v1/video/upload", body=body
             )
-        return ss_request("POST", "/api/videos", action, json_body=body)
+        return ss_request("POST", "/api/v1/video/upload", action, json_body=body)
 
-    if action == "upload_video_metadata":
-        require_fields(data, ["video_id", "metadata"], action)
-        url = f"/api/videos/{data['video_id']}"
-        body = {"metadata": data["metadata"]}
+    if action == "create_video_from_stream":
+        require_fields(data, ["source", "public_url", "language", "filename"], action)
+        body = build_upload_body(data)
+        path = f"/api/v1/video/upload/{data['source']}"
+
         if data.get("dry_run", False):
             return build_dry_run_response(
-                action, "PATCH", f"{SERMONSHOTS_API_BASE}{url}", body=body
+                action, "POST", f"{SERMONSHOTS_API_BASE}{path}", body=body
             )
-        return ss_request("PATCH", url, action, json_body=body)
+        return ss_request("POST", path, action, json_body=body)
 
-    # ── Transcript ────────────────────────────────────────────────────────
+    # ── Transcription ─────────────────────────────────────────────────────
 
     if action == "get_transcript":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}/transcript", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}/transcription", action, params=params
         )
 
-    # ── Clips ─────────────────────────────────────────────────────────────
+    # ── Clips (per-video only) ────────────────────────────────────────────
 
     if action == "list_clips":
-        params = build_params(data)
-        if data.get("video_id"):
-            return ss_request(
-                "GET", f"/api/videos/{data['video_id']}/clips", action, params=params
-            )
-        return ss_request("GET", "/api/clips", action, params=params)
-
-    if action == "get_clip":
-        require_fields(data, ["clip_id"], action)
+        require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/clips/{data['clip_id']}", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}/clips", action, params=params
+        )
+
+    if action == "get_images":
+        require_fields(data, ["video_id", "image_type"], action)
+        return ss_request(
+            "GET", f"/api/v1/video/{data['video_id']}/images/{data['image_type']}",
+            action, params=params,
+        )
+
+    if action == "get_downloadable":
+        require_fields(data, ["video_id", "downloadable_type"], action)
+        return ss_request(
+            "GET",
+            f"/api/v1/video/{data['video_id']}/downloadable/{data['downloadable_type']}",
+            action, params=params,
         )
 
     # ── Generated content ─────────────────────────────────────────────────
 
-    if action == "list_generated_content":
-        params = build_params(data)
-        if data.get("video_id"):
-            return ss_request(
-                "GET", f"/api/videos/{data['video_id']}/generated_content",
-                action, params=params
-            )
-        return ss_request("GET", "/api/generated_content", action, params=params)
+    if action == "get_all_content":
+        require_fields(data, ["video_id"], action)
+        return ss_request(
+            "GET", f"/api/v1/video/{data['video_id']}/all", action, params=params
+        )
 
     if action == "get_summary":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}/summary", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}/summary", action, params=params
         )
 
     if action == "get_blog_post":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}/blog_post", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}/blog", action, params=params
         )
 
-    if action == "get_devotional":
+    if action == "get_devotionals":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}/devotional", action, params=params
+            "GET", f"/api/v1/video/{data['video_id']}/devotionals", action, params=params
         )
 
     if action == "get_discussion_guide":
         require_fields(data, ["video_id"], action)
         return ss_request(
-            "GET", f"/api/videos/{data['video_id']}/discussion_guide",
+            "GET", f"/api/v1/video/{data['video_id']}/discussion-guide",
             action, params=params
+        )
+
+    if action == "get_quotes":
+        require_fields(data, ["video_id"], action)
+        return ss_request(
+            "GET", f"/api/v1/video/{data['video_id']}/quotes", action, params=params
+        )
+
+    if action == "get_titles":
+        require_fields(data, ["video_id"], action)
+        return ss_request(
+            "GET", f"/api/v1/video/{data['video_id']}/titles", action, params=params
         )
 
     return error_result(action, f"Unknown action: {action}")
 
 
-def build_params(data: dict) -> dict:
+SORT_DIRECTIONS = frozenset({"DESC", "ASC", "desc", "asc"})
+
+
+def build_list_videos_params(data: dict) -> dict:
+    """Build list_videos query params.
+
+    The live API uses a sort field name plus a separate direction param.
+    OpenAPI documents a single ``sort`` enum (DESC/ASC), but passing that
+    value as ``sort`` returns an empty body. Map user input accordingly.
+    """
     params = {}
-    for key in ("per_page", "page", "sort", "direction", "status", "query"):
-        if key in data:
-            params[key] = data[key]
+    if "page" in data:
+        params["page"] = data["page"]
+    if "limit" in data:
+        params["limit"] = data["limit"]
+
+    sort_by = data.get("sort_by")
+    direction = data.get("direction") or data.get("sort_direction")
+    sort_val = data.get("sort")
+
+    if sort_val in SORT_DIRECTIONS:
+        direction = direction or sort_val
+    elif sort_val:
+        sort_by = sort_by or sort_val
+
+    if direction:
+        params["sort"] = sort_by or "createdAt"
+        params["direction"] = str(direction).lower()
+    elif sort_by:
+        params["sort"] = sort_by
+
+    return params
+
+
+def build_params(data: dict) -> dict:
+    """Build query parameters for non-list endpoints: withProjects."""
+    params = {}
+    if "with_projects" in data:
+        params["withProjects"] = data["with_projects"]
     return params
 
 

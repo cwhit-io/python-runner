@@ -28,21 +28,27 @@
       "default": 0,
       "minimum": 0
     },
-    "bank": {
+    "row": {
       "type": "integer",
-      "description": "Bank number for button actions.",
+      "description": "Row position for button actions (0-based).",
+      "default": 0,
+      "minimum": 0
+    },
+    "column": {
+      "type": "integer",
+      "description": "Column position for button actions (0-based).",
       "default": 0,
       "minimum": 0
     },
     "x": {
       "type": "integer",
-      "description": "X (column) position for button actions.",
+      "description": "Alias for column.",
       "default": 0,
       "minimum": 0
     },
     "y": {
       "type": "integer",
-      "description": "Y (row) position for button actions.",
+      "description": "Alias for row.",
       "default": 0,
       "minimum": 0
     },
@@ -86,11 +92,12 @@
     }
   },
   "examples": [
-    { "action": "press_button", "page": 0, "bank": 0, "x": 1, "y": 2 },
+    { "action": "press_button", "page": 1, "row": 0, "column": 2 },
+    { "action": "press_button", "page": 0, "x": 1, "y": 2 },
     { "action": "set_custom_variable", "name": "service_started", "value": "true" },
     { "action": "get_custom_variable", "name": "current_song" },
     { "action": "get_module_variable", "module_name": "obs-studio", "variable_name": "scene_name" },
-    { "action": "set_button_style", "page": 0, "bank": 0, "x": 1, "y": 2, "style": { "text": "Live", "size": "auto", "color": 65280 } },
+    { "action": "set_button_style", "page": 2, "row": 1, "column": 4, "style": { "text": "Live", "size": "auto", "color": 65280 } },
     { "action": "rescan_surfaces" }
   ]
 }

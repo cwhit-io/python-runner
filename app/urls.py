@@ -153,10 +153,20 @@ urlpatterns = [
     path("tags/", views_scripts.tags_list, name="tags_list"),
     path("tags/create/", views_scripts.tag_create, name="tag_create"),
     path("tags/<int:tag_id>/edit/", views_scripts.tag_edit, name="tag_edit"),
+    path(
+        "tags/<int:tag_id>/edit-inline/",
+        views_scripts.tag_edit_inline,
+        name="tag_edit_inline",
+    ),
     path("tags/<int:tag_id>/delete/", views_scripts.tag_delete, name="tag_delete"),
     # Global Credentials
     path("credentials/", views_credentials.credentials_list, name="credentials_list"),
     path("credentials/create/", views_credentials.credential_create, name="credential_create"),
+    path(
+        "credentials/<int:credential_id>/edit/",
+        views_credentials.credential_edit,
+        name="credential_edit",
+    ),
     path(
         "credentials/<int:credential_id>/delete/",
         views_credentials.credential_delete,

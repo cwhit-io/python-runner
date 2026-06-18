@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "emailoctopus",
-  "description": "AI-callable wrapper for the EmailOctopus API. Manage mailing lists, contacts, campaigns, and templates.",
+  "description": "AI-callable wrapper for the EmailOctopus API v1.6. Manage mailing lists, contacts, and campaigns.",
   "type": "object",
   "required": ["action"],
   "properties": {
@@ -16,14 +16,12 @@
         "create_contact",
         "update_contact",
         "list_campaigns",
-        "get_campaign",
-        "create_draft_campaign",
-        "list_templates"
+        "get_campaign"
       ]
     },
     "list_id": {
       "type": "string",
-      "description": "Required for list_contacts, get_contact, create_contact, update_contact, and create_draft_campaign."
+      "description": "Required for list_contacts, get_contact, create_contact, and update_contact."
     },
     "contact_id": {
       "type": "string",
@@ -52,31 +50,6 @@
       "description": "Contact status: 'subscribed', 'unsubscribed', or 'pending'.",
       "enum": ["subscribed", "unsubscribed", "pending"]
     },
-    "subject": {
-      "type": "string",
-      "description": "Campaign subject line. Required for create_draft_campaign."
-    },
-    "name": {
-      "type": "string",
-      "description": "Campaign name/internal name. Required for create_draft_campaign."
-    },
-    "from_name": {
-      "type": "string",
-      "description": "Sender name for campaign."
-    },
-    "reply_to": {
-      "type": "string",
-      "format": "email",
-      "description": "Reply-to email for campaign."
-    },
-    "template_id": {
-      "type": "string",
-      "description": "Template ID for campaign content."
-    },
-    "content": {
-      "type": "object",
-      "description": "Campaign content (HTML body, plain text, etc.)."
-    },
     "dry_run": {
       "type": "boolean",
       "description": "When true, preview the request without sending.",
@@ -95,6 +68,6 @@
     { "action": "list_contacts", "list_id": "abc123", "per_page": 20 },
     { "action": "create_contact", "list_id": "abc123", "email": "user@example.com", "fields": { "FirstName": "John" }, "dry_run": true },
     { "action": "list_campaigns" },
-    { "action": "create_draft_campaign", "list_id": "abc123", "subject": "Hello!", "name": "Welcome Email", "dry_run": true }
+    { "action": "get_campaign", "campaign_id": "camp123" }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "planning_center_registrations",
-  "description": "AI-callable wrapper for Planning Center Registrations API. Manage registration events and attendees.",
+  "description": "AI-callable wrapper for the Planning Center Registrations API. Manage signups (registration events), attendees, categories, selection types, signup locations, signup times, campuses, and people. Matches the OpenAPI 3.1 spec.",
   "type": "object",
   "required": ["action"],
   "properties": {
@@ -9,22 +9,45 @@
       "type": "string",
       "description": "The action to perform.",
       "enum": [
-        "list_events",
-        "get_event",
+        "list_signups",
+        "get_signup",
         "list_attendees",
         "get_attendee",
         "list_categories",
-        "list_selections",
-        "list_signup_locations"
+        "get_category",
+        "list_selection_types",
+        "get_selection_type",
+        "list_signup_locations",
+        "get_signup_location",
+        "list_signup_times",
+        "get_signup_time",
+        "list_campuses",
+        "list_people"
       ]
     },
-    "event_id": {
+    "signup_id": {
       "type": "string",
-      "description": "Required for get_event, list_attendees, get_attendee, and list_selections."
+      "description": "Required for get_signup, list_selection_types, get_selection_type, list_signup_locations, get_signup_location, list_signup_times, get_signup_time. Optionally scopes attendees and categories."
     },
     "attendee_id": {
       "type": "string",
       "description": "Required for get_attendee."
+    },
+    "category_id": {
+      "type": "string",
+      "description": "Required for get_category."
+    },
+    "selection_type_id": {
+      "type": "string",
+      "description": "Required for get_selection_type."
+    },
+    "signup_location_id": {
+      "type": "string",
+      "description": "Required for get_signup_location."
+    },
+    "signup_time_id": {
+      "type": "string",
+      "description": "Required for get_signup_time."
     },
     "per_page": { "type": "integer", "description": "Results per page (max 100).", "default": 25, "minimum": 1, "maximum": 100 },
     "offset": { "type": "integer", "description": "Records to skip.", "minimum": 0 },
@@ -36,8 +59,11 @@
     "timeout_seconds": { "type": "integer", "description": "Request timeout.", "default": 30, "minimum": 1, "maximum": 120 }
   },
   "examples": [
-    { "action": "list_events", "per_page": 10 },
-    { "action": "get_event", "event_id": "123" },
-    { "action": "list_attendees", "event_id": "123", "per_page": 50 }
+    { "action": "list_signups", "per_page": 10 },
+    { "action": "get_signup", "signup_id": "123" },
+    { "action": "list_attendees", "signup_id": "123", "per_page": 50 },
+    { "action": "list_selection_types", "signup_id": "123" },
+    { "action": "list_signup_times", "signup_id": "123" },
+    { "action": "list_campuses" }
   ]
 }

@@ -15,13 +15,26 @@
         "get_series",
         "list_speakers",
         "list_episode_resources",
+        "list_channels",
+        "list_channel_episodes",
+        "list_episode_times",
         "create_episode",
-        "update_episode"
+        "update_episode",
+        "create_episode_resource",
+        "update_episode_resource"
       ]
     },
     "episode_id": {
       "type": "string",
-      "description": "Required for get_episode, list_episode_resources, and update_episode."
+      "description": "Required for get_episode, list_episode_resources, list_episode_times, update_episode, create_episode_resource, and update_episode_resource."
+    },
+    "channel_id": {
+      "type": "string",
+      "description": "Required for list_channel_episodes."
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "Required for update_episode_resource."
     },
     "series_id": {
       "type": "string",

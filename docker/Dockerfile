@@ -1,62 +1,41 @@
-# Use Python 3.12 slim image
 FROM python:3.12-slim
 
-# Set environment variables
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/app/.cache/uv \
     TZ=America/New_York \
-    HOME=/app \
-    PIP_CACHE_DIR=/app/.cache/pip \
-    PYTHONUSERBASE=/app/.local
+    HOME=/app
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
+    libpq-dev \
     tzdata \
     && rm -rf /var/lib/apt/lists/* \
-    && cp /usr/share/zoneinfo/America/New_York /etc/localtime \
+    && ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime \
     && echo "America/New_York" > /etc/timezone
 
-# Copy requirements first for better caching
+RUN useradd -m -u 1000 appuser
+
 COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --chown=appuser:appuser . .
 
-# Copy project files
-COPY . .
+RUN mkdir -p /app/media/venvs /app/.cache/uv && \
+    chown -R appuser:appuser /app/media /app/.cache/uv
 
-# Create staticfiles directory
-RUN mkdir -p staticfiles
-
-# Collect static files
-RUN python manage.py collectstatic --noinput || true
-
-# Create a non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
 USER appuser
 
-# Re-set HOME after USER switch (USER overrides ENV)
-ENV HOME=/app
-ENV PIP_CACHE_DIR=/app/.cache/pip
-ENV PYTHONUSERBASE=/app/.local
-
-RUN mkdir -p /app/media/venvs /app/.cache/pip /app/.local && \
-    chown -R appuser:appuser /app
-
-# Expose port
 EXPOSE 8000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()" || exit 1
 
-# Run the application
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["./run.sh"]

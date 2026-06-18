@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'admin:app_script_changelist' %}">Scripts</a>
+  &rsaquo; Add tags
+</div>
+{% endblock %}
+
+{% block content %}
+<p>Add tags to the {{ scripts|length }} selected script{{ scripts|length|pluralize }}:</p>
+
+<ul>
+  {% for script in scripts %}
+    <li>{{ script.name }}{% if script.owner %} ({{ script.owner.username }}){% endif %}</li>
+  {% endfor %}
+</ul>
+
+<form method="post">
+  {% csrf_token %}
+
+  {% for script in scripts %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ script.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ action_name }}">
+  <input type="hidden" name="post" value="yes">
+
+  <fieldset class="module aligned">
+    {{ form.as_p }}
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" value="Add tags" class="default">
+    <a href="{% url 'admin:app_script_changelist' %}" class="button cancel-link">Cancel</a>
+  </div>
+</form>
+{% endblock %}

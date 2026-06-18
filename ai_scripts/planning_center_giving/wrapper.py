@@ -256,6 +256,33 @@ def handle_action(data: dict, action: str) -> str:
     if action == "list_refunds":
         return planning_center_request("GET", f"{BASE_URL}/refunds", action, params=params)
 
+    if action == "list_people":
+        return planning_center_request("GET", f"{BASE_URL}/people", action, params=params)
+
+    if action == "list_person_donations":
+        require_fields(data, ["person_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/people/{data['person_id']}/donations", action, params=params
+        )
+
+    if action == "list_campuses":
+        return planning_center_request("GET", f"{BASE_URL}/campuses", action, params=params)
+
+    if action == "list_campus_donations":
+        require_fields(data, ["campus_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/campuses/{data['campus_id']}/donations", action, params=params
+        )
+
+    if action == "list_in_kind_donations":
+        return planning_center_request("GET", f"{BASE_URL}/in_kind_donations", action, params=params)
+
+    if action == "list_labels":
+        return planning_center_request("GET", f"{BASE_URL}/labels", action, params=params)
+
+    if action == "list_payment_sources":
+        return planning_center_request("GET", f"{BASE_URL}/payment_sources", action, params=params)
+
     return error_result(action, f"Unknown action: {action}")
 
 

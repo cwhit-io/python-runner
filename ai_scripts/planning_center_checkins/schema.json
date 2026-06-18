@@ -15,12 +15,23 @@
         "get_check_in",
         "list_locations",
         "list_event_periods",
-        "list_attendees"
+        "list_attendees",
+        "list_headcounts",
+        "list_event_times",
+        "list_passes",
+        "list_options",
+        "list_stations",
+        "list_labels",
+        "list_person_check_ins"
       ]
     },
     "event_id": {
       "type": "string",
-      "description": "Required for get_event, list_event_periods. Optionally filters check_ins and attendees."
+      "description": "Required for get_event, list_event_periods, list_event_times. Optionally filters check_ins and attendees."
+    },
+    "person_id": {
+      "type": "string",
+      "description": "Required for list_person_check_ins."
     },
     "check_in_id": {
       "type": "string",

@@ -16,12 +16,22 @@
         "list_group_events",
         "list_group_types",
         "list_people",
+        "list_group_applications",
+        "list_group_attendance",
+        "list_group_tags",
+        "list_tag_groups",
+        "list_campuses",
+        "list_person_groups",
         "create_group_event"
       ]
     },
     "group_id": {
       "type": "string",
-      "description": "Required for get_group, list_group_memberships, list_group_events, and create_group_event."
+      "description": "Required for get_group, list_group_memberships, list_group_events, list_group_attendance, list_group_tags, and create_group_event."
+    },
+    "person_id": {
+      "type": "string",
+      "description": "Required for list_person_groups."
     },
     "query": {
       "type": "string",

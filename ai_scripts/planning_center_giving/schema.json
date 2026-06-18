@@ -15,12 +15,27 @@
         "list_batches",
         "list_designations",
         "list_recurring_donations",
-        "list_refunds"
+        "list_refunds",
+        "list_people",
+        "list_person_donations",
+        "list_campuses",
+        "list_campus_donations",
+        "list_in_kind_donations",
+        "list_labels",
+        "list_payment_sources"
       ]
     },
     "donation_id": {
       "type": "string",
       "description": "Required for get_donation. Optionally filters designations."
+    },
+    "person_id": {
+      "type": "string",
+      "description": "Required for list_person_donations."
+    },
+    "campus_id": {
+      "type": "string",
+      "description": "Required for list_campus_donations."
     },
     "per_page": { "type": "integer", "description": "Results per page (max 100).", "default": 25, "minimum": 1, "maximum": 100 },
     "offset": { "type": "integer", "description": "Records to skip.", "minimum": 0 },

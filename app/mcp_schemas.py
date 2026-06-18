@@ -145,6 +145,38 @@ class RunScriptOutput(BaseModel):
     duration_seconds: Optional[float] = Field(default=None, description="Execution duration.")
 
 
+class ScriptToolExecutionOutput(BaseModel):
+    """Output schema advertised for dynamic ScriptDash MCP script tools."""
+
+    execution_id: int = Field(description="Unique execution record ID.")
+    script_id: int = Field(description="ID of the script that was executed.")
+    status: str = Field(
+        description="Execution status: queued, running, success, failed, or cancelled."
+    )
+    stdout: str = Field(
+        default="",
+        description=(
+            "Script standard output. API wrappers usually print JSON here "
+            "(success, action, data, error fields)."
+        ),
+    )
+    stderr: str = Field(default="", description="Script standard error output.")
+    error_message: str = Field(
+        default="",
+        description="Runner-level error message when execution fails before or during the run.",
+    )
+    exit_code: Optional[int] = Field(default=None, description="Process exit code, if available.")
+    duration_seconds: Optional[float] = Field(
+        default=None,
+        description="Wall-clock execution duration in seconds.",
+    )
+
+
+def get_script_tool_output_schema() -> dict:
+    """JSON Schema for dynamic ScriptDash MCP tool responses."""
+    return ScriptToolExecutionOutput.model_json_schema()
+
+
 class GetExecutionInput(BaseModel):
     """Input schema for get_execution tool."""
     execution_id: int = Field(description="ID of the execution to retrieve.", ge=1)

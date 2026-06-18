@@ -62,13 +62,31 @@ class GlobalCredential(models.Model):
         """Return a masked representation of the credential value for UI display."""
         return "••••••••••••••••••••••••••••••••••••••••••••••••••"
     
+    def get_credential_data(self) -> dict:
+        """Return normalized key→secret mapping for script env injection."""
+        raw = self.get_decrypted_data()
+        if not raw:
+            return {}
+        # Legacy web form stored {"key": "API_KEY", "value": "secret"}
+        if set(raw.keys()) == {"key", "value"}:
+            field_name = str(raw.get("key", "KEY")).strip().upper().replace(" ", "_")
+            return {field_name: raw.get("value", "")}
+        return raw
+
     def get_env_var_names(self) -> list[str]:
         """Return the environment variable names this credential will produce."""
         prefix = self.name.upper().replace(" ", "_")
-        data = self.get_decrypted_data()
+        data = self.get_credential_data()
         if not data:
             return [f"{prefix}_KEY"]
-        return [f"{prefix}_{k.upper()}" for k in data.keys()]
+        return [f"{prefix}_{k.upper().replace(' ', '_')}" for k in data.keys()]
+
+    def get_credential_keys(self) -> list[str]:
+        """Return the stored key names (without credential prefix)."""
+        data = self.get_credential_data()
+        if not data:
+            return ["key"]
+        return list(data.keys())
     
     def get_decrypted_data(self) -> dict:
         """Decrypt and return the credential data. Returns empty dict if decryption fails."""
@@ -402,6 +420,8 @@ class Script(models.Model):
         indexes = [
             models.Index(fields=["owner", "-updated_at"]),
             models.Index(fields=["last_status"]),
+            models.Index(fields=["expose_to_mcp"]),  # MCP tool lookup optimization
+            models.Index(fields=["is_public"]),  # Public script queries
         ]
 
     def __str__(self):
@@ -615,6 +635,10 @@ class ScriptExecution(models.Model):
         indexes = [
             models.Index(fields=["script", "-created_at"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["script", "status"]),  # Find runs by script+status
+            models.Index(fields=["started_at"]),  # Time-based queries
+            models.Index(fields=["completed_at"]),  # Time-based queries
+            models.Index(fields=["-created_at", "status"]),  # Recent executions by status
         ]
 
     def __str__(self):
@@ -688,6 +712,12 @@ class ScriptSchedule(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Script Schedule"
         verbose_name_plural = "Script Schedules"
+        indexes = [
+            models.Index(fields=["script", "-created_at"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["next_run"]),  # Scheduler queries
+            models.Index(fields=["script", "is_active"]),  # Active schedules by script
+        ]
 
     def __str__(self):
         return f"{self.script.name} - {self.name}"

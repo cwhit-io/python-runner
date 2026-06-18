@@ -16,6 +16,19 @@
     .sidebar-scroll::-webkit-scrollbar { width: 4px; }
     .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
     .sidebar-scroll::-webkit-scrollbar-thumb { background: oklch(var(--b3)); border-radius: 2px; }
+    .pill-badge {
+        min-height: 2.35rem;
+        padding: 0.55rem 1rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        line-height: 1.2;
+    }
+    .pill-badge .pill-check {
+        width: 0.95rem;
+        height: 0.95rem;
+        flex-shrink: 0;
+    }
 </style>
 {% endblock %}
 
@@ -59,7 +72,7 @@
                         <span class="badge badge-sm badge-primary font-bold">PUBLIC</span>
                         {% endif %}
                         {% for tag in script.tags.all %}
-                        <span class="badge badge-sm badge-outline opacity-80" style="border-color: {{ tag.color }}; color: {{ tag.color }};">{{ tag.name }}</span>
+                        <span class="badge badge-md opacity-90" style="border: 2px solid {{ tag.color }}; background-color: {{ tag.color }}22; color: {{ tag.color }};">{{ tag.name }}</span>
                         {% endfor %}
                     </div>
                 </div>
@@ -158,17 +171,20 @@
                             </span>
                             <div id="credentials-container" class="bg-base-200/50 rounded-lg p-3 border border-base-300 max-h-[160px] overflow-y-auto">
                                 {% if user_credentials %}
-                                <div class="flex flex-col gap-1.5">
+                                <div class="flex flex-col gap-2">
                                     {% for cred in user_credentials %}
-                                    <label class="cursor-pointer select-none flex items-center gap-2 pill-toggle">
-                                        <span class="pill-badge badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70
-                                                   group-hover:border-primary/50 transition-all w-full justify-start font-mono gap-1
-                                                   {% if cred in script.credentials.all %}border-primary bg-primary/10 text-primary{% endif %}">
-                                            <svg class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                            {% for env_var in cred.get_env_var_names %}<span class="{% if not forloop.first %}opacity-50 ml-1{% endif %}">{{ env_var }}</span>{% endfor %}
-                                        </span>
-                                        <input type="checkbox" class="hidden" name="credentials" value="{{ cred.id }}"
+                                    <label class="cursor-pointer select-none flex items-center pill-toggle">
+                                        <input type="checkbox" class="hidden pill-checkbox" name="credentials" value="{{ cred.id }}"
+                                               data-pill-type="credential"
                                                {% if cred in script.credentials.all %}checked{% endif %}>
+                                        <span class="pill-badge badge badge-md border-2 border-base-300 bg-base-100 text-base-content/80
+                                                   hover:border-primary/50 transition-all w-full justify-start font-mono gap-2 tooltip tooltip-right
+                                                   {% if cred in script.credentials.all %}pill-active-credential{% endif %}"
+                                              data-tip="{{ cred.name }} — {{ cred.get_credential_keys|join:', ' }}"
+                                              title="{{ cred.name }} — {{ cred.get_credential_keys|join:', ' }}">
+                                            <svg class="pill-check" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                            <span class="truncate">{{ cred.get_credential_keys|join:", " }}</span>
+                                        </span>
                                     </label>
                                     {% endfor %}
                                 </div>
@@ -206,18 +222,20 @@
                             </span>
                             <div class="bg-base-200/50 rounded-lg p-3 border border-base-300 max-h-[160px] overflow-y-auto">
                                 {% if user_tags %}
-                                <div class="flex flex-wrap gap-1.5">
+                                <div class="flex flex-wrap gap-2">
                                     {% for tag in user_tags %}
                                     <label class="cursor-pointer select-none pill-toggle">
-                                        <span class="pill-badge badge badge-sm border-2 border-base-300 bg-base-100 text-base-content/70 
-                                                   group-hover:border-primary/50 transition-all gap-1
-                                                   {% if tag in script.tags.all %}border-primary bg-primary/10 text-primary{% endif %}">
-                                            <svg class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                        <input type="checkbox" class="hidden pill-checkbox" name="tags" value="{{ tag.name }}"
+                                               data-pill-type="tag"
+                                               data-color="{{ tag.color }}"
+                                               {% if tag in script.tags.all %}checked{% endif %}>
+                                        <span class="pill-badge badge badge-md border-2 border-base-300 bg-base-100 text-base-content/80
+                                                   hover:opacity-100 transition-all gap-2
+                                                   {% if tag in script.tags.all %}pill-active-tag{% endif %}"
+                                              {% if tag in script.tags.all %}style="border-color: {{ tag.color }}; background-color: {{ tag.color }}22; color: {{ tag.color }};"{% endif %}>
+                                            <svg class="pill-check" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                                             {{ tag.name }}
                                         </span>
-                                        <input type="checkbox" class="hidden" name="tags" value="{{ tag.name }}"
-                                               {% if tag in script.tags.all %}checked{% endif %}
-                                               data-color="{{ tag.color }}">
                                     </label>
                                     {% endfor %}
                                 </div>
@@ -285,6 +303,33 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Danger Zone -->
+                <div class="card bg-base-100 border-2 border-error border-opacity-20 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-error text-sm mb-1">Delete Script</h3>
+                                <p class="text-xs opacity-70 leading-relaxed mb-3">
+                                    Permanently delete this script along with all executions, schedules, and history. This action cannot be undone.
+                                </p>
+                                <button type="button" class="btn btn-error btn-sm gap-2"
+                                        onclick="confirmDelete('{{ script.name|escapejs }}', 'delete-script-form')"
+                                        title="Permanently delete this script and all its data">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete Script
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- RIGHT MAIN: Code Editor (9 cols) -->
@@ -301,6 +346,15 @@
             </div>
 
         </div>
+    </form>
+
+    <form method="post" action="{% url 'script_delete' script.id %}"
+          hx-post="{% url 'script_delete' script.id %}"
+          hx-target="#htmx-response"
+          hx-swap="innerHTML"
+          id="delete-script-form"
+          class="hidden">
+        {% csrf_token %}
     </form>
 </div>
 
@@ -571,21 +625,46 @@
 </script>
 
 <script>
-    // Pill toggle: clicking any .pill-toggle toggles the checkbox and pill state
-    document.addEventListener('click', function(e) {
-        const toggle = e.target.closest('.pill-toggle');
-        if (!toggle) return;
-        const checkbox = toggle.querySelector('input[type="checkbox"]');
-        const pill = toggle.querySelector('.pill-badge');
-        if (!checkbox || !pill) return;
-        checkbox.checked = !checkbox.checked;
-        pill.classList.toggle('border-primary', checkbox.checked);
-        pill.classList.toggle('bg-primary/10', checkbox.checked);
-        pill.classList.toggle('text-primary', checkbox.checked);
-        pill.classList.toggle('border-base-300', !checkbox.checked);
-        pill.classList.toggle('bg-base-100', !checkbox.checked);
-        pill.classList.toggle('text-base-content/70', !checkbox.checked);
-        e.preventDefault();
+    function applyCredentialPillState(checkbox, pill) {
+        const activeClasses = ['border-primary', 'bg-primary/10', 'text-primary', 'pill-active-credential'];
+        const idleClasses = ['border-base-300', 'bg-base-100', 'text-base-content/80'];
+        activeClasses.forEach((cls) => pill.classList.toggle(cls, checkbox.checked));
+        idleClasses.forEach((cls) => pill.classList.toggle(cls, !checkbox.checked));
+    }
+
+    function applyTagPillState(checkbox, pill) {
+        const color = checkbox.dataset.color;
+        if (checkbox.checked && color) {
+            pill.style.borderColor = color;
+            pill.style.backgroundColor = `${color}22`;
+            pill.style.color = color;
+            pill.classList.add('pill-active-tag');
+            pill.classList.remove('border-base-300', 'bg-base-100', 'text-base-content/80');
+        } else {
+            pill.style.borderColor = '';
+            pill.style.backgroundColor = '';
+            pill.style.color = '';
+            pill.classList.remove('pill-active-tag');
+            pill.classList.add('border-base-300', 'bg-base-100', 'text-base-content/80');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.pill-toggle .pill-checkbox').forEach((checkbox) => {
+        const pill = checkbox.closest('.pill-toggle')?.querySelector('.pill-badge');
+        if (!pill) return;
+
+        const apply = () => {
+            if (checkbox.dataset.pillType === 'tag') {
+                applyTagPillState(checkbox, pill);
+            } else {
+                applyCredentialPillState(checkbox, pill);
+            }
+        };
+
+        apply();
+        checkbox.addEventListener('change', apply);
+    });
     });
 
     // Save script without redirecting

@@ -289,6 +289,36 @@ def handle_action(data: dict, action: str) -> str:
             "GET", f"{BASE_URL}/service_types/people", action, params=params
         )
 
+    if action == "list_media":
+        return planning_center_request("GET", f"{BASE_URL}/media", action, params=params)
+
+    if action == "list_series":
+        return planning_center_request("GET", f"{BASE_URL}/series", action, params=params)
+
+    if action == "list_email_templates":
+        return planning_center_request("GET", f"{BASE_URL}/email_templates", action, params=params)
+
+    if action == "list_attachment_types":
+        return planning_center_request("GET", f"{BASE_URL}/attachment_types", action, params=params)
+
+    if action == "list_plan_notes":
+        require_fields(data, ["plan_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/plans/{data['plan_id']}/notes", action, params=params
+        )
+
+    if action == "list_plan_attachments":
+        require_fields(data, ["plan_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/plans/{data['plan_id']}/attachments", action, params=params
+        )
+
+    if action == "list_team_people":
+        require_fields(data, ["team_id"], action)
+        return planning_center_request(
+            "GET", f"{BASE_URL}/teams/{data['team_id']}/people", action, params=params
+        )
+
     # ── Write actions (guarded) ───────────────────────────────────────────
 
     if action == "update_plan_title":

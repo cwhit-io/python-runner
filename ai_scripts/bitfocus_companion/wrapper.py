@@ -167,7 +167,8 @@ def get_config():
 
 
 def companion_request(method: str, path: str, action: str,
-                      json_body: dict | None = None,
+                      params: dict | None = None,
+                      json_body: dict | list | str | int | float | bool | None = None,
                       timeout_seconds: int = 10) -> str:
     """Make a request to Companion's HTTP API."""
     import requests as req
@@ -175,23 +176,25 @@ def companion_request(method: str, path: str, action: str,
     base_url, token = get_config()
     url = f"{base_url}{path}"
 
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    }
+    headers = {"Accept": "application/json"}
+    if json_body is not None:
+        headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
     try:
         resp = req.request(
             method, url, headers=headers,
-            json=json_body, timeout=timeout_seconds,
+            params=params, json=json_body, timeout=timeout_seconds,
         )
         resp.raise_for_status()
-        if resp.content:
-            data = resp.json()
-        else:
+        if not resp.content:
             data = {"status": resp.status_code}
+        else:
+            try:
+                data = resp.json()
+            except ValueError:
+                data = {"value": resp.text}
         return success_result(action, data)
 
     except req.exceptions.Timeout:
@@ -217,43 +220,63 @@ def companion_request(method: str, path: str, action: str,
 def build_location_path(data: dict) -> str:
     """Build the location path segment for button/surface operations.
 
-    Format: /<page>/<bank>/<x>/<y>
+    Companion v4 expects /<page>/<row>/<column>.
+    ``row``/``column`` accept legacy aliases ``y``/``x``.
     """
-    page = data.get("page", "0")
-    bank = data.get("bank", "0")
-    x = data.get("x", "0")
-    y = data.get("y", "0")
-    return f"/{page}/{bank}/{x}/{y}"
+    page = data.get("page", 0)
+    row = data.get("row", data.get("y", 0))
+    column = data.get("column", data.get("x", 0))
+    return f"/{page}/{row}/{column}"
+
+
+def request_timeout(data: dict) -> int:
+    return data.get("timeout_seconds", 10)
 
 
 def handle_action(data: dict, action: str) -> str:
+    timeout = request_timeout(data)
+
     # ── Button / Surface actions ─────────────────────────────────────────
 
     if action == "press_button":
         loc = build_location_path(data)
-        return companion_request("POST", f"/api/location{loc}/press", action)
+        return companion_request(
+            "POST", f"/api/location{loc}/press", action, timeout_seconds=timeout
+        )
 
     if action == "button_down":
         loc = build_location_path(data)
-        return companion_request("POST", f"/api/location{loc}/down", action)
+        return companion_request(
+            "POST", f"/api/location{loc}/down", action, timeout_seconds=timeout
+        )
 
     if action == "button_up":
         loc = build_location_path(data)
-        return companion_request("POST", f"/api/location{loc}/up", action)
+        return companion_request(
+            "POST", f"/api/location{loc}/up", action, timeout_seconds=timeout
+        )
 
     if action == "rotate_left":
         loc = build_location_path(data)
-        return companion_request("POST", f"/api/location{loc}/rotate-left", action)
+        return companion_request(
+            "POST", f"/api/location{loc}/rotate-left", action, timeout_seconds=timeout
+        )
 
     if action == "rotate_right":
         loc = build_location_path(data)
-        return companion_request("POST", f"/api/location{loc}/rotate-right", action)
+        return companion_request(
+            "POST", f"/api/location{loc}/rotate-right", action, timeout_seconds=timeout
+        )
 
     if action == "set_step":
         require_fields(data, ["step"], action)
         loc = build_location_path(data)
         return companion_request(
-            "POST", f"/api/location{loc}/step/{data['step']}", action
+            "POST",
+            f"/api/location{loc}/step",
+            action,
+            params={"step": data["step"]},
+            timeout_seconds=timeout,
         )
 
     if action == "set_button_style":
@@ -261,18 +284,22 @@ def handle_action(data: dict, action: str) -> str:
         loc = build_location_path(data)
         body = data.get("style", {})
         return companion_request(
-            "PUT", f"/api/location{loc}/style", action, json_body=body
+            "POST", f"/api/location{loc}/style", action,
+            json_body=body, timeout_seconds=timeout,
         )
 
     # ── Custom variables ─────────────────────────────────────────────────
 
     if action == "set_custom_variable":
         require_fields(data, ["name", "value"], action)
+        value = data["value"]
+        path = f"/api/custom-variable/{data['name']}/value"
+        if isinstance(value, (dict, list, bool, int, float)):
+            return companion_request(
+                "POST", path, action, json_body=value, timeout_seconds=timeout
+            )
         return companion_request(
-            "PUT",
-            f"/api/custom-variable/{data['name']}/value",
-            action,
-            json_body={"value": data["value"]},
+            "POST", path, action, params={"value": value}, timeout_seconds=timeout
         )
 
     if action == "get_custom_variable":
@@ -281,6 +308,7 @@ def handle_action(data: dict, action: str) -> str:
             "GET",
             f"/api/custom-variable/{data['name']}/value",
             action,
+            timeout_seconds=timeout,
         )
 
     # ── Module variables ─────────────────────────────────────────────────
@@ -291,12 +319,15 @@ def handle_action(data: dict, action: str) -> str:
             "GET",
             f"/api/variable/{data['module_name']}/{data['variable_name']}/value",
             action,
+            timeout_seconds=timeout,
         )
 
     # ── Surface management ───────────────────────────────────────────────
 
     if action == "rescan_surfaces":
-        return companion_request("POST", "/api/surfaces/rescan", action)
+        return companion_request(
+            "POST", "/api/surfaces/rescan", action, timeout_seconds=timeout
+        )
 
     return error_result(action, f"Unknown action: {action}")
 
