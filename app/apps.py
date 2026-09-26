@@ -28,3 +28,11 @@ class AppConfig(AppConfig):
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to load schedules on startup: {e}")
+
+            try:
+                from app.mcp_server import _ensure_dynamic_tools_registered
+                _ensure_dynamic_tools_registered()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to register MCP tools on startup: {e}")

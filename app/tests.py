@@ -18,6 +18,9 @@ from app.mcp_server import (
     _invalidate_mcp_tool_cache,
     _build_tool_for_script,
     _build_execution_tool_result,
+    _ensure_dynamic_tools_registered,
+    _unregister_dynamic_mcp_tools,
+    scripts_mcp,
 )
 from app.mcp_schemas import get_script_tool_output_schema
 
@@ -675,6 +678,27 @@ class DynamicMCPToolTestCase(TestCase):
         tool_str = str(tool)
         self.assertNotIn("rm -rf /", tool_str)
         self.assertNotIn("import os", tool_str)
+
+    def test_ensure_dynamic_tools_registered_recovers_empty_registry(self):
+        """Empty in-memory registry should be rebuilt when DB has exposed scripts."""
+        script = Script.objects.create(
+            name="Recovery Script",
+            language="python",
+            code='print("recover")',
+            owner=self.user,
+            expose_to_mcp=True,
+        )
+
+        _unregister_dynamic_mcp_tools()
+        self.assertEqual(len(scripts_mcp._tool_manager._tools), 0)
+
+        _ensure_dynamic_tools_registered()
+
+        tool_names = list(scripts_mcp._tool_manager._tools.keys())
+        self.assertIn(
+            _convert_script_name_to_tool_name(script.name, script.mcp_tool_name),
+            tool_names,
+        )
 
 
 class BackwardCompatibilityTestCase(TestCase):

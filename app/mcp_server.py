@@ -26,7 +26,7 @@ import django
 django.setup()
 
 # ── Imports ──────────────────────────────────────────────────────────────
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import ConfigDict
 
@@ -672,30 +672,55 @@ scripts_mcp = _create_mcp_instance(
 )
 
 
-# ── Dynamic Tool Registration on Startup ──────────────────────────────────
+# ── Dynamic Tool Registration ─────────────────────────────────────────────
 
-# Register all MCP-exposed scripts as individual tools on scripts_mcp
-# Note: This is called lazily to avoid database access during import/tests
-def _maybe_register_dynamic_tools():
-    """Register dynamic tools if Django is ready and database is available."""
+def _ensure_dynamic_tools_registered() -> None:
+    """Sync in-memory MCP tools with scripts that have expose_to_mcp=True.
+
+    Registration at import time can fail silently when the database is not
+    ready (migrations, collectstatic, etc.). This helper re-checks on ASGI
+    startup and on the first /mcp request so tools are not left empty.
+    """
     from django.db import connection
     from django.db.utils import OperationalError
-    
+
     try:
-        # Check if database is available and has the required tables
         connection.ensure_connection()
-        # Only register if tables exist (migration may not be run)
-        if Script.objects.exists() or True:  # Allow registration even with empty table
+        exposed_count = Script.objects.filter(expose_to_mcp=True).count()
+    except OperationalError as exc:
+        logger.debug("MCP tool registration skipped (database not ready): %s", exc)
+        return
+    except Exception as exc:
+        logger.warning("MCP tool registration check failed: %s", exc)
+        return
+
+    registered_count = len(_registered_dynamic_tool_names)
+
+    if exposed_count == 0:
+        if registered_count > 0:
+            logger.info("No MCP-exposed scripts in database; clearing %d registered tools", registered_count)
             _rebuild_dynamic_tools()
-    except (OperationalError, Exception):
-        # Database not ready (tests, migrations, etc.) - skip registration
-        pass
+        return
+
+    if registered_count != exposed_count:
+        logger.info(
+            "MCP tool registry out of sync (registered=%d, exposed_in_db=%d); rebuilding",
+            registered_count,
+            exposed_count,
+        )
+        _rebuild_dynamic_tools()
+
+
+def _maybe_register_dynamic_tools() -> None:
+    """Best-effort registration during module import (may run before DB is ready)."""
+    _ensure_dynamic_tools_registered()
+
 
 # Register on startup for production, but gracefully handle when DB isn't ready
 try:
     _maybe_register_dynamic_tools()
-except Exception:
-    pass
+except Exception as exc:
+    logger.warning("Initial MCP tool registration failed: %s", exc)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1831,29 +1856,19 @@ def create_mcp_asgi_app(mcp_instance: FastMCP = None) -> "Starlette":
 
     app = mcp_instance.streamable_http_app()
     sm = mcp_instance.session_manager
+    sync_tools_on_request = mcp_instance is scripts_mcp
+    _original_app = app
 
-    if sm._task_group is None:
-        async def _enter_run():
-            # Enter the session manager's run() context and keep it alive
-            async with sm.run():
-                # Sleep forever so the task group stays active
-                await anyio.sleep_forever()
+    async def _handle_request(scope, receive, send):
+        if sync_tools_on_request and scope.get("type") == "http":
+            _ensure_dynamic_tools_registered()
+        if sm._task_group is None or not hasattr(sm._task_group, "start"):
+            tg = anyio.create_task_group()
+            await tg.__aenter__()
+            sm._task_group = tg
+        await _original_app(scope, receive, send)
 
-        # Kick off the background task in the default event loop (Daphne's loop)
-        # This must run in the same event loop Daphne uses.
-        _original_app = app
-
-        async def _lazy_init(scope, receive, send):
-            if sm._task_group is None or not hasattr(sm._task_group, 'start'):
-                # First request – initialise the task group
-                tg = anyio.create_task_group()
-                await tg.__aenter__()
-                sm._task_group = tg
-            await _original_app(scope, receive, send)
-
-        return _lazy_init  # type: ignore[return-value]
-
-    return app
+    return _handle_request  # type: ignore[return-value]
 
 
 # ── Auto-refresh MCP tools when scripts change ──────────────────────────

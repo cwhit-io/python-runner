@@ -153,6 +153,12 @@ def script_toggle_mcp(request, script_id):
     script.expose_to_mcp = expose_to_mcp
     script.save()
 
+    try:
+        from app.mcp_server import _rebuild_dynamic_tools
+        _rebuild_dynamic_tools()
+    except Exception:
+        pass
+
     return JsonResponse({"success": True})
 
 
